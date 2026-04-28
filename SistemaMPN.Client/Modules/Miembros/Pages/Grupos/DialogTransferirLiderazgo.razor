@@ -1,0 +1,159 @@
+﻿@using SistemaMPN.Shared.DTO
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.SwapHoriz" Color="Color.Warning" />
+            <MudText Typo="Typo.h6">Transferir Liderazgo del Grupo</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="4">
+            <MudText Typo="Typo.body1">
+                Selecciona el miembro que será el nuevo líder del grupo:
+            </MudText>
+
+            @if (!MiembrosDisponibles.Any())
+            {
+                <MudAlert Severity="Severity.Error">
+                    <MudStack Spacing="2">
+                        <MudText Typo="Typo.subtitle2">
+                            No hay miembros disponibles
+                        </MudText>
+                        <MudText Typo="Typo.body2">
+                            Ningún miembro del grupo cumple con los requisitos para ser líder:
+                        </MudText>
+                        <MudList T="string" Dense="true" DisablePadding="true">
+                            <MudListItem>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                    <MudIcon Icon="@Icons.Material.Filled.Circle" Size="Size.Small" Color="Color.Info" />
+                                    <MudText>Tener un usuario en el sistema</MudText>
+                                </MudStack>
+                            </MudListItem>
+                            <MudListItem>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                    <MudIcon Icon="@Icons.Material.Filled.Circle" Size="Size.Small" Color="Color.Success" />
+                                    <MudText>Tener el rol de 'Líder' asignado</MudText>
+                                </MudStack>
+                            </MudListItem>
+                            <MudListItem>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                    <MudIcon Icon="@Icons.Material.Filled.Circle" Size="Size.Small" Color="Color.Warning" />
+                                    <MudText>No ser líder de otro grupo</MudText>
+                                </MudStack>
+                            </MudListItem>
+                        </MudList>
+                    </MudStack>
+                </MudAlert>
+            }
+            else
+            {
+                <MudSelect @bind-Value="idMiembroSeleccionado"
+                           Label="Nuevo Líder"
+                           Variant="Variant.Outlined"
+                           Required="true"
+                           T="int?">
+                    @foreach (var miembro in MiembrosDisponibles)
+                    {
+                        <MudSelectItem Value="@((int?)miembro.id_miembro)">
+                            @miembro.nombre_completo - @miembro.ocupacion
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+
+                <MudAlert Severity="Severity.Warning">
+                    <MudStack Row="true" AlignItems="AlignItems.Start" Spacing="2">
+                        <MudText Typo="Typo.body2">
+                            <strong>Importante:</strong> Esta acción transferirá todos los privilegios de liderazgo al miembro seleccionado.
+                            El líder actual pasará a ser un miembro regular del grupo.
+                        </MudText>
+                    </MudStack>
+                </MudAlert>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancelar" 
+                   Color="Color.Default" 
+                   Variant="Variant.Outlined">
+            Cancelar
+        </MudButton>
+        <MudButton OnClick="Transferir"
+                   Color="Color.Warning"
+                   Variant="Variant.Filled"
+                   Disabled="@(transfiriendo || !idMiembroSeleccionado.HasValue || !MiembrosDisponibles.Any())"
+                   StartIcon="@(transfiriendo ? null : Icons.Material.Filled.SwapHoriz)">
+            @if (transfiriendo)
+            {
+                <MudProgressCircular Class="me-2" Size="Size.Small" Indeterminate="true" />
+                <MudText>Transfiriendo</MudText>
+            }
+            else
+            {
+                <MudText>Transferir Liderazgo</MudText>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; }
+
+    [Parameter] public int IdGrupo { get; set; }
+    [Parameter] public List<InfoMiembroGrupoDTO> MiembrosDisponibles { get; set; } = new();
+
+    [Inject] private HttpClient Http { get; set; }
+    [Inject] private IDialogService DialogService { get; set; }
+    [Inject] private ISnackbar Snackbar { get; set; }
+
+    private int? idMiembroSeleccionado;
+    private bool transfiriendo = false;
+
+    private async Task Transferir()
+    {
+        if (!idMiembroSeleccionado.HasValue) return;
+
+        transfiriendo = true;
+        StateHasChanged();
+
+        try
+        {
+            var response = await Http.PutAsync($"api/grupo/TransferirLiderazgo/{IdGrupo}/{idMiembroSeleccionado.Value}", null);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Liderazgo transferido exitosamente.", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+
+                await DialogService.ShowMessageBox(
+                    "Error al transferir",
+                    errorContent,
+                    yesText: "Entendido");
+
+                MudDialog.Cancel();
+            }
+        }
+        catch (Exception ex)
+        {
+            await DialogService.ShowMessageBox(
+                "Error",
+                $"Ocurrió un error: {ex.Message}",
+                yesText: "Entendido");
+
+            MudDialog.Cancel();
+        }
+        finally
+        {
+            transfiriendo = false;
+        }
+    }
+
+    private void Cancelar()
+    {
+        MudDialog.Cancel();
+    }
+}

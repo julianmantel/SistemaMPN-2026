@@ -1,0 +1,523 @@
+/* ==================== DISE�O SYSTEM MPN ==================== */
+/* Variables de color coherentes con la identidad visual del proyecto */
+
+:root {
+    /* Colores base del dise�o */
+    --color-fondo: #c8d2ed;
+    --color-primario: #1E3A8A;
+    --color-detalles: #DC2626;
+    --color-surfaces: #b8c3de;
+    --color-bordes: #E5E7EB;
+    --color-background-secondary: #6B7280;
+    /* Colores de texto */
+    --color-texto-oscuro: #111827;
+    --color-texto-claro: #FFFFFF;
+    /* Colores de estado */
+    --color-exito: #10B981;
+    --color-error: #EF4444;
+    --color-advertencia: #F59E0B;
+    --color-info: #3B82F6;
+    /* Colores para interacciones */
+    --color-link: #1E3A8A;
+    --color-link-hover: #DC2626;
+    --color-enfoque: #3B82F6;
+
+    /* ==================== NUEVO: Colores Hover Mejorados ==================== */
+    --color-hover-suave: rgba(30, 58, 138, 0.12); /* Para fondos surfaces (#b8c3de) */
+    --color-hover-medio: rgba(30, 58, 138, 0.15); /* Para fondos blancos (#FFFFFF) */
+    --color-hover-fuerte: rgba(30, 58, 138, 0.20); /* Para �nfasis mayor */
+
+    /* Elevaci�n/Sombras */
+    --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    
+    /* SOBRESCRITURA MUDBLAZOR - Usar nuestro color primario */
+    --mud-palette-primary: #1E3A8A !important;
+    --mud-palette-primary-rgb: 30, 58, 138 !important;
+    --mud-palette-primary-text: #FFFFFF !important;
+}
+
+html, body {
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    background-color: var(--color-fondo);
+    color: var(--color-texto-oscuro);
+    margin: 0;
+    padding: 0;
+}
+
+/* ==================== MUDBLAZOR GLOBAL TEXT FIXES ==================== */
+/* Forzar texto negro en todos los componentes MudBlazor */
+
+/* Inputs y textfields */
+.mud-input,
+.mud-input-slot input,
+.mud-textfield-root,
+.mud-text-field {
+    color: var(--color-texto-oscuro) !important;
+}
+
+.mud-input-slot input::placeholder {
+    color: var(--color-background-secondary) !important;
+    opacity: 0.7;
+}
+
+/* Labels */
+.mud-form-label,
+label {
+    color: var(--color-texto-oscuro) !important;
+}
+
+/* Alert y alerts */
+.mud-alert-content {
+    color: var(--color-texto-oscuro) !important;
+}
+
+/* ==================== FONDO PRIMARIO - TEXTO BLANCO ==================== */
+/* Cuando el fondo es primario, el texto debe ser blanco */
+
+.bg-gradient-primary,
+.mud-paper[style*="background-color: var(--color-primario)"],
+.mud-paper[style*="background: linear-gradient(135deg, var(--color-primario)"],
+[style*="background: linear-gradient(135deg, var(--color-primario)"] {
+    color: var(--color-texto-claro) !important;
+}
+
+/* AppBar - Asegurar texto blanco */
+.mud-appbar {
+    color: var(--color-texto-claro) !important;
+}
+
+.mud-appbar .mud-text,
+.mud-appbar .mud-typography,
+.mud-appbar .mud-typography-h5,
+.mud-appbar {
+    color: var(--color-texto-claro);
+}
+
+/* Espec�fico para MudText directo con color heredado */
+[style*="background-color: var(--color-primario)"] > * > .mud-text,
+[style*="background: linear-gradient(135deg, var(--color-primario)"] > * > .mud-text {
+    color: var(--color-texto-claro);
+}
+
+a, .btn-link {
+    color: var(--color-primario);
+}
+
+.btn-primary {
+    color: var(--color-texto-claro);
+    background-color: var(--color-primario);
+    border-color: var(--color-primario);
+}
+
+.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
+    box-shadow: 0 0 0 0.1rem var(--color-fondo), 0 0 0 0.25rem var(--color-enfoque);
+}
+
+.content {
+    padding-top: 1.1rem;
+}
+
+h1:focus {
+    outline: none;
+}
+
+.valid.modified:not([type=checkbox]) {
+    outline: 1px solid var(--color-exito);
+}
+
+.invalid {
+    outline: 1px solid var(--color-error);
+}
+
+.validation-message {
+    color: var(--color-error);
+}
+
+.blazor-error-boundary {
+    background: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTYiIGhlaWdodD0iNDkiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyIgeG1sbnM6eGxpbms9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGxpbmsiIG92ZXJmbG93PSJoaWRkZW4iPjxkZWZzPjxjbGlwUGF0aCBpZD0iY2xpcDAiPjxyZWN0IHg9IjIzNSIgeT0iNTEiIHdpZHRoPSI1NiIgaGVpZ2h0PSI0OSIvPjwvY2xpcFBhdGg+PC9kZWZzPjxnIGNsaXAtcGF0aD0idXJsKCNjbGlwMCkiIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0yMzUgLTUxKSI+PHBhdGggZD0iTTI2My41MDYgNTFDMjY0LjcxNyA1MSAyNjUuODEzIDUxLjQ4MzcgMjY2LjYwNiA1Mi4yNjU4TDI2Ny4wNTIgNTIuNzk4NyAyNjcuNTM5IDUzLjYyODMgMjkwLjE4NSA5Mi4xODMxIDI5MC41NDUgOTIuNzk1IDI5MC42NTYgOTIuOTk2QzI5MC44NzcgOTMuNTEzIDI5MSA5NC4wODE1IDI5MSA5NC42NzgyIDI5MSA5Ny4wNjUxIDI4OS4wMzggOTkgMjg2LjYxNyA5OUwyNDAuMzgzIDk5QzIzNy45NjMgOTkgMjM2IDk3LjA2NTEgMjM2IDk0LjY3ODIgMjM2IDk0LjM3OTkgMjM2LjAzMSA5NC4wODg2IDIzNi4wODkgOTMuODA3MkwyMzYuMzM4IDkzLjAxNjIgMjM2Ljg1OCA5Mi4xMzE0IDI1OS40NzMgNTMuNjI5NCAyNTkuOTYxIDUyLjc5ODUgMjYwLjQwNyA1Mi4yNjU4QzI2MS4yIDUxLjQ4MzcgMjYyLjI5NiA1MSAyNjMuNTA2IDUxWk0yNjMuNTg2IDY2LjAxODNDMjYwLjczNyA2Ni4wMTgzIDI1OS4zMTMgNjcuMTI0NSAyNTkuMzEzIDY5LjMzNyAyNTkuMzEzIDY5LjYxMDIgMjU5LjMzMiA2OS44NjA4IDI1OS4zNzEgNzAuMDg4N0wyNjEuNzk1IDg0LjAxNjEgMjY1LjM4IDg0LjAxNjEgMjY3LjgyMSA2OS43NDc1QzI2Ny44NiA2OS43MzA5IDI2Ny44NzkgNjkuNTg3NyAyNjcuODc5IDY5LjMxNzkgMjY3Ljg3OSA2Ny4xMTgyIDI2Ni40NDggNjYuMDE4MyAyNjMuNTg2IDY2LjAxODNaTTI2My41NzYgODYuMDU0N0MyNjEuMDQ5IDg2LjA1NDcgMjU5Ljc4NiA4Ny4zMDA1IDI1OS43ODYgODkuNzkyMSAyNTkuNzg2IDkyLjI4MzcgMjYxLjA0OSA5My41Mjk1IDI2My41NzYgOTMuNTI5NSAyNjYuMTE2IDkzLjUyOTUgMjY3LjM4NyA5Mi4yODM3IDI2Ny4zODcgODkuNzkyMSAyNjcuMzg3IDg3LjMwMDUgMjY2LjExNiA4Ni4wNTQ3IDI2My41NzYgODYuMDU0N1oiIGZpbGw9IiNGRkU1MDAiIGZpbGwtcnVsZT0iZXZlbm9kZCIvPjwvZz48L3N2Zz4=) no-repeat 1rem/1.8rem, var(--color-error);
+    padding: 1rem 1rem 1rem 3.7rem;
+    color: var(--color-texto-claro);
+}
+
+.blazor-error-boundary::after {
+    content: "An error has occurred."
+}
+
+.darker-border-checkbox.form-check-input {
+    border-color: var(--color-bordes);
+}
+
+.gray-background {
+    background-color: lightgrey;
+}
+
+/* ==================== ESTILOS MUDBLAZOR ==================== */
+/* Forzar colores de MudBlazor a usar la paleta personalizada */
+
+
+.mud-layout {
+    background-color: var(--color-fondo) !important;
+}
+
+.mud-main-content {
+    background-color: var(--color-fondo) !important;
+    color: var(--color-texto-oscuro) !important;
+}
+
+.mud-drawer {
+    background-color: var(--color-surfaces) !important;
+}
+
+.mud-drawer .mud-nav-link {
+    color: var(--color-texto-oscuro) !important;
+}
+
+.mud-list {
+    background-color: transparent !important;
+    color: var(--color-texto-oscuro) !important;
+}
+
+.mud-list-item {
+    color: var(--color-texto-oscuro) !important;
+}
+
+.mud-table-head {
+    background-color: var(--color-primario) !important;
+}
+
+.mud-table-head th {
+    color: var(--color-texto-claro) !important;
+    font-weight: 600;
+}
+
+/* ==================== COMPONENTES ADICIONALES ==================== */
+/* Estilos para gradientes y transiciones suaves */
+
+.mud-paper-rounded {
+    border-radius: 12px !important;
+}
+
+.mud-elevation-raised {
+    box-shadow: var(--shadow-md) !important;
+}
+
+.mud-elevation-floating {
+    box-shadow: var(--shadow-lg) !important;
+}
+
+/* Divisores y separadores */
+.mud-divider {
+    border-top-color: var(--color-bordes) !important;
+}
+
+
+.mud-expand-panel-header:hover {
+    background-color: var(--color-hover-suave) !important;
+}
+
+/* Tabs */
+.mud-tabs .mud-tab {
+    color: var(--color-texto-claro) !important;
+}
+.mud-tabs .mud-tab.mud-tab-active {
+    color: var(--color-surfaces) !important;
+}
+
+.mud-tabs .mud-tab-underline {
+    background-color: var(--color-primario) !important;
+}
+.mud-tabs .mud-tab:hover {
+    background-color: var(--color-hover-medio) !important;
+}
+.mud-tabs-panels {
+    background-color: var(--color-texto-claro) !important;
+}
+
+/* Scrollbars (webkit) */
+::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-bordes);
+}
+
+/* Transitions y animaciones suaves */
+* {
+    transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+/* ==================== ROUNDED CONTAINERS ==================== */
+/* Estilos para contenedores con bordes redondeados */
+
+.rounded-lg {
+    border-radius: 12px;
+}
+
+.rounded-xl {
+    border-radius: 16px;
+}
+
+/* ==================== TEXT UTILITIES ==================== */
+/* Utilitarios para texto */
+
+.text-muted {
+    color: var(--color-background-secondary) !important;
+    opacity: 0.8;
+}
+
+.text-sm {
+    font-size: 0.875rem;
+}
+
+/* ==================== CARD ENHANCEMENTS ==================== */
+/* Mejoras para tarjetas */
+
+.mud-card {
+    border-radius: 12px !important;
+}
+
+.card-hover:hover {
+    box-shadow: var(--shadow-lg) !important;
+    transform: translateY(-2px);
+}
+
+/* ==================== GRADIENT BACKGROUNDS ==================== */
+/* Fondos con gradientes */
+
+.bg-gradient-primary {
+    background: linear-gradient(135deg, var(--color-primario) 0%, rgba(30, 58, 138, 0.8) 100%) !important;
+}
+
+.bg-gradient-surfaces {
+    background: linear-gradient(135deg, var(--color-surfaces) 0%, var(--color-fondo) 100%) !important;
+}
+
+/* ==================== SECTION HEADERS ==================== */
+/* Encabezados de secci�n */
+
+.section-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-weight: 600;
+    color: var(--color-primario);
+    font-size: 1.25rem;
+    margin-bottom: 0.5rem;
+}
+
+.section-header::before {
+    content: '';
+    display: block;
+    width: 4px;
+    height: 24px;
+    background-color: var(--color-detalles);
+    border-radius: 2px;
+}
+
+/* ==================== BUTTON GROUPS ==================== */
+/* Grupos de botones */
+
+.button-group {
+    justify-content: space-between;
+    margin-top: 20px;
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.button-group button {
+    flex: 1;
+    min-width: 120px;
+}
+
+/* ==================== LOADING STATES ==================== */
+/* Estados de carga */
+
+.loading-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 200px;
+}
+
+.loading-spinner {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* ==================== EMPTY STATES ==================== */
+/* Estados vac�os */
+
+.empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--color-background-secondary);
+}
+
+.empty-state-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.6;
+}
+
+/* ==================== BADGE ENHANCEMENTS ==================== */
+/* Mejoras de badges */
+
+.mud-badge {
+    border-radius: 12px !important;
+    font-weight: 500;
+}
+
+.badge-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 0.5rem;
+}
+
+/* ==================== FORM ENHANCEMENTS ==================== */
+/* Mejoras de formularios */
+
+.form-container {
+    border-radius: 12px;
+    padding: 1.5rem;
+    border: 1px solid var(--color-bordes);
+}
+
+.form-group {
+    margin-bottom: 1.5rem;
+}
+
+.form-group:last-child {
+    margin-bottom: 0;
+}
+
+/* ==================== SPACING UTILITIES ==================== */
+/* Utilidades de espaciado */
+
+.gap-xs {
+    gap: 0.25rem;
+}
+
+.gap-sm {
+    gap: 0.5rem;
+}
+
+.gap-md {
+    gap: 1rem;
+}
+
+.gap-lg {
+    gap: 1.5rem;
+}
+
+.gap-xl {
+    gap: 2rem;
+}
+
+.m-0 {
+    margin: 0 !important;
+}
+
+.p-0 {
+    padding: 0 !important;
+}
+
+/* ==================== BORDER STYLES ==================== */
+/* Estilos de bordes */
+
+.border-dashed {
+    border-style: dashed !important;
+}
+
+.border-primary {
+    border-color: var(--color-primario) !important;
+}
+
+.border-detalles {
+    border-color: var(--color-detalles) !important;
+}
+
+/* ==================== HOVER EFFECTS ==================== */
+/* Efectos hover */
+
+.hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg) !important;
+}
+
+.hover-scale:hover {
+    transform: scale(1.02);
+}
+
+.hover-grow:hover {
+    transform: scale(1.05);
+}
+
+
+/* ==================== Clases personalizadas ==================== */
+
+.botton-azul-oscuro {
+    background-color: var(--color-primario) !important;
+    color: var(--color-texto-claro) !important
+}
+
+    .botton-azul-oscuro :disabled {
+        background-color: grey !important;
+        color: var(--color-texto-oscuro) !important
+    }
+
+.mud-calendar .mud-button {
+    background-color: var(--color-primario) !important;
+    color: var(--color-texto-claro) !important
+}
+
+
+/* Botones del toolbar del calendario */
+.mud-calendar .mud-toolbar {
+    color: var(--color-primario) !important;
+}
+
+/* ==================== CALENDARIO - DATE PICKER ==================== */
+/* Estilos personalizados para el date picker del calendario */
+
+/* Cambiar color del header del date picker a --color-primario */
+.mud-picker-toolbar.mud-picker-datepicker-toolbar.mud-theme-primary {
+    background-color: var(--color-primario) !important;
+}
+
+.mud-picker-toolbar.mud-picker-datepicker-toolbar.mud-theme-primary .mud-button,
+.mud-picker-toolbar.mud-picker-datepicker-toolbar.mud-theme-primary .mud-typography-h6,
+.mud-picker-toolbar.mud-picker-datepicker-toolbar.mud-theme-primary .mud-icon-button,
+.mud-picker-toolbar.mud-picker-datepicker-toolbar.mud-theme-primary .mud-typography-subtitle1,
+.mud-picker-toolbar.mud-picker-datepicker-toolbar.mud-theme-primary .mud-typography-body1,
+.mud-picker-toolbar.mud-picker-datepicker-toolbar.mud-theme-primary .mud-typography-caption {
+    color: var(--color-texto-claro) !important;
+}
+
+/* Selector de vista (Month/Week/Day) - items de la lista */
+.mud-popover.mud-button-popover .mud-list-item {
+    color: var(--color-primario) !important;
+}
+
+.mud-popover.mud-button-popover .mud-list-item:hover {
+    background-color: rgba(0, 0, 0, 0.04) !important;
+}
+
+.mud-popover.mud-button-popover .mud-list-item.mud-selected {
+    background-color: var(--color-primario) !important;
+    color: var(--color-texto-claro) !important;
+}

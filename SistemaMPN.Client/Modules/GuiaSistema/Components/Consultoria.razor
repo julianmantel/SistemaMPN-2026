@@ -1,0 +1,280 @@
+@inject NavigationManager Navigation
+
+<MudCard Class="mt-4">
+    <MudCardContent>
+        <MudStack Spacing="4">
+            <MudText Typo="Typo.h5">
+                <MudIcon Icon="@Icons.Material.Filled.BusinessCenter" Class="mr-2" Style="color: var(--color-primario);" />
+                Módulo de Consultoría
+            </MudText>
+            <MudText Typo="Typo.body1">
+                Este módulo permite gestionar reuniones de consultoría, agendar citas con miembros, 
+                registrar notas y hacer seguimiento de cada encuentro. Los líderes pueden solicitar 
+                reuniones y los consultores las gestionan.
+            </MudText>
+
+            <MudDivider />
+
+            <MudExpansionPanels MultiExpansion="true">
+                <MudExpansionPanel Text="Dashboard del Módulo" Icon="@Icons.Material.Filled.Dashboard">
+                    <MudList ReadOnly="true" T="string" Clickable="true">
+                        <MudListItem Icon="@Icons.Material.Filled.Numbers">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 1:</strong> Accede al módulo de Consultoría desde el menú lateral</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.People">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 2:</strong> Verás las opciones según tu rol (Líder o Consultor/Auditor)</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.TouchApp">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Líderes:</strong> Ven "Solicitar Reunión" para pedir citas para su equipo</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.AdminPanelSettings">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Consultores:</strong> Ven "Gestionar Reuniones" para administrar todas las citas</MudText>
+                            </MudStack>
+                        </MudListItem>
+                    </MudList>
+                </MudExpansionPanel>
+
+                <MudExpansionPanel Text="Ver y Gestionar Reuniones" Icon="@Icons.Material.Filled.EventNote">
+                    <MudList ReadOnly="true" T="string" Clickable="true">
+                        <MudListItem Icon="@Icons.Material.Filled.Numbers">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 1:</strong> Ve a Consultoría > Gestionar Reuniones</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.ViewList">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 2:</strong> Verás una tabla con: Fecha, Miembro, Consultor, Estado y Acciones</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.ColorLens">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Estados:</strong> Programada (azul), Completada (verde), Suspendida (rojo), En Proceso (amarillo)</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Pages">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 3:</strong> Usa la paginación para ver más reuniones (10 por página)</MudText>
+                            </MudStack>
+                        </MudListItem>
+                    </MudList>
+                </MudExpansionPanel>
+
+                <MudExpansionPanel Text="Agendar Nueva Reunión" Icon="@Icons.Material.Filled.AddTask">
+                    <MudList ReadOnly="true" T="string" Clickable="true">
+                        <MudListItem Icon="@Icons.Material.Filled.Numbers">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 1:</strong> Ve a Consultoría > Agendar Reunión</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.CalendarToday">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 2:</strong> Selecciona la fecha de la reunión (no puede ser anterior a hoy)</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Schedule">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 3:</strong> Define la hora (por defecto es 10:00 AM)</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Person">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 4:</strong> Busca y selecciona al miembro que atenderás</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Description">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 5:</strong> Opcionalmente agrega el motivo de la reunión</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Email">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 6:</strong> Ingresa el correo del miembro para recibir notificaciones</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Save">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 7:</strong> Guarda la reunión (se enviará un correo de confirmación)</MudText>
+                            </MudStack>
+                        </MudListItem>
+                    </MudList>
+                </MudExpansionPanel>
+
+                <MudExpansionPanel Text="Completar una Reunión" Icon="@Icons.Material.Filled.CheckCircle">
+                    <MudList ReadOnly="true" T="string" Clickable="true">
+                        <MudListItem Icon="@Icons.Material.Filled.Numbers">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 1:</strong> Ve a Gestionar Reuniones y busca la reunión</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Search">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 2:</strong> Identifica reuniones con estado "Programada" o "En Proceso"</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.TouchApp">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 3:</strong> Haz clic en el botón "Completar" (solo consultores)</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Info">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Nota:</strong> Al completar, ya no podrás agregar más notas</MudText>
+                            </MudStack>
+                        </MudListItem>
+                    </MudList>
+                </MudExpansionPanel>
+
+                <MudExpansionPanel Text="Suspender una Reunión" Icon="@Icons.Material.Filled.Cancel">
+                    <MudList ReadOnly="true" T="string" Clickable="true">
+                        <MudListItem Icon="@Icons.Material.Filled.Numbers">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 1:</strong> Ve a Gestionar Reuniones</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Search">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 2:</strong> Busca una reunión que no esté completada o suspendida</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Block">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 3:</strong> Haz clic en "Suspender" para cancelarla</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Email">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 4:</strong> Se enviará un correo de notificación al miembro</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Info">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Nota:</strong> Una vez suspendida no se puede reactivar</MudText>
+                            </MudStack>
+                        </MudListItem>
+                    </MudList>
+                </MudExpansionPanel>
+
+                <MudExpansionPanel Text="Agregar Notas a una Reunión" Icon="@Icons.Material.Filled.NoteAdd">
+                    <MudList ReadOnly="true" T="string" Clickable="true">
+                        <MudListItem Icon="@Icons.Material.Filled.Numbers">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 1:</strong> Ve a Gestionar Reuniones y haz clic en "Ver Notas"</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Visibility">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 2:</strong> Verás el encabezado con fecha, motivo y estado de la reunión</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.GridView">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 3:</strong> Las notas se muestran como tarjetas en una cuadrícula</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Add">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 4:</strong> Haz clic en "Nueva Nota" para agregar (solo consultores)</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Comment">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 5:</strong> Escribe los comentarios en el diálogo y guarda</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Delete">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 6:</strong> Puedes eliminar notas con el icono de basura</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Lock">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Restricción:</strong> No se pueden agregar/eliminar notas de reuniones Completadas o Suspendidas</MudText>
+                            </MudStack>
+                        </MudListItem>
+                    </MudList>
+                </MudExpansionPanel>
+
+                <MudExpansionPanel Text="Solicitar Reunión (Para Líderes)" Icon="@Icons.Material.Filled.PersonAdd">
+                    <MudList ReadOnly="true" T="string" Clickable="true">
+                        <MudListItem Icon="@Icons.Material.Filled.Numbers">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 1:</strong> Desde el Dashboard de Consultoría, haz clic en "Solicitar Reunión"</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Person">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 2:</strong> Selecciona al miembro de tu equipo</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.CalendarToday">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 3:</strong> Indica tu fecha preferida (debe ser hoy o posterior)</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Email">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 4:</strong> Ingresa el correo electrónico del miembro</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Description">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 5:</strong> Describe el motivo de la reunión (obligatorio)</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Send">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 6:</strong> Envía la solicitud (se crea una petición pendiente)</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Info">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Nota:</strong> La petición aparece en "Peticiones" para ser aprobada por consultores</MudText>
+                            </MudStack>
+                        </MudListItem>
+                    </MudList>
+                </MudExpansionPanel>
+
+                <MudExpansionPanel Text="Roles y Permisos" Icon="@Icons.Material.Filled.AdminPanelSettings">
+                    <MudList ReadOnly="true" T="string" Clickable="true">
+                        <MudListItem Icon="@Icons.Material.Filled.Person">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Admin:</strong> Acceso completo a todas las funciones</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Business">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Consultor:</strong> Crear reuniones, agregar/eliminar notas, completar/suspender reuniones</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Visibility">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Auditor:</strong> Solo puede ver reuniones y notas (solo lectura)</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Groups">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Líder:</strong> Solo puede solicitar reuniones (no tiene acceso al listado)</MudText>
+                            </MudStack>
+                        </MudListItem>
+                    </MudList>
+                </MudExpansionPanel>
+            </MudExpansionPanels>
+
+            <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-4">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.ArrowForward"
+                           OnClick="@(() => Navigation.NavigateTo("/consultoria/"))">
+                    Ir al Módulo Consultoría
+                </MudButton>
+            </MudStack>
+        </MudStack>
+    </MudCardContent>
+</MudCard>

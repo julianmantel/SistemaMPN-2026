@@ -1,0 +1,153 @@
+﻿@using Microsoft.AspNetCore.Components
+@inject HttpClient Http
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<MudDialog MaxWidth="MaxWidth.Large" FullWidth="true">
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.PictureAsPdf" Color="Color.Error" />
+            <MudText Typo="Typo.h6">Visor de Documento</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        @if (cargando)
+        {
+            <MudStack Spacing="3" Justify="Justify.Center" AlignItems="AlignItems.Center" Class="py-8">
+                <MudProgressCircular Size="Size.Large" Indeterminate="true" Color="Color.Primary" />
+                <MudText Typo="Typo.body1" Color="Color.Secondary">Cargando documento...</MudText>
+            </MudStack>
+        }
+        else if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <MudAlert Severity="Severity.Error">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.Error" Size="Size.Small" />
+                    <MudText>@errorMessage</MudText>
+                </MudStack>
+            </MudAlert>
+        }
+        else
+        {
+            <MudPaper Elevation="0" Class="rounded-lg" Style="border: 1px solid var(--mud-palette-divider); overflow: hidden;">
+                <iframe src="@pdfBlobUrl"
+                        style="width: 100%; height: 70vh; border: none;"
+                        title="Visor de PDF">
+                </iframe>
+            </MudPaper>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Outlined"
+                   StartIcon="@Icons.Material.Filled.Download"
+                   OnClick="Descargar"
+                   Disabled="@cargando">
+            Descargar
+        </MudButton>
+        <MudButton Color="Color.Default"
+                   Variant="Variant.Outlined"
+                   StartIcon="@Icons.Material.Filled.Close"
+                   OnClick="Cerrar">
+            Cerrar
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public int DocumentoId { get; set; }
+
+    private string pdfBlobUrl = "";
+    private bool cargando = true;
+    private string errorMessage = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarPdf();
+    }
+
+    private async Task CargarPdf()
+    {
+        try
+        {
+            cargando = true;
+
+            // Usar HttpClient que ya tiene la autenticación configurada
+            var response = await Http.GetAsync($"api/documento/VerDocumento/{DocumentoId}");
+
+            if (!response.IsSuccessStatusCode)
+            {
+                errorMessage = response.StatusCode switch
+                {
+                    System.Net.HttpStatusCode.Unauthorized => "No tiene permisos para ver este documento",
+                    System.Net.HttpStatusCode.NotFound => "Documento no encontrado",
+                    _ => $"Error al cargar el documento: {response.StatusCode}"
+                };
+                return;
+            }
+
+            // Obtener los bytes del PDF
+            var pdfBytes = await response.Content.ReadAsByteArrayAsync();
+
+            // Crear un Blob URL usando JavaScript
+            pdfBlobUrl = await JS.InvokeAsync<string>("createBlobUrl", pdfBytes, "application/pdf");
+
+            if (string.IsNullOrEmpty(pdfBlobUrl))
+            {
+                errorMessage = "Error al crear el visor del documento";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al cargar el documento: {ex.Message}";
+            Snackbar.Add(errorMessage, Severity.Error);
+            Console.WriteLine($"Error completo: {ex}");
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task Descargar()
+    {
+        try
+        {
+            if (string.IsNullOrEmpty(pdfBlobUrl))
+            {
+                Snackbar.Add("No hay documento disponible para descargar", Severity.Warning);
+                return;
+            }
+
+            var nombreArchivo = $"documento_{DocumentoId}.pdf";
+            await JS.InvokeVoidAsync("downloadBlob", pdfBlobUrl, nombreArchivo);
+            Snackbar.Add("Documento descargado correctamente", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al descargar: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task Cerrar()
+    {
+        // Liberar el Blob URL para evitar memory leaks
+        if (!string.IsNullOrEmpty(pdfBlobUrl))
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("liberarBlobUrl", pdfBlobUrl);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error al liberar blob URL: {ex.Message}");
+            }
+        }
+        MudDialog.Close();
+    }
+}

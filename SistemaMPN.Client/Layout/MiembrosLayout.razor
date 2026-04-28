@@ -1,0 +1,28 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@inherits MainLayout
+@inject NavigationManager Navigation
+
+<MainLayout DrawerOpenByDefault="true">
+    <NavigationContent>
+        <MudNavMenu>
+            <AuthorizeView roles="admin, gestor de miembros, lider, auditor">
+                <AuthorizeView roles="admin, gestor de miembros, auditor">
+                    <Authorized Context="auth">
+                        <MudNavLink Match="NavLinkMatch.All" Href="/miembros/" Icon="@Icons.Material.Filled.Home">Inicio</MudNavLink>
+                    </Authorized>
+                </AuthorizeView>
+                <MudNavLink Href="/miembros/listadoMiembros" Icon="@Icons.Material.Filled.Person">Miembros</MudNavLink>
+                <MudNavLink Href="/miembros/localizaciones/" Icon="@Icons.Material.Filled.Church">Celulas y C.O</MudNavLink>
+                <AuthorizeView roles="admin, gestor de miembros, auditor">
+                    <Authorized Context="auth">
+                        <MudNavLink Href="/miembros/grupos/" Icon="@Icons.Material.Filled.Group">Grupos</MudNavLink>
+                    </Authorized>
+                </AuthorizeView>
+            </AuthorizeView>
+            <MudNavLink Href="/home" Icon="@Icons.Material.Filled.ExitToApp">Volver</MudNavLink>
+        </MudNavMenu>
+    </NavigationContent>
+    <Body>
+        @Body
+    </Body>
+</MainLayout>

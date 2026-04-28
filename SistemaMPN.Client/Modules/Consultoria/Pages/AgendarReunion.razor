@@ -1,0 +1,321 @@
+﻿@page "/consultoria/agendarReunion"
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.WebUtilities
+@using SistemaMPN.Client.Pages
+@using SistemaMPN.Shared.DTO
+@using SistemaMPN.Shared.Models
+@using MudBlazor
+@using System.Text.Json
+
+@layout SistemaMPN.Client.Layout.ConsultoriaLayout
+
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Agendar Reunión</PageTitle>
+
+<AuthorizeView Roles="admin, consultor">
+    <Authorized>
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+            <!-- Header -->
+            <MudPaper Elevation="0" Class="pa-6 rounded-lg" Style="background: linear-gradient(135deg, var(--color-primario) 0%, rgba(30, 58, 138, 0.8) 100%);">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                    <MudIcon Icon="@Icons.Material.Filled.CalendarMonth"
+                            Size="Size.Large"
+                            Style="color: var(--color-texto-claro);" />
+                    <MudStack Spacing="0">
+                        <MudText Typo="Typo.h4" Style="color: var(--color-texto-claro);">
+                            Agendar Reunión
+                        </MudText>
+                        <MudText Typo="Typo.body2" Style="color: var(--color-texto-claro);">
+                            Programar una nueva reunión
+                        </MudText>
+                    </MudStack>
+                </MudStack>
+            </MudPaper>
+
+            
+            <!-- Formulario -->
+            <MudPaper Elevation="2" Class="pa-6 mt-6">
+                @if (cargando)
+                {
+                    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+                }
+                else if (!string.IsNullOrEmpty(mensajeError))
+                {
+                    <MudAlert Severity="Severity.Error">@mensajeError</MudAlert>
+                }
+                else
+                {
+                    <EditForm Model="@reunion" OnValidSubmit="@GuardarReunion" Context="formContext">
+                        <DataAnnotationsValidator />
+
+                        <MudGrid Spacing="3">
+                            <MudItem xs="12" md="6">
+                                <MudDatePicker Label="Fecha de Reunión"
+                                               @bind-Date="reunion.Fecha"
+                                               For="@(() => reunion.Fecha)"
+                                               MinDate="@DateTime.Today"
+                                               Variant="Variant.Outlined"
+                                               Required="true"
+                                               RequiredError="La fecha es obligatoria" />
+                            </MudItem>
+
+                            <MudItem xs="12" md="6">
+                                <MudTimePicker Label="Hora de Reunión"
+                                               @bind-Time="horaSeleccionada"
+                                               Variant="Variant.Outlined"
+                                               Required="true"
+                                               RequiredError="La hora es obligatoria"
+                                               Editable="true" />
+                            </MudItem>
+
+                            <MudItem xs="12">
+                                <MudSelect T="int"
+                                           Label="Miembro"
+                                           @bind-Value="reunion.IdMiembro"
+                                           For="@(() => reunion.IdMiembro)"
+                                           Variant="Variant.Outlined"
+                                           Required="true"
+                                           RequiredError="Debe seleccionar un miembro">
+                                    @foreach (var miembro in miembros)
+                                    {
+                                        <MudSelectItem Value="@miembro.id.Value">
+                                            @miembro.nombre_completo - DNI: @miembro.dni
+                                        </MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudItem>
+
+                            <MudItem xs="12">
+                                <MudTextField @bind-Value="reunion.Motivo"
+                                              For="@(() => reunion.Motivo)"
+                                              Label="Motivo de la Reunión"
+                                              Variant="Variant.Outlined"
+                                              Lines="3"
+                                              Required="false" />
+                            </MudItem>
+
+                            <MudItem xs="12">
+                                <MudTextField @bind-Value="reunion.Correo"
+                                              Label="Correo Electrónico"
+                                              For="@(() => reunion.Correo)"
+                                              Variant="Variant.Outlined"
+                                              InputType="InputType.Email"
+                                              HelperText="Para enviar notificaciones sobre la reunión" />
+                            </MudItem>
+
+                            <MudItem xs="12">
+                                <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+                                    <MudText Typo="Typo.body2">
+                                        <strong>Nota:</strong> La reunión se creará con estado "Programada" por defecto.
+                                        El consultor asignado será el usuario actual.
+                                    </MudText>
+                                </MudAlert>
+                            </MudItem>
+                        </MudGrid>
+
+                        <MudDivider Class="my-4" />
+
+                        <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="2">
+                            <MudButton Variant="Variant.Outlined"
+                                       OnClick="@Volver">
+                                Cancelar
+                            </MudButton>
+                            <MudButton Variant="Variant.Filled"
+                                       Color="Color.Success"
+                                       ButtonType="ButtonType.Submit"
+                                       Disabled="@guardando">
+                                @if (guardando)
+                                {
+                                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                                    <MudText Class="ms-2">Guardando...</MudText>
+                                }
+                                else
+                                {
+                                    <MudIcon Icon="@Icons.Material.Filled.Save" Class="mr-1" />
+                                    <MudText>Agendar Reunión</MudText>
+                                }
+                            </MudButton>
+                        </MudStack>
+                    </EditForm>
+                }
+            </MudPaper>
+        </MudContainer>
+    </Authorized>
+    <NotAuthorized>
+        <ReDirectToLogin />
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private ReunionDTO reunion = new();
+    private List<InfoMinimaMiembroDTO> miembros = new();
+    private DateTime? fechaSeleccionada = DateTime.Today;
+    private TimeSpan? horaSeleccionada = new TimeSpan(10, 0, 0); // 10:00 AM por defecto
+    private bool cargando = true;
+    private bool guardando = false;
+    private string? mensajeError;
+    private int consultorId;
+    private int? idPeticionPrevia;
+
+    [Inject] private NavigationManager NavigationManager { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await ObtenerConsultorId();
+        await CargarMiembros();
+        await CargarDatosPeticion();
+    }
+
+    private async Task CargarDatosPeticion()
+    {
+        var detalle = new PeticionReunionDetalleDTO();
+        var uri = new Uri(NavigationManager.Uri);
+        var query = QueryHelpers.ParseQuery(uri.Query);
+
+        if (query.TryGetValue("idPeticion", out var idStr) && int.TryParse(idStr, out var id))
+        {
+            detalle = await Http.GetFromJsonAsync<PeticionReunionDetalleDTO>($"api/peticion/GetPeticionDetalle/{id}") ?? new();
+            idPeticionPrevia = id;
+        }
+
+        if (detalle != null && detalle.Tipo == "Reunion")
+        {
+            reunion.IdMiembro = detalle.IdMiembro ?? 0;
+            reunion.Motivo = detalle.Motivo;
+            reunion.Correo = detalle.Correo;
+
+            if (detalle.FechaPreferida.HasValue)
+            {
+                reunion.Fecha = detalle.FechaPreferida.Value.ToDateTime(TimeOnly.MinValue);
+            }
+
+            Snackbar.Add("Datos precargados desde solicitud de reunión", Severity.Info);
+        }
+    }
+
+    private async Task ObtenerConsultorId()
+    {
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var userName = authState.User.Identity?.Name?.Trim();
+
+            if (string.IsNullOrEmpty(userName))
+            {
+                mensajeError = "No se pudo obtener el nombre de usuario";
+                return;
+            }
+
+            var response = await Http.GetAsync($"api/usuario/GetIdMiembroDelUsuario/{userName}");
+            if (!response.IsSuccessStatusCode)
+            {
+                mensajeError = "Error al obtener información del usuario";
+                return;
+            }
+
+            var result = await response.Content.ReadAsStringAsync();
+            if (!int.TryParse(result, out consultorId))
+            {
+                mensajeError = "Error al parsear el ID del consultor";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al obtener consultor: {ex.Message}";
+            Console.WriteLine(mensajeError);
+        }
+    }
+
+    private async Task CargarMiembros()
+    {
+        cargando = true;
+        mensajeError = null;
+
+        try
+        {
+            var response = await Http.GetAsync("api/miembros/GetInfoMinimaMiembro");
+
+            if (response.IsSuccessStatusCode)
+            {
+                miembros = await response.Content.ReadFromJsonAsync<List<InfoMinimaMiembroDTO>>() ?? new();
+            }
+            else
+            {
+                mensajeError = "Error al cargar la lista de miembros";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar miembros: {ex.Message}";
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task GuardarReunion()
+    {
+        guardando = true;
+
+        try
+        {
+            // Validar fecha y hora
+            if (!fechaSeleccionada.HasValue || !horaSeleccionada.HasValue)
+            {
+                Snackbar.Add("Debe seleccionar fecha y hora", Severity.Warning);
+                return;
+            }
+
+            if(reunion.Fecha.Value == DateTime.Today)
+            {
+                // Combinar fecha y hora
+                reunion.Fecha = fechaSeleccionada.Value.Date.Add(horaSeleccionada.Value);
+
+                // Validar que la fecha no sea en el pasado
+                if (DateTime.Compare(reunion.Fecha.Value, DateTime.Now) < 0)
+                {
+                    Snackbar.Add("Si selecciona el día de hoy, la hora debe ser posterior a la actual", Severity.Warning);
+                    return;
+                }
+            }
+
+            // Asignar consultor y estado
+            reunion.IdConsultor = consultorId;
+            reunion.Estado = "Programada";
+            reunion.IdPeticion = idPeticionPrevia;
+
+            var response = await Http.PostAsJsonAsync("api/reunion/CrearReunion", reunion);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Reunión agendada exitosamente", Severity.Success);
+                Nav.NavigateTo("/consultoria/listadoReuniones");
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Error al agendar la reunión: {errorContent}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+            Console.WriteLine($"Error al guardar reunión: {ex.Message}");
+        }
+        finally
+        {
+            guardando = false;
+        }
+    }
+
+    private void Volver()
+    {
+        Nav.NavigateTo("/consultoria/listadoReuniones");
+    }
+}

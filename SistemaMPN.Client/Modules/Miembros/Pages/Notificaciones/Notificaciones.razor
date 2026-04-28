@@ -1,0 +1,142 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@using SistemaMPN.Client.Modules.Miembros.Services
+@using SistemaMPN.Shared.DTO
+
+@inject NotificacionesService Notificationes
+@inject NavigationManager Navigation
+@inject AuthenticationStateProvider AuthStateProvider
+@inject ISnackbar Snackbar
+
+<MudMenu @ref="_menuNotificaciones"
+         Class="noti-menu"
+         AnchorOrigin="Origin.BottomRight"
+         TransformOrigin="Origin.TopRight">
+
+    <ActivatorContent>
+        <MudBadge Dot="true"
+                  Color="Color.Error"
+                  Visible="@SinLeer">
+            <MudIconButton Icon="@Icons.Material.Filled.Notifications" 
+                           Color="Color.Inherit"
+                           OnClick="AbrirMenu"
+                           Size="Size.Medium" />
+        </MudBadge>
+    </ActivatorContent>
+
+    <ChildContent>
+        <div class="noti-container" style="min-width: 320px; max-width: 380px;">
+            <!-- Header -->
+            <div class="d-flex justify-space-between align-center pa-3" style="border-bottom: 1px solid var(--mud-palette-divider);">
+                <MudText Typo="Typo.subtitle1" Class="m-0">
+                    <MudIcon Icon="@Icons.Material.Filled.Notifications" Size="Size.Small" Class="mr-1" />
+                    Notificaciones
+                </MudText>
+                @if (SinLeer)
+                {
+                    <MudChip T="string" Color="Color.Error" Size="Size.Small">
+                        @Notificationes.NotificacionesSinLeer nuevas
+                    </MudChip>
+                }
+            </div>
+
+            <!-- Notificaciones -->
+            @if (Notificationes.Items.Any())
+            {
+                <div style="max-height: 400px; overflow-y: auto;">
+                    @foreach (var noti in Notificationes.Items)
+                    {
+                        var esPropuesta = noti.Tipo.Equals("Propuesta");
+                        var icono = esPropuesta ? Icons.Material.Filled.CalendarMonth : Icons.Material.Filled.Assignment;
+                        var color = esPropuesta ? "var(--mud-palette-success)" : "var(--mud-palette-primary)";
+                        var url = esPropuesta ? "/tesoreria/calendario" : "/peticiones";
+                        
+                        <MudMenuItem OnClick="@(() => Navigation.NavigateTo(url))" 
+                                     Style="padding: 12px 16px; border-bottom: 1px solid var(--mud-palette-divider-light);">
+                            <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Start">
+                                <span style="color: @color;">
+                                    <MudIcon Icon="@icono" Size="Size.Medium" />
+                                </span>
+                                <MudStack Spacing="0" Class="flex-grow-1">
+                                    <MudText Typo="Typo.subtitle2">@noti.Mensaje</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-1" />
+                                        @ObtenerTiempoRelativo(noti.Fecha)
+                                    </MudText>
+                                </MudStack>
+                            </MudStack>
+                        </MudMenuItem>
+                    }
+                </div>
+                
+                <!-- Footer -->
+                <div class="d-flex justify-end pa-3" style="border-top: 1px solid var(--mud-palette-divider);">
+                    <MudButton Variant="Variant.Text" 
+                               Size="Size.Small"
+                               OnClick="@(() => Navigation.NavigateTo(_esTesorero ? "/tesoreria/calendario" : "/peticiones"))">
+                        <MudIcon Icon="@Icons.Material.Filled.ViewList" Size="Size.Small" Class="mr-1" />
+                        Ver todas
+                    </MudButton>
+                </div>
+            }
+            else
+            {
+                <div class="d-flex flex-column align-center justify-center pa-6">
+                    <MudIcon Icon="@Icons.Material.Filled.NotificationsNone" 
+                             Size="Size.Large" 
+                             Color="Color.Secondary" />
+                    <MudText Typo="Typo.body1" Class="mt-2" Color="Color.Secondary">
+                        No hay notificaciones
+                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Default">
+                        Las notificaciones aparecerán aquí
+                    </MudText>
+                </div>
+            }
+        </div>
+    </ChildContent>
+</MudMenu>
+
+@code {
+    private MudMenu? _menuNotificaciones;
+    private bool _esTesorero;
+
+    private bool SinLeer => Notificationes.NotificacionesSinLeer > 0;
+
+    private Action _onChangeHandler = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _onChangeHandler = () => InvokeAsync(StateHasChanged);
+        Notificationes.OnChange += _onChangeHandler;
+        await Notificationes.InitializeAsync();
+
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        _esTesorero = authState.User.IsInRole("Tesorero") || authState.User.IsInRole("Protesorero");
+    }
+
+    public void Dispose()
+    {
+        Notificationes.OnChange -= _onChangeHandler;
+    }
+
+    private async Task AbrirMenu()
+    {
+       await Notificationes.MarcarTodasLeidasAsync();
+    }
+
+    private string ObtenerTiempoRelativo(DateTime fecha)
+    {
+        var tiempo = DateTime.Now - fecha.ToLocalTime();
+        
+        if (tiempo.TotalMinutes < 1)
+            return "Ahora mismo";
+        if (tiempo.TotalMinutes < 60)
+            return $"Hace {(int)tiempo.TotalMinutes} min";
+        if (tiempo.TotalHours < 24)
+            return $"Hace {(int)tiempo.TotalHours} h";
+        if (tiempo.TotalDays < 7)
+            return $"Hace {(int)tiempo.TotalDays} días";
+        
+        return fecha.ToLocalTime().ToString("dd/MM/yyyy");
+    }
+}

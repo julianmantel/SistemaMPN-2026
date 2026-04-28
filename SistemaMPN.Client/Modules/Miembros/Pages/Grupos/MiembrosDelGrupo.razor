@@ -1,0 +1,374 @@
+﻿@page "/miembros/grupos/miembrosDelGrupo/{id:int}"
+@using Microsoft.AspNetCore.Components.Authorization
+@using SistemaMPN.Client.Layout
+@using SistemaMPN.Client.Modules.Miembros.ViewModels
+@using SistemaMPN.Client.Pages
+@using SistemaMPN.Shared.DTO
+@using SistemaMPN.Client.Modules.Miembros.Pages.Grupos
+
+@layout MiembrosLayout
+
+@inject NavigationManager Nav
+@inject HttpClient Http
+@inject IDialogService DialogService
+@inject AuthenticationStateProvider AuthStateProv
+@inject ISnackbar Snackbar
+
+<PageTitle>Miembros del grupo</PageTitle>
+
+<AuthorizeView Roles="admin, gestor de miembros, auditor">
+    <Authorized>
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+            <MudStack Spacing="4">
+                <!-- Header -->
+                <MudPaper Elevation="0" Class="pa-6 rounded-lg" Style="background: linear-gradient(135deg, var(--color-primario) 0%, rgba(30, 58, 138, 0.8) 100%);">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="flex-wrap" Spacing="2">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                            <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" 
+                                           Size="Size.Small" 
+                                           OnClick="@(() => Nav.NavigateTo("/miembros/grupos/"))"
+                                           Style="color: var(--color-texto-claro); background-color: rgba(255, 255, 255, 0.2);" />
+                            <MudIcon Icon="@Icons.Material.Filled.Group"
+                                    Size="Size.Large"
+                                    Style="color: var(--color-texto-claro);" />
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.h4" Style="color: var(--color-texto-claro);">
+                                    Miembros del Grupo
+                                </MudText>
+                                <MudText Typo="Typo.body2" Style="color: var(--color-texto-claro);">
+                                    Lista de miembros asignados
+                                </MudText>
+                            </MudStack>
+                        </MudStack>
+                        @if (isAdminOrGestor)
+                        {
+                            <MudButton Variant="Variant.Filled" Color="Color.Secondary"
+                                       OnClick="AbrirDialogAgregarMiembroAlGrupo"
+                                       StartIcon="@Icons.Material.Filled.PersonAdd"
+                                       Style="color: var(--color-texto-claro); background-color: rgba(255, 255, 255, 0.2);">
+                                Agregar Miembro
+                            </MudButton>
+                        }
+                    </MudStack>
+                </MudPaper>
+
+                <!-- Contenido Principal -->
+                <MudCard Elevation="2" Class="rounded-lg">
+                    <MudCardContent>
+                        <MudTable Items="@miembrosVM" RowsPerPage="8" Dense="true" Hover="true" Bordered="true" Striped="true" Elevation="0">
+                            <HeaderContent>
+                                <MudTh>Nombre Completo</MudTh>
+                                <MudTh>DNI</MudTh>
+                                <MudTh>Ocupación</MudTh>
+                                <MudTh>Fecha de Ingreso</MudTh>
+                                <MudTh>Info Completa</MudTh>
+                                @if (isAdminOrGestor)
+                                {
+                                    <MudTh>Editar Ocupación</MudTh>
+                                    <MudTh>Transferir Liderazgo</MudTh>
+                                    <MudTh>Quitar del Grupo</MudTh>
+                                }
+                            </HeaderContent>
+                            <RowTemplate Context="vm">
+                                <MudTd DataLabel="Nombre Completo">@vm.nombre_completo</MudTd>
+                                <MudTd DataLabel="DNI">@vm.dni</MudTd>
+                                <MudTd DataLabel="Ocupación">@vm.ocupacion</MudTd>
+                                <MudTd DataLabel="Fecha de Ingreso">@vm.fecha_desde</MudTd>
+
+                                <MudTd DataLabel="Info Completa">
+                                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                                               OnClick="@(() => Nav.NavigateTo($"/miembros/listadoMiembros/detalleMiembro/{vm.id_miembro}"))"
+                                               StartIcon="@Icons.Material.Filled.Visibility">
+                                        Ver
+                                    </MudButton>
+                                </MudTd>
+
+                                @if (isAdminOrGestor)
+                                {
+                                    <MudTd DataLabel="Editar Ocupación">
+                                        @if (vm.ocupacion == "Líder")
+                                        {
+                                            <MudTooltip Text="Para cambiar la ocupación, primero debe transferir el liderazgo">
+                                                <ChildContent>
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Lock"
+                                                                   Color="Color.Warning"
+                                                                   Disabled="true" />
+                                                </ChildContent>
+                                            </MudTooltip>
+                                        }
+                                        else
+                                        {
+                                            <MudButton Variant="Variant.Filled"
+                                                       Color="Color.Primary"
+                                                       Size="Size.Small"
+                                                       OnClick="@(()=> AbrirDialogOcupacion(vm.id_miembro, vm.ocupacion))"
+                                                       StartIcon="@Icons.Material.Filled.Edit">
+                                                Editar
+                                            </MudButton>
+                                        }
+                                    </MudTd>
+
+                                    <MudTd DataLabel="Transferir Liderazgo">
+                                        @if (vm.ocupacion == "Líder")
+                                        {
+                                            <MudButton Variant="Variant.Filled"
+                                                       Color="Color.Warning"
+                                                       Size="Size.Small"
+                                                       OnClick="@(() => AbrirDialogTransferirLiderazgo())"
+                                                       StartIcon="@Icons.Material.Filled.SwapHoriz">
+                                                Transferir
+                                            </MudButton>
+                                        }
+                                        else
+                                        {
+                                            @if (vm.puede_ser_lider)
+                                            {
+                                                <MudButton Variant="Variant.Outlined"
+                                                           Color="Color.Primary"
+                                                           Size="Size.Small"
+                                                           OnClick="@(() => HacerLider(vm.id_miembro))"
+                                                           StartIcon="@Icons.Material.Filled.Stars">
+                                                    Hacer Líder
+                                                </MudButton>
+                                            }
+                                            else
+                                            {
+                                                <MudTooltip Text="Este miembro no cumple los requisitos para ser líder">
+                                                    <ChildContent>
+                                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                            <MudIcon Icon="@Icons.Material.Filled.Block" Color="Color.Warning" Size="Size.Small" />
+                                                            <MudText Typo="Typo.caption">No elegible</MudText>
+                                                        </MudStack>
+                                                    </ChildContent>
+                                                </MudTooltip>
+                                            }
+                                        }
+                                    </MudTd>
+
+                                    <MudTd DataLabel="Quitar del Grupo">
+                                        @if (vm.ocupacion == "Líder")
+                                        {
+                                            <MudTooltip Text="Para quitar al líder, primero debe transferir el liderazgo">
+                                                <ChildContent>
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Lock"
+                                                                   Color="Color.Warning"
+                                                                   Disabled="true" />
+                                                </ChildContent>
+                                            </MudTooltip>
+                                        }
+                                        else
+                                        {
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                           Color="Color.Error"
+                                                           Size="Size.Small"
+                                                           OnClick="@(() => QuitarMiembroDelGrupo(vm.id_miembro))" />
+                                        }
+                                    </MudTd>
+                                }
+                            </RowTemplate>
+                            <PagerContent>
+                                <MudTablePager HideRowsPerPage="true"
+                                               HidePageNumber="true" />
+                            </PagerContent>
+                        </MudTable>
+                    </MudCardContent>
+                </MudCard>
+            </MudStack>
+        </MudContainer>
+    </Authorized>
+    <NotAuthorized>
+        <ReDirectToLogin />
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    [Parameter]
+    public int id { get; set; }
+
+    private List<InfoMiembroGrupoDTO> miembrosVM = new();
+    private bool isAdminOrGestor = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            await DeterminarRolUsuario();
+            miembrosVM = await Http.GetFromJsonAsync<List<InfoMiembroGrupoDTO>>($"api/grupo/GetMiembrosDelGrupo/{id}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar los miembros: {ex.Message}");
+        }
+        StateHasChanged();
+    }
+
+    private async Task DeterminarRolUsuario()
+    {
+        try
+        {
+            var authState = await AuthStateProv.GetAuthenticationStateAsync();
+            isAdminOrGestor = authState.User.IsInRole("admin") || authState.User.IsInRole("gestor de miembros");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al determinar rol de usuario: {ex.Message}");
+        }
+    }
+
+    private async Task AbrirDialogOcupacion(int idMiembro, string ocupacionActual)
+    {
+        var parametros = new DialogParameters();
+        parametros.Add("IdMiembro", idMiembro);
+        parametros.Add("OcupacionActual", ocupacionActual);
+
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = DialogService.Show<DialogOcupacion>("Cambiar Ocupacion", parametros, options);
+        var result = await dialog.Result;
+
+        if (!result.Canceled && result.Data is string nuevaOcupacion)
+        {
+            await OnInitializedAsync();
+            StateHasChanged();
+        }
+    }
+
+    private async Task AbrirDialogAgregarMiembroAlGrupo()
+    {
+        var parametros = new DialogParameters();
+        parametros.Add("IdGrupo", id);
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = DialogService.Show<DialogAgregarMiembroAlGrupo>("Agregar Miembro a Grupo", parametros, options);
+
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await OnInitializedAsync();
+            StateHasChanged();
+        }
+    }
+
+    private async Task AbrirDialogTransferirLiderazgo()
+    {
+        // Filtrar solo miembros que pueden ser líderes
+        var miembrosElegibles = miembrosVM
+            .Where(m => m.ocupacion != "Líder" && m.puede_ser_lider)
+            .ToList();
+
+        if (!miembrosElegibles.Any())
+        {
+            var optionsNoDisponibles = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+            var dialogNoDisponibles = DialogService.Show<DialogMiembrosNoDisponibles>("", optionsNoDisponibles);
+            await dialogNoDisponibles.Result;
+            return;
+        }
+
+        var parametros = new DialogParameters();
+        parametros.Add("IdGrupo", id);
+        parametros.Add("MiembrosDisponibles", miembrosElegibles);
+
+        var optionsTransferencia = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialogTransferencia = DialogService.Show<DialogTransferirLiderazgo>("Transferir Liderazgo", parametros, optionsTransferencia);
+
+        var result = await dialogTransferencia.Result;
+
+        if (!result.Canceled)
+        {
+            await OnInitializedAsync();
+            StateHasChanged();
+        }
+    }
+
+    private async Task HacerLider(int idNuevoLider)
+    {
+        var miembro = miembrosVM.FirstOrDefault(m => m.id_miembro == idNuevoLider);
+
+        // Validar que el miembro puede ser líder
+        if (miembro != null && !miembro.puede_ser_lider)
+        {
+            string mensaje = "Este miembro no puede ser líder. ";
+
+            if (!miembro.tiene_usuario)
+            {
+                mensaje += "No tiene un usuario del sistema vinculado.";
+            }
+            else
+            {
+                mensaje += "No tiene el rol de 'Líder' asignado en el sistema o ya es líder de otro grupo.";
+            }
+
+            await DialogService.ShowMessageBox(
+                "No es posible",
+                mensaje,
+                yesText: "Entendido");
+            return;
+        }
+
+        var result = await DialogService.ShowMessageBox(
+            "Confirmar Transferencia",
+            "¿Estás seguro de que deseas transferir el liderazgo a este miembro?",
+            yesText: "Sí", noText: "No");
+
+        if (result == true)
+        {
+            try
+            {
+                var response = await Http.PutAsync($"api/grupo/TransferirLiderazgo/{id}/{idNuevoLider}", null);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    await OnInitializedAsync();
+                    Snackbar.Add("Liderazgo transferido exitosamente.", Severity.Success);
+                    StateHasChanged();
+                }
+                else
+                {
+                    // Leer el mensaje de error del backend
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    await DialogService.ShowMessageBox(
+                        "Error",
+                        $"No se pudo transferir el liderazgo: {errorContent}",
+                        yesText: "Entendido");
+                }
+            }
+            catch (Exception ex)
+            {
+                await DialogService.ShowMessageBox(
+                    "Error",
+                    $"Ocurrió un error al transferir el liderazgo: {ex.Message}",
+                    yesText: "Entendido");
+            }
+        }
+    }
+
+    private async Task QuitarMiembroDelGrupo(int idMiembro)
+    {
+        var result = await DialogService.ShowMessageBox(
+            "Confirmar",
+            "¿Estás seguro de que deseas quitar este miembro del grupo?",
+            yesText: "Sí", noText: "No");
+        if (result == true)
+        {
+            try
+            {
+                var response = await Http.DeleteAsync($"api/grupo/QuitarMiembroDelGrupo/{id}/{idMiembro}");
+                if (response.IsSuccessStatusCode)
+                {
+                    await OnInitializedAsync();
+                    Snackbar.Add("Miembro quitado del grupo exitosamente.", Severity.Success);
+                    StateHasChanged();
+                }
+                else
+                {
+                    Console.WriteLine($"Error al quitar el miembro: {response.StatusCode}");
+                    Snackbar.Add("Error al quitar el miembro del grupo.", Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error al quitar el miembro: {ex.Message}");
+                Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+}

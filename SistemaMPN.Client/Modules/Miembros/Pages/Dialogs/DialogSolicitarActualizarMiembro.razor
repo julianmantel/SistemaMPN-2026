@@ -1,0 +1,109 @@
+﻿@using SistemaMPN.Shared.DTO
+<MudDialog MaxWidth="MaxWidth.Medium" FullWidth="true">
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">Solicitar Actualización de Miembro</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="4">
+            <MudText Typo="Typo.body1">
+                Selecciona el miembro que va a estar involucrado en la actualización de sus datos:
+            </MudText>
+            
+            <MudSelect @bind-Value="idMiembroSeleccionado"
+                       Label="Miembro"
+                       Variant="Variant.Outlined"
+                       Required="true"
+                       T="int?"
+                       Clearable="true">
+                @foreach (var miembro in MiembrosGrupo)
+                {
+                    <MudSelectItem Value="@((int?)miembro.id_miembro)">
+                        @miembro.nombre_completo (@miembro.dni)
+                    </MudSelectItem>
+                }
+            </MudSelect>
+            
+            <MudTextField @bind-Value="msgActualizacion"
+                          Label="Mensaje (opcional)"
+                          Variant="Variant.Outlined"
+                          T="string"
+                          Placeholder="Agrega un mensaje para avisar al gestor de miembros qué información se quiere actualizar del miembro..."
+                          Lines="3" />
+
+            <MudAlert Severity="Severity.Warning">
+                <MudStack Row="true" AlignItems="AlignItems.Start" Spacing="2">
+                    <MudText Typo="Typo.body2">
+                        <strong>Importante:</strong> El gestor de miembros se encargará de aceptar su solicitud.
+                    </MudText>
+                </MudStack>
+            </MudAlert>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => MudDialog.Cancel()" 
+                   Color="Color.Default" 
+                   Variant="Variant.Outlined">
+            Cancelar
+        </MudButton>
+        <MudButton OnClick="() => PedirActualizacion()" 
+                   Color="Color.Primary" 
+                   Variant="Variant.Filled" 
+                   Disabled="@(pidiendoActualizacion || !idMiembroSeleccionado.HasValue)"
+                   StartIcon="@Icons.Material.Filled.Send">
+            @if (pidiendoActualizacion)
+            {
+                <MudText>Solicitando la Actualización...</MudText>
+            }
+            else
+            {
+                <MudText>Solicitar Actualización</MudText>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] 
+    private IMudDialogInstance MudDialog { get; set; }
+
+    [Parameter] public List<InfoMiembroGrupoDTO> MiembrosGrupo { get; set; }
+    [Parameter] public int IdLider { get; set; }
+
+    private int? idMiembroSeleccionado; 
+    private bool pidiendoActualizacion = false;
+    private string msgActualizacion = string.Empty;
+
+    private async Task PedirActualizacion()
+    {
+        try
+        {
+            if (idMiembroSeleccionado.HasValue)
+            {
+                var peticionActualizacionDTO = new PeticionActualizacionDTO
+                {
+                    IdMiembros = idMiembroSeleccionado.Value,
+                    Peticion = new PeticionDTO
+                    {
+                        Tipo = "Actualizacion",
+                        IdLider = IdLider,
+                        FechaSolicitud = DateTime.UtcNow,
+                        Mensaje = msgActualizacion
+                    }
+                };
+
+                MudDialog.Close(DialogResult.Ok(peticionActualizacionDTO));
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al solicitar la actualización del miembro: {ex.Message}");
+        }
+        finally
+        {
+            pidiendoActualizacion = false;
+        }
+    }
+}

@@ -1,0 +1,112 @@
+﻿@page "/NuevaContrasenia"
+@using SistemaMPN.Shared.DTO
+
+@layout SistemaMPN.Client.Layout.LoginLayout
+@inject HttpClient httpClient
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Cambiar Contraseña</PageTitle>
+
+<MudPaper Elevation="2" Class="pa-8" Style="max-width: 500px; margin: 0 auto;">
+    <MudText Typo="Typo.h4" Class="mb-6 text-center">
+        <MudIcon Icon="@Icons.Material.Filled.Password" Size="Size.Large" Class="mr-2"/>
+        Nueva Contraseña
+    </MudText>
+
+    <EditForm id="reset_password_form_id" Model="resetPasswordDTO" OnValidSubmit="CambiarContrasenia">
+        <DataAnnotationsValidator />
+
+        <MudTextField @bind-Value="resetPasswordDTO.NewPassword"
+                        Label="Nueva Contraseña"
+                        Variant="Variant.Outlined"
+                        InputType="InputType.Password"
+                        FullWidth="true"
+                        Required="true"
+                        Class="mb-4"
+                        Immediate="true"
+                        RequiredError="La nueva contraseña es requerida" />
+
+        <MudTextField @bind-Value="resetPasswordDTO.ConfirmNewPassword"
+                        Label="Confirmar Contraseña"
+                        Variant="Variant.Outlined"
+                        InputType="InputType.Password"
+                        FullWidth="true"
+                        Required="true"
+                        Class="mb-4"
+                        Immediate="true"
+                        RequiredError="Confirme la contraseña" />
+
+        <MudLink Href="/"
+                Class="mb-4 d-block"
+                Typo="Typo.body2"
+                Color="Color.Primary">
+            Volver
+        </MudLink>
+
+        <MudButton ButtonType="ButtonType.Submit"
+                    Variant="Variant.Filled"
+                    FullWidth="true"
+                    Class="mt-4 botton-azul-oscuro"
+                    Disabled="@isLoading">
+            @if (isLoading)
+            {
+                <MudProgressCircular Size="Size.Small" Color="Color.Inherit" />
+                <span class="ml-2">Verificando...</span>
+            }
+            else
+            {
+                <span>Continuar</span>
+            }
+        </MudButton>
+    </EditForm>
+</MudPaper>
+
+@code {
+    ResetPasswordDTO resetPasswordDTO = new();
+
+    string token = string.Empty;
+    bool isLoading = false;
+
+    async Task CambiarContrasenia()
+    {
+        try
+        {
+            isLoading = true;
+            var uri = new Uri(Navigation.Uri);
+            var query = uri.Query;
+
+            if (query.StartsWith("?"))
+                query = query.Substring(1);
+
+            var parts = query.Split('=');
+            if (parts[0] == "token")
+            {
+                token = parts[1];
+            }
+
+            resetPasswordDTO.ResetToken = token;
+            var result = await httpClient.PatchAsJsonAsync("api/login/UpdatePassword", resetPasswordDTO);
+
+            if (result.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Contraseña actualizada correctamente", Severity.Success);
+                await Task.Delay(1500);
+                Navigation.NavigateTo("/");
+            }
+            else
+            {
+                var errorContent = await result.Content.ReadAsStringAsync();
+                Snackbar.Add($"Error al actualizar la contraseña: {errorContent}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+}

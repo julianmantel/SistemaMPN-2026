@@ -1,0 +1,250 @@
+﻿@page "/miembros/grupos/"
+@using Microsoft.AspNetCore.Components.Authorization
+@using SistemaMPN.Client.Pages
+@using SistemaMPN.Shared.DTO
+
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject IDialogService DialogService
+@inject AuthenticationStateProvider AuthStateProv
+@inject ISnackbar Snackbar
+
+@layout SistemaMPN.Client.Layout.MiembrosLayout
+
+<PageTitle>Grupos</PageTitle>
+
+<AuthorizeView Roles="admin, gestor de miembros, auditor">
+    <Authorized Context="auth" >
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+            <MudStack Spacing="4">
+                <!-- Header -->
+                <MudPaper Elevation="0" Class="pa-6 rounded-lg" Style="background: linear-gradient(135deg, var(--color-primario) 0%, rgba(30, 58, 138, 0.8) 100%);">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="flex-wrap" Spacing="2">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                            <MudIcon Icon="@Icons.Material.Filled.Group"
+                                    Size="Size.Large"
+                                    Style="color: var(--color-texto-claro);" />
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.h4" Style="color: var(--color-texto-claro);">
+                                    Grupos
+                                </MudText>
+                                <MudText Typo="Typo.body2" Style="color: var(--color-texto-claro);">
+                                    Administración de grupos de miembros
+                                </MudText>
+                            </MudStack>
+                        </MudStack>
+                        @if (isAdminOrGestor)
+                        {
+                            <MudButton Variant="Variant.Filled" Color="Color.Secondary"
+                                       OnClick="AbrirDialogoCrearGrupo"
+                                       StartIcon="@Icons.Material.Filled.PersonAdd"
+                                       Style="color: var(--color-texto-claro); background-color: rgba(255, 255, 255, 0.2);">
+                                Agregar Grupo
+                            </MudButton>
+                        }
+                    </MudStack>
+                </MudPaper>
+
+                <!-- Contenido Principal -->
+                <MudCard Elevation="2" Class="rounded-lg">
+                    <MudCardContent>
+                        @if (cargando)
+                        {
+                            <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="py-8">
+                                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                                <MudText Typo="Typo.body2" Class="mt-2" Color="Color.Secondary">Cargando grupos...</MudText>
+                            </MudStack>
+                        }
+                        else
+                        {
+                            <MudTable Items="@grupos" RowsPerPage="8" Dense="true" Hover="true" Bordered="true" Striped="true" Elevation="0">
+                                <HeaderContent>
+                                    <MudTh>Nombre</MudTh>
+                                    <MudTh>Cantidad de Miembros</MudTh>
+                                    <MudTh>Líder</MudTh>
+                                    <MudTh>Acciones</MudTh>
+                                </HeaderContent>
+                                <RowTemplate Context="vm">
+                                    <MudTd DataLabel="Nombre">@vm.nombre</MudTd>
+                                    <MudTd DataLabel="Cantidad de Miembros">
+                                        <MudChip T="string" Size="Size.Small"
+                                                 Color="@(GetColorPorCapacidad(vm.cantidad_miembros, vm.max_cant_miembros))">
+                                            @vm.cantidad_miembros / @vm.max_cant_miembros
+                                        </MudChip>
+                                    </MudTd>
+                                    <MudTd DataLabel="Líder">@vm.lider_nombre</MudTd>
+                                    <MudTd DataLabel="Acciones">
+                                        <MudStack Row="true" Spacing="1">
+                                            <MudButton Color="Color.Primary" Size="Size.Small"
+                                                       OnClick="@(() => Nav.NavigateTo($"/miembros/grupos/miembrosDelGrupo/{vm.id_grupo}"))"
+                                                       StartIcon="@Icons.Material.Filled.Group">
+                                                Ver miembros
+                                            </MudButton>
+                                            @if (isAdminOrGestor)
+                                            {
+                                                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                               Color="Color.Error"
+                                                               Size="Size.Small"
+                                                               OnClick="@(() => EliminarGrupo(vm))" />
+                                            }
+                                        </MudStack>
+                                    </MudTd>
+                                </RowTemplate>
+                                <NoRecordsContent>
+                                    <MudStack AlignItems="AlignItems.Center" Class="py-4">
+                                        <MudIcon Icon="@Icons.Material.Filled.GroupOff" Size="Size.Large" Color="Color.Secondary" />
+                                        <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mt-2">No hay grupos registrados</MudText>
+                                    </MudStack>
+                                </NoRecordsContent>
+                                <PagerContent>
+                                    <MudTablePager HideRowsPerPage="true"
+                                                   HidePageNumber="true" />
+                                </PagerContent>
+                            </MudTable>
+                        }
+                    </MudCardContent>
+                </MudCard>
+            </MudStack>
+        </MudContainer>
+    </Authorized>
+    <NotAuthorized>
+        <ReDirectToLogin />
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private List<GrupoDTO> grupos = new List<GrupoDTO>();
+    private bool cargando = false;
+    private bool isAdminOrGestor = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await DeterminarRolUsuario();
+            await CargarGrupos();
+
+            StateHasChanged();
+        }
+    }
+
+    private async Task DeterminarRolUsuario()
+    {
+        try
+        {
+            var authState = await AuthStateProv.GetAuthenticationStateAsync();
+            isAdminOrGestor = authState.User.IsInRole("admin") || authState.User.IsInRole("gestor de miembros");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al determinar rol de usuario: {ex.Message}");
+        }
+    }
+
+    private async Task CargarGrupos()
+    {
+        cargando = true;
+        try
+        {
+            grupos = await Http.GetFromJsonAsync<List<GrupoDTO>>("api/grupo/getgrupos") ?? new List<GrupoDTO>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar los grupos: {ex.Message}");
+            grupos = new List<GrupoDTO>();
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task AbrirDialogoCrearGrupo()
+    {
+        var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+        var dialog = DialogService.Show<DialogAgregarGrupo>("Crear Nuevo Grupo", options);
+        
+        var result = await dialog.Result;
+        
+        if (!result.Canceled && result.Data is GrupoDTO grupoCreado)
+        {
+            // Recargar la lista de grupos
+            await CargarGrupos();
+            StateHasChanged();
+        }
+    }
+
+    private async Task EliminarGrupo(GrupoDTO grupo)
+    {
+        var mensaje = $"¿Estás seguro de que deseas eliminar el grupo '{grupo.nombre}'?\n";
+        if (grupo.cantidad_miembros > 0)
+        {
+            mensaje += $"\n\nAdvertencia: Este grupo tiene {grupo.cantidad_miembros} miembro(s). Al eliminarlo, todos los miembros serán removidos del grupo.";
+        }
+
+        bool? result = await DialogService.ShowMessageBox(
+            "Confirmar eliminación", 
+            mensaje,
+            yesText: "Sí, eliminar", 
+            cancelText: "Cancelar",
+            options: new DialogOptions { 
+                MaxWidth = MaxWidth.Small,
+                FullWidth = true 
+            });
+
+        if (result == true)
+        {
+            await ProcesarEliminacionGrupo(grupo);
+        }
+    }
+
+    private async Task ProcesarEliminacionGrupo(GrupoDTO grupo)
+    {
+        try
+        {
+            var response = await Http.DeleteAsync($"api/grupo/EliminarGrupo/{grupo.id_grupo}");
+            
+            if (response.IsSuccessStatusCode)
+            {
+                grupos.Remove(grupo);
+                Snackbar.Add($"Grupo '{grupo.nombre}' eliminado exitosamente.", Severity.Success);
+                StateHasChanged();
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Error al eliminar grupo: {response.StatusCode} - {errorContent}");
+                
+                await DialogService.ShowMessageBox(
+                    "Error", 
+                    "No se pudo eliminar el grupo. Inténtalo nuevamente.",
+                    options: new DialogOptions { MaxWidth = MaxWidth.Small });
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al eliminar grupo: {ex.Message}");
+            
+            await DialogService.ShowMessageBox(
+                "Error", 
+                "Ocurrió un error al eliminar el grupo. Inténtalo nuevamente.",
+                options: new DialogOptions { MaxWidth = MaxWidth.Small });
+        }
+    }
+
+    private Color GetColorPorCapacidad(int? cantidadActual, int? capacidadMaxima)
+    {
+        if (!cantidadActual.HasValue || !capacidadMaxima.HasValue || capacidadMaxima == 0)
+            return Color.Default;
+
+        var porcentaje = (double)cantidadActual.Value / capacidadMaxima.Value;
+
+        return porcentaje switch
+        {
+            >= 0.9 => Color.Error,      // 90% o más - Rojo
+            >= 0.7 => Color.Warning,    // 70-89% - Amarillo
+            >= 0.5 => Color.Info,       // 50-69% - Azul
+            _ => Color.Success          // Menos del 50% - Verde
+        };
+    }
+}

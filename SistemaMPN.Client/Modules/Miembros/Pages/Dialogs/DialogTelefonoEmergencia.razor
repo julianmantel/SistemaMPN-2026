@@ -1,0 +1,69 @@
+﻿@using SistemaMPN.Shared.DTO
+
+<EditForm Model="telefonoEmergencia" OnValidSubmit="Guardar" >
+	<DataAnnotationsValidator />
+
+    <MudDialog>
+        <TitleContent>
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudIcon Icon="@Icons.Material.Filled.Phone" Color="Color.Info" />
+                <MudText Typo="Typo.h6">Agregar Teléfono de Emergencia</MudText>
+            </MudStack>
+        </TitleContent>
+        <DialogContent>
+            <MudStack Spacing="3">
+                <MudTextField required="true"
+                    Label="Número de Teléfono"
+                    Variant="Variant.Outlined"
+                    For="@(() => telefonoEmergencia.nro_telefono)"
+                    @bind-Value="telefonoEmergencia.nro_telefono"
+                    Placeholder="Ej: +54 11 1234-5678"
+                    Immediate="true" />
+
+                <MudTextField required="true"
+                    Label="Propietario del Teléfono"
+                    Variant="Variant.Outlined"
+                    For="@(() => telefonoEmergencia.propietario_telefono)"
+                    @bind-Value="telefonoEmergencia.propietario_telefono"
+                    Placeholder="Ej: María González (Madre)"
+                    Immediate="true" />
+            </MudStack>
+        </DialogContent>
+        <DialogActions>
+            <MudButton OnClick="Cancelar" 
+                       Color="Color.Default" 
+                       Variant="Variant.Text">
+                Cancelar
+            </MudButton>
+            <MudButton Color="Color.Primary"
+                       Variant="Variant.Filled"
+                       Disabled="@(!EsValido())"
+                       StartIcon="@Icons.Material.Filled.Check">
+                Guardar
+            </MudButton>
+        </DialogActions>
+    </MudDialog>
+</EditForm>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; }
+
+	TelefonoEmergenciaDTO telefonoEmergencia = new TelefonoEmergenciaDTO();
+
+    private bool EsValido()
+    {
+        return !string.IsNullOrWhiteSpace(telefonoEmergencia.nro_telefono) && 
+        !string.IsNullOrWhiteSpace(telefonoEmergencia.propietario_telefono);
+    }
+
+    private void Guardar()
+    {
+        MudDialog.Close(DialogResult.Ok(telefonoEmergencia));
+    }
+
+    private void Cancelar()
+    {
+        MudDialog.Cancel();
+    }
+}

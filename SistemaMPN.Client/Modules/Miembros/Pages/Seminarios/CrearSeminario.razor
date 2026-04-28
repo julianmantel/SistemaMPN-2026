@@ -1,0 +1,60 @@
+﻿@page "/miembros/parametros/CrearSeminario"
+@layout SistemaMPN.Client.Layout.MiembrosLayout
+
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using SistemaMPN.Client.Pages
+@using SistemaMPN.Shared.DTO
+
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProv
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Crear seminario</PageTitle>
+
+<AuthorizeView Roles="admin" Context="CrearSeminario">
+	<Authorized>
+		<MudPaper Class="pa-4 mx-auto" MaxWidth="500px">
+			<EditForm Context="seminario" Model="@nuevoSeminario" OnValidSubmit="GuardarSeminario">
+				<DataAnnotationsValidator />
+				<ValidationSummary />
+
+				<MudTextField @bind-Value="nuevoSeminario.nombre" Label="Nombre" Required="true" />
+				<MudNumericField HideSpinButtons="true" @bind-Value="nuevoSeminario.anio_comienzo" Label="Año de Comienzo" Required="true" />
+
+				<MudButton OnClick="GuardarSeminario" Variant="Variant.Filled" Color="Color.Primary" Type="Submit" Class="mt-3">Guardar</MudButton>
+				<MudButton Variant="Variant.Outlined" Color="Color.Secondary" Class="mt-3 ml-2" OnClick="Cancelar">Cancelar</MudButton>
+			</EditForm>
+		</MudPaper>
+	</Authorized>
+	<NotAuthorized>
+		<ReDirectToLogin/>
+	</NotAuthorized>
+</AuthorizeView>
+@code {
+	private SeminarioDTO nuevoSeminario = new();
+	private string error = "";
+
+	private async Task GuardarSeminario()
+	{
+		nuevoSeminario.activo = true;
+		var response = await Http.PostAsJsonAsync("api/seminarios/CrearSeminario", nuevoSeminario);
+		if (response.IsSuccessStatusCode)
+		{
+			Snackbar.Add($"seminario registrado correctamente", Severity.Success);
+			Navigation.NavigateTo("/miembros/parametros/listaSeminarios");
+		}
+		else
+		{
+			error = await response.Content.ReadAsStringAsync();
+			Snackbar.Add("Error al registrar el seminario: " + error, Severity.Error);
+		}
+
+	}
+
+	private void Cancelar()
+	{
+		Navigation.NavigateTo("/miembros/parametros/listaSeminarios");
+	}
+}

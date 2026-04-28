@@ -1,0 +1,157 @@
+﻿@using MudBlazor.Utilities
+@using SistemaMPN.Client.Modules.Tesoreria.ViewModels
+@using SistemaMPN.Client.Pages.ViewModels
+@using SistemaMPN.Shared.DTO
+
+@inject HttpClient Http
+
+<EditForm Model="Turno" OnValidSubmit="Guardar">
+    <MudDialog MaxWidth="MaxWidth.Medium" FullWidth="true">
+        <TitleContent>
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Color="Color.Primary" />
+                <MudText Typo="Typo.h6">@(Turno?.IdTurno > 0 ? "Editar" : "Agregar") Turno</MudText>
+            </MudStack>
+        </TitleContent>
+        <DialogContent>
+            <DataAnnotationsValidator />
+
+            <MudStack Spacing="4">
+                <!-- Fecha y hora -->
+                <MudGrid Spacing="3">
+                    <MudItem xs="12" sm="6">
+                        <MudDatePicker Editable="true"
+                                       @bind-Date="Turno.Fecha"
+                                       Mask="@(new DateMask("dd/MM/yyyy"))"
+                                       MinDate="@DateTime.Today"
+                                       DateFormat="dd/MM/yyyy"
+                                       Label="Fecha del turno *"
+                                       ShowToolbar="false"
+                                       Variant="Variant.Outlined"
+                                       Required="true"
+                                       For="@(() => Turno.Fecha)" />
+                    </MudItem>
+
+                    <MudItem xs="12" sm="6">
+                        <MudTimePicker Label="Hora de inicio *"
+                                       Variant="Variant.Outlined"
+                                       @bind-Time="Turno.HoraInicio"
+                                       ShowToolbar="false"
+                                       Editable="true"
+                                       Required="true"
+                                       For="@(() => Turno.HoraInicio)" />
+                    </MudItem>
+                </MudGrid>
+
+                <!-- Tesorero -->
+                <MudPaper Elevation="0" Class="pa-4 rounded-lg" Style="border: 1px solid var(--mud-palette-divider);">
+                    <MudText Typo="Typo.subtitle2" Class="mb-3" Color="Color.Primary">
+                        <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Class="mr-1" />
+                        Tesorero asignado
+                    </MudText>
+                    <MudAutocomplete T="string"
+                                     Label="Seleccione un tesorero *"
+                                     Value="@nombreSeleccionado"
+                                     ValueChanged="(string nombreTesorero) => CargarTesoreroSeleccionado(nombreTesorero)"
+                                     Variant="Variant.Outlined"
+                                     SearchFunc="Search1"
+                                     ToStringFunc="@(x => x)"
+                                     Clearable="true"
+                                     Required="true" />
+                </MudPaper>
+            </MudStack>
+        </DialogContent>
+
+        <DialogActions>
+            <MudButton OnClick="Cancelar"
+                       Color="Color.Default"
+                       Variant="Variant.Outlined">
+                Cancelar
+            </MudButton>
+
+            <MudButton ButtonType="ButtonType.Submit"
+                       Color="Color.Primary"
+                       Variant="Variant.Filled"
+                       StartIcon="@Icons.Material.Filled.Save">
+                Guardar
+            </MudButton>
+        </DialogActions>
+    </MudDialog>
+</EditForm>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public TurnoDTO Turno { get; set; }
+
+    [Parameter]
+    public List<TesoreroDisponibleDTO> tesoreros { get; set; }
+
+    private string nombreSeleccionado;
+
+    protected override void OnParametersSet()
+    {
+
+        if (Turno?.IdTesorero > 0 && tesoreros != null)
+        {
+            nombreSeleccionado = tesoreros
+                .FirstOrDefault(t => t.IdTesorero == Turno.IdTesorero)
+                ?.Nombre ?? string.Empty;
+        }
+        else
+        {
+            nombreSeleccionado = string.Empty;
+        }
+    }
+
+    private async void Guardar()
+    {
+        try
+        {
+            if (Turno.Fecha == DateTime.Today && Turno.HoraInicio < DateTime.Today.TimeOfDay)
+            {
+                return;
+            }
+
+            MudDialog.Close(DialogResult.Ok(Turno));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al guardar evento: {ex.Message}");
+        }
+    }
+
+    private void Cancelar()
+    {
+        MudDialog.Cancel();
+    }
+
+    private async Task<IEnumerable<string>> Search1(String value, CancellationToken token)
+    {
+        await Task.Delay(5, token);
+
+        if (string.IsNullOrEmpty(value))
+            return tesoreros?.Select(x => x.Nombre).ToList() ?? new List<string>();
+
+        return tesoreros?.Where(x => x.Nombre.Contains(value, StringComparison.InvariantCultureIgnoreCase))
+                      .Select(x => x.Nombre)
+                      .AsEnumerable()
+           ?? new List<string>();
+    }
+
+    private async Task CargarTesoreroSeleccionado(string? nombreTesorero)
+    {
+        nombreSeleccionado = nombreTesorero;
+        if (tesoreros == null) return;
+
+        var seleccionado = tesoreros.FirstOrDefault(g => g.Nombre.Equals(nombreTesorero));
+        if (seleccionado != null)
+        {
+            Turno.IdTesorero = seleccionado.IdTesorero;
+        }
+
+        StateHasChanged();
+    }
+}

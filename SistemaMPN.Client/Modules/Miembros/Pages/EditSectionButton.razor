@@ -1,0 +1,52 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+
+@inject AuthenticationStateProvider AuthStateProvider
+
+@if (CanEdit)
+{
+    <div class="d-flex align-items-center">
+        @if (!IsEditing)
+        {
+            <MudButton Size="Size.Small"
+                       Variant="Variant.Text"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Edit"
+                       OnClick="OnEditClick">
+                @ButtonText
+            </MudButton>
+        }
+        @ChildContent
+    </div>
+}
+
+@code {
+    [Parameter] public string Section { get; set; } = "";
+    [Parameter] public bool IsEditing { get; set; }
+    [Parameter] public EventCallback<string> OnEdit { get; set; }
+    [Parameter] public EventCallback<string> OnEditRequested { get; set; }
+    [Parameter] public string ButtonText { get; set; } = "Editar";
+    [Parameter] public RenderFragment? ChildContent { get; set; }
+    [Parameter] public List<string> RestrictedRoles { get; set; }
+
+    private bool CanEdit { get; set; } = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Inicializar RestrictedRoles si es null
+        RestrictedRoles ??= new List<string> { "lider", "auditor" };
+
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+
+        // Si el usuario tiene algún rol restringido, no puede editar
+        CanEdit = !RestrictedRoles.Any(role => authState.User.IsInRole(role));
+    }
+
+    private async Task OnEditClick()
+    {
+        // Notificar al padre que se solicita expandir el panel
+        await OnEditRequested.InvokeAsync(Section);
+
+        // Invocar el callback original
+        await OnEdit.InvokeAsync(Section);
+    }
+}

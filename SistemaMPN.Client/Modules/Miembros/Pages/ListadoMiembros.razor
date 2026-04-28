@@ -1,0 +1,527 @@
+﻿@page "/miembros/listadoMiembros"
+@layout SistemaMPN.Client.Layout.MiembrosLayout
+@using Microsoft.AspNetCore.Components.Authorization
+@using SistemaMPN.Client.Modules.Miembros.Pages.Dialogs
+@using SistemaMPN.Shared.DTO
+@using SistemaMPN.Shared.Models
+@using SistemaMPN.Client.Pages
+@using MudBlazor
+@using SistemaMPN.Client.Modules.Miembros.ViewModels
+
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Miembros</PageTitle>
+
+<AuthorizeView Roles="admin, gestor de miembros, lider, auditor">
+    <Authorized>
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+            <MudStack Spacing="4">
+                <!-- Header -->
+                <MudPaper Elevation="0" Class="pa-6 rounded-lg" Style="background: linear-gradient(135deg, var(--color-primario) 0%, rgba(30, 58, 138, 0.8) 100%);">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="flex-wrap" Spacing="2">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                            <MudIcon Icon="@Icons.Material.Filled.Person"
+                                    Size="Size.Large"
+                                    Style="color: var(--color-texto-claro);" />
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.h4" Style="color: var(--color-texto-claro);">
+                                    @(esLider && grupoDelLider != null ? $"Miembros de {grupoDelLider.nombre}" : "Listado de Miembros")
+                                </MudText>
+                                @if (esLider && grupoDelLider != null)
+                                {
+                                    <MudChip T="string" Color="Color.Tertiary" Size="Size.Small" Style="color: var(--color-texto-claro); background-color: rgba(255,255,255,0.2);">
+                                        @grupoDelLider.cantidad_miembros / @grupoDelLider.max_cant_miembros miembros
+                                    </MudChip>
+                                }
+                            </MudStack>
+                        </MudStack>
+                        @RenderBotones()
+                    </MudStack>
+                </MudPaper>
+
+                <!-- Contenido Principal -->
+                <MudCard Elevation="2" Class="rounded-lg">
+                    <MudCardContent>
+                        @RenderContenidoPrincipal()
+                    </MudCardContent>
+                </MudCard>
+            </MudStack>
+        </MudContainer>
+    </Authorized>
+    <NotAuthorized>
+        <ReDirectToLogin />
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private List<MiembroViewModel> miembrosVM = new();
+    private List<InfoMiembroGrupoDTO> miembrosDelGrupoVM = new();
+    private bool esLider = false;
+    private bool esAuditor = false;
+    private bool cargando = true;
+    private GrupoDTO? grupoDelLider;
+    private int usuarioId;
+    private string? mensajeError;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await DeterminarRolUsuario();
+        await CargarMiembros();
+
+        StateHasChanged();
+    }
+
+    private RenderFragment RenderBotones()
+    {
+        if (esLider)
+        {
+            return @<MudStack Row="true" Spacing="2" Class="flex-wrap">
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary"
+                           OnClick="() => SolicitarCambioMiembro()"
+                           StartIcon="@Icons.Material.Filled.SwapHoriz"
+                           Style="color: var(--color-texto-claro); background-color: rgba(255, 255, 255, 0.2);">
+                    Cambio
+                </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary"
+                           OnClick="() => SolicitarActualizacionMiembro()"
+                           StartIcon="@Icons.Material.Filled.Edit"
+                           Style="color: var(--color-texto-claro); background-color: rgba(255, 255, 255, 0.2);">
+                    Actualizar
+                </MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary"
+                           OnClick="() => SolicitarAgregarMiembro()"
+                           StartIcon="@Icons.Material.Filled.PersonAdd"
+                           Style="color: var(--color-texto-claro); background-color: rgba(255, 255, 255, 0.2);">
+                    Agregar
+                </MudButton>
+            </MudStack>;
+        }
+
+        // Para admin y gestor de miembros
+        return @<AuthorizeView Roles="admin, gestor de miembros">
+            <Authorized Context="auth">
+                <MudButton Variant="Variant.Filled" Color="Color.Secondary"
+                           OnClick='() => Nav.NavigateTo("/miembros/nuevoMiembro")'
+                           StartIcon="@Icons.Material.Filled.PersonAdd"
+                           Style="color: var(--color-texto-claro); background-color: rgba(255, 255, 255, 0.2);">
+                    Agregar Miembro
+                </MudButton>
+            </Authorized>
+        </AuthorizeView>;
+    }
+
+    private RenderFragment RenderContenidoPrincipal()
+    {
+        if (cargando)
+        {
+            return @<MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="py-8">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                <MudText Typo="Typo.body2" Class="mt-2" Color="Color.Secondary">Cargando miembros...</MudText>
+            </MudStack>;
+        }
+
+        if (!string.IsNullOrEmpty(mensajeError))
+        {
+            // Si es un líder sin grupo, mostrar mensaje más amigable
+            if (esLider && grupoDelLider == null)
+            {
+                return @<MudStack Spacing="3" Class="py-4">
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Filled">
+                        <MudStack Spacing="2">
+                            <MudText Typo="Typo.h6">Aún no tienes un grupo asignado</MudText>
+                            <MudText Typo="Typo.body2">
+                                Puedes usar el botón <strong>"Agregar"</strong> para comenzar a formar tu grupo.
+                            </MudText>
+                        </MudStack>
+                    </MudAlert>
+                </MudStack>;
+            }
+
+            return @<MudStack Spacing="3" Class="py-4">
+                <MudAlert Severity="Severity.Error" Variant="Variant.Filled">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Filled.Error" Size="Size.Small" />
+                        <MudText>@mensajeError</MudText>
+                    </MudStack>
+                </MudAlert>
+            </MudStack>;
+        }
+
+        return esLider ? RenderVistaLider() : RenderVistaAdmin();
+    }
+
+    private RenderFragment RenderVistaLider()
+    {
+        if (!miembrosDelGrupoVM.Any())
+        {
+            return @<MudStack Spacing="3" Class="py-4">
+                <MudAlert Severity="Severity.Info" Variant="Variant.Filled">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" />
+                        <MudText>No tienes miembros asignados en tu grupo.</MudText>
+                    </MudStack>
+                </MudAlert>
+            </MudStack>;
+        }
+
+        return @<MudTable Items="@miembrosDelGrupoVM" RowsPerPage="8" Dense="true" Hover="true" Bordered="true" Striped="true" Elevation="0">
+            <HeaderContent>
+                <MudTh>Nombre Completo</MudTh>
+                <MudTh>DNI</MudTh>
+                <MudTh>Ocupación</MudTh>
+                <MudTh>Fecha de Ingreso</MudTh>
+                <MudTh>Acciones</MudTh>
+            </HeaderContent>
+            <RowTemplate Context="vm">
+                <MudTd DataLabel="Nombre Completo">@vm.nombre_completo</MudTd>
+                <MudTd DataLabel="DNI">@vm.dni</MudTd>
+                <MudTd DataLabel="Ocupación">@vm.ocupacion</MudTd>
+                <MudTd DataLabel="Fecha de Ingreso">@vm.fecha_desde</MudTd>
+                <MudTd DataLabel="Acciones">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                               OnClick="@(() => NavigateToDetalles(vm.id_miembro))"
+                               StartIcon="@Icons.Material.Filled.Visibility">
+                        Ver
+                    </MudButton>
+                </MudTd>
+            </RowTemplate>
+            <PagerContent>
+                <MudTablePager HideRowsPerPage="true"
+                               HidePageNumber="true" />
+            </PagerContent>
+        </MudTable>;
+    }
+
+    private RenderFragment RenderVistaAdmin()
+    {
+        if (!miembrosVM.Any())
+        {
+            return @<MudStack Spacing="3" Class="py-4">
+                <MudAlert Severity="Severity.Info" Variant="Variant.Filled">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" />
+                        <MudText>No hay miembros registrados</MudText>
+                    </MudStack>
+                </MudAlert>
+            </MudStack>;
+        }
+
+        return @<MudTable Items="@miembrosVM" RowsPerPage="8" Dense="true" Hover="true" Bordered="true" Striped="true" Elevation="0">
+            <HeaderContent>
+                <MudTh>Nombre Completo</MudTh>
+                <MudTh>DNI</MudTh>
+                <MudTh>Teléfono</MudTh>
+                <MudTh>Teléfono Fijo</MudTh>
+                <MudTh>Fecha de Creación</MudTh>
+                <MudTh>Acciones</MudTh>
+            </HeaderContent>
+            <RowTemplate Context="vm">
+                <MudTd DataLabel="Nombre Completo">@vm.Miembro.nombre_completo</MudTd>
+                <MudTd DataLabel="DNI">@vm.Miembro.dni</MudTd>
+                <MudTd DataLabel="Teléfono">@vm.Miembro.telefono</MudTd>
+                <MudTd DataLabel="Teléfono Fijo">@vm.Miembro.telefono_fijo</MudTd>
+                <MudTd DataLabel="Fecha de Creación">@vm.Miembro.fecha_creacion?.ToString("dd/MM/yyyy")</MudTd>
+                <MudTd DataLabel="Acciones">
+                    <MudStack Row="true" Spacing="1">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                                   OnClick="@(() => NavigateToDetalles(vm.Miembro.id.Value))"
+                                   StartIcon="@Icons.Material.Filled.Visibility">
+                            Ver
+                        </MudButton>
+                        @if (!esAuditor) {
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                           Color="Color.Error"
+                                           Size="Size.Small"
+                                           OnClick="@(() => EliminarMiembro(vm.Miembro.id.Value))" />
+                        }
+                    </MudStack>
+                </MudTd>
+            </RowTemplate>
+            <PagerContent>
+                <MudTablePager HideRowsPerPage="true"
+                               HidePageNumber="true" />
+            </PagerContent>
+        </MudTable>;
+    }
+
+    private async Task DeterminarRolUsuario()
+    {
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            esLider = authState.User.IsInRole("lider") &&
+                     !authState.User.IsInRole("admin") &&
+                     !authState.User.IsInRole("gestor de miembros");
+
+            esAuditor = authState.User.IsInRole("auditor");
+
+            if (esLider)
+            {
+                await ConfigurarDatosLider(authState);
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al determinar rol de usuario: {ex.Message}";
+            Console.WriteLine(mensajeError);
+        }
+    }
+
+    private async Task ConfigurarDatosLider(AuthenticationState authState)
+    {
+        var userName = authState.User.Identity?.Name?.Trim();
+        if (string.IsNullOrEmpty(userName))
+        {
+            mensajeError = "No se pudo obtener el nombre de usuario";
+            return;
+        }
+
+        var response = await Http.GetAsync($"api/usuario/GetIdMiembroDelUsuario/{userName}");
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync();
+            mensajeError = $"Error al obtener información del usuario: {errorContent}";
+            return;
+        }
+
+        var result = await response.Content.ReadAsStringAsync();
+        if (!int.TryParse(result, out usuarioId))
+        {
+            mensajeError = "Error al parsear el ID del miembro";
+            return;
+        }
+
+        await ObtenerGrupoDelLider();
+    }
+
+    private async Task ObtenerGrupoDelLider()
+    {
+        var grupoResponse = await Http.GetAsync($"api/grupo/GetGrupoDelLider/{usuarioId}");
+        if (grupoResponse.IsSuccessStatusCode)
+        {
+            grupoDelLider = await grupoResponse.Content.ReadFromJsonAsync<GrupoDTO>();
+            if (grupoDelLider == null)
+            {
+                mensajeError = "No se encontró un grupo asociado al líder.";
+            }
+        }
+        else
+        {
+            var errorContent = await grupoResponse.Content.ReadAsStringAsync();
+            mensajeError = $"Error al obtener el grupo del líder: {grupoResponse.StatusCode} - {errorContent}";
+        }
+    }
+
+    private async Task CargarMiembros()
+    {
+        if (esLider && grupoDelLider == null)
+        {
+            cargando = false;
+            return;
+        }
+        cargando = true;
+        mensajeError = null;
+
+        try
+        {
+            if (!string.IsNullOrEmpty(mensajeError)) return;
+
+            string endpoint = esLider
+                ? $"api/grupo/GetMiembrosDelGrupo/{grupoDelLider?.id_grupo}"
+                : "api/miembros/GetInfoMinimaMiembro";
+
+            var response = await Http.GetAsync(endpoint);
+            if (response.IsSuccessStatusCode)
+            {
+                await ProcesarRespuestaMiembros(response);
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                mensajeError = $"Error al cargar miembros: {response.StatusCode} - {errorContent}";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar los miembros: {ex.Message}";
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task ProcesarRespuestaMiembros(HttpResponseMessage response)
+    {
+        if (esLider)
+        {
+            miembrosDelGrupoVM = await response.Content.ReadFromJsonAsync<List<InfoMiembroGrupoDTO>>() ?? new();
+        }
+        else
+        {
+            var result = await response.Content.ReadFromJsonAsync<List<InfoMinimaMiembroDTO>>();
+            miembrosVM = result?.Select(m => new MiembroViewModel { Miembro = m }).ToList() ?? new();
+        }
+    }
+
+    private void NavigateToDetalles(int miembroId)
+    {
+        var currentUrl = Uri.EscapeDataString(Nav.Uri);
+        var readOnlyParam = (esLider || esAuditor) ? "&readOnly=true" : "";
+        Nav.NavigateTo($"/miembros/listadoMiembros/detalleMiembro/{miembroId}?returnUrl={currentUrl}{readOnlyParam}");
+    }
+
+    private async Task EliminarMiembro(int miembroId)
+    {
+        try
+        {
+            var result = await DialogService.ShowMessageBox(
+                "Confirmar",
+                "¿Estás seguro de que deseas eliminar este miembro?",
+                yesText: "Sí", noText: "No");
+
+            if (result == true)
+            {
+                var response = await Http.DeleteAsync($"api/miembros/EliminarMiembro/{miembroId}");
+                if (response.IsSuccessStatusCode)
+                {
+                    miembrosVM = miembrosVM.Where(m => m.Miembro.id != miembroId).ToList();
+                    Snackbar.Add("Miembro eliminado exitosamente", Severity.Success);
+                    StateHasChanged();
+                }
+                else if (response.StatusCode == System.Net.HttpStatusCode.BadRequest)
+                {
+                    var content = await response.Content.ReadFromJsonAsync<System.Text.Json.JsonElement>();
+                    var mensaje = content.TryGetProperty("message", out var msgProp) 
+                        ? msgProp.GetString() 
+                        : "No se puede eliminar el miembro.";
+                    Snackbar.Add(mensaje ?? "No se puede eliminar el miembro.", Severity.Warning);
+                }
+                else
+                {
+                    Console.WriteLine("Error al eliminar el miembro.");
+                    Snackbar.Add("Error al eliminar el miembro.", Severity.Error);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al eliminar el miembro: {ex.Message}");
+        }
+    }
+
+    private async Task SolicitarCambioMiembro()
+    {
+        try
+        {
+            var parametros = new DialogParameters();
+            parametros.Add("IdGrupoActual", grupoDelLider?.id_grupo ?? 0);
+            parametros.Add("IdLider", usuarioId);
+            parametros.Add("MiembrosGrupo", miembrosDelGrupoVM);
+            var dialog = DialogService.Show<DialogSolicitarCambioMiembro>("Solicitud de Cambio de Miembro", parametros, new DialogOptions
+            {
+                MaxWidth = MaxWidth.Small,
+                FullWidth = true
+            });
+            var result = await dialog.Result;
+            if (!result.Canceled && result.Data is PeticionCambioDTO datos)
+            {
+                var resultado = await Http.PostAsJsonAsync("api/peticion/RegistrarPeticionCambio", datos);
+                var respuesta = await resultado.Content.ReadAsStringAsync();
+
+                var severity = respuesta.Contains("exitosamente")
+                    ? Severity.Success
+                    : Severity.Warning;
+
+                Snackbar.Add(respuesta, severity);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al solicitar cambio de miembro: {ex.Message}");
+        }
+    }
+
+    private async Task SolicitarActualizacionMiembro()
+    {
+        try
+        {
+            var parametros = new DialogParameters();
+            parametros.Add("IdLider", usuarioId);
+            parametros.Add("MiembrosGrupo", miembrosDelGrupoVM);
+            var dialog = DialogService.Show<DialogSolicitarActualizarMiembro>("Solicitud de Actualización de Miembro", parametros, new DialogOptions
+            {
+                MaxWidth = MaxWidth.Small,
+                FullWidth = true
+            });
+
+            var result = await dialog.Result;
+
+            if (!result.Canceled && result.Data is PeticionActualizacionDTO datos)
+            {
+                var resultado = await Http.PostAsJsonAsync("api/peticion/RegistrarPeticionActualizacion", datos);
+                var respuesta = await resultado.Content.ReadAsStringAsync();
+
+                var severity = respuesta.Contains("exitosamente")
+                    ? Severity.Success
+                    : Severity.Warning;
+
+                Snackbar.Add(respuesta, severity);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al solicitar actualización de miembro: {ex.Message}");
+        }
+    }
+
+    private async Task SolicitarAgregarMiembro()
+    {
+        try
+        {
+            var parametros = new DialogParameters();
+            parametros.Add("IdLider", usuarioId);
+            var dialog = DialogService.Show<DialogSolicitarAgregarMiembro>("Solicitud de Agregar Miembro", parametros, new DialogOptions
+            {
+                MaxWidth = MaxWidth.Medium,
+                FullWidth = true
+            });
+            var result = await dialog.Result;
+            if (!result.Canceled && result.Data is PeticionAgregarDTO datos)
+            {
+                var resultado = await Http.PostAsJsonAsync("api/peticion/RegistrarPeticionAgregarMiembro", datos);
+                var respuesta = await resultado.Content.ReadAsStringAsync();
+
+                var severity = respuesta.Contains("exitosamente")
+                    ? Severity.Success
+                    : Severity.Warning;
+
+                Snackbar.Add(respuesta, severity);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al solicitar agregar miembro: {ex.Message}");
+        }
+    }
+
+    private Color GetColorPorCapacidad(int? cantidadActual, int? capacidadMaxima)
+    {
+        if (!cantidadActual.HasValue || !capacidadMaxima.HasValue || capacidadMaxima == 0)
+            return Color.Default;
+
+        var porcentaje = (double)cantidadActual.Value / capacidadMaxima.Value;
+
+        return porcentaje switch
+        {
+            >= 0.9 => Color.Error,      // 90% o más - Rojo
+            >= 0.7 => Color.Warning,    // 70-89% - Amarillo
+            >= 0.5 => Color.Info,       // 50-69% - Azul
+            _ => Color.Success          // Menos del 50% - Verde
+        };
+    }
+}

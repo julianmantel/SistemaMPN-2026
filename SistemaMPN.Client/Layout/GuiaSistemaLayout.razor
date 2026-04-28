@@ -1,0 +1,15 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@inherits MainLayout
+@inject NavigationManager Navigation
+
+<MainLayout DrawerOpenByDefault="true">
+    <NavigationContent>
+        <MudNavMenu>
+            <MudNavLink Match="NavLinkMatch.All" Href="/guia/" Icon="@Icons.Material.Filled.Home">Inicio</MudNavLink>
+            <MudNavLink Href="/home" Icon="@Icons.Material.Filled.ExitToApp">Volver al Home</MudNavLink>
+        </MudNavMenu>
+    </NavigationContent>
+    <Body>
+        @Body
+    </Body>
+</MainLayout>

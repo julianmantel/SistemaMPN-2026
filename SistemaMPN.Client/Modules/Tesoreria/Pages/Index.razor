@@ -1,0 +1,143 @@
+﻿@page "/tesoreria/"
+
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using SistemaMPN.Client.Modules.Tesoreria.Dialogs
+@using SistemaMPN.Client.Pages
+@layout SistemaMPN.Client.Layout.TesoreriaLayout
+
+@inject NavigationManager Nav
+@inject IDialogService DialogService
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Tesorería</PageTitle>
+
+<AuthorizeView Roles="admin, tesorero, protesorero, auditor">
+    <Authorized>
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+            <!-- Header de Bienvenida -->
+            <MudPaper Elevation="0" Class="pa-6 rounded-lg" Style="background: linear-gradient(135deg, var(--color-primario) 0%, rgba(30, 58, 138, 0.8) 100%);">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                    <MudIcon Icon="@Icons.Material.Filled.AccountBalance"
+                            Size="Size.Large"
+                            Style="color: var(--color-texto-claro);" />
+                    <MudStack Spacing="0">
+                        <MudText Typo="Typo.h4" Style="color: var(--color-texto-claro);">
+                            Tesorería
+                        </MudText>
+                        <MudText Typo="Typo.body2" Style="color: var(--color-texto-claro);">
+                            Gestión de documentos y caja
+                        </MudText>
+                    </MudStack>
+                </MudStack>
+            </MudPaper>
+
+            <!-- Opciones de Tesorería -->
+            <MudStack Spacing="3" Class="mt-6">
+                <MudText Typo="Typo.h5">
+                    <MudIcon Icon="@Icons.Material.Filled.MenuBook" Class="mr-2" />
+                    Opciones disponibles
+                </MudText>
+
+                <MudGrid Justify="Justify.Center" Spacing="3">
+                    <!-- Agregar Documento (solo admin, tesorero, protesorero) -->
+                    @if (puedeAgregarDocumento)
+                    {
+                        <MudItem xs="12" sm="6" md="4" lg="3">
+                            <MudCard onclick="@(() => ElegirDocumento())"
+                                    Style="cursor: pointer; height: 100%; transition: all 0.3s ease;">
+                                <MudCardContent Class="pa-4">
+                                    <MudStack Spacing="2" Justify="Justify.Center" AlignItems="AlignItems.Center">
+                                        <MudIcon Icon="@Icons.Material.Filled.AddToDrive"
+                                                Size="Size.Large"
+                                                Style="color: var(--color-exito);" />
+                                        <MudText Typo="Typo.h6">Agregar Documento</MudText>
+                                        <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Secondary">
+                                            Nuevo documento
+                                        </MudText>
+                                    </MudStack>
+                                </MudCardContent>
+                            </MudCard>
+                        </MudItem>
+                    }
+
+                    <!-- Consultar Documentos -->
+                    <MudItem xs="12" sm="6" md="4" lg="3">
+                        <MudCard onclick="@(() => Nav.NavigateTo("/tesoreria/listadoDocumentos"))"
+                                Style="cursor: pointer; height: 100%; transition: all 0.3s ease;">
+                            <MudCardContent Class="pa-4">
+                                <MudStack Spacing="2" Justify="Justify.Center" AlignItems="AlignItems.Center">
+                                    <MudIcon Icon="@Icons.Material.Filled.DocumentScanner"
+                                            Size="Size.Large"
+                                            Style="color: var(--color-primario);" />
+                                    <MudText Typo="Typo.h6">Consultar Documentos</MudText>
+                                    <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Secondary">
+                                        Ver documentos
+                                    </MudText>
+                                </MudStack>
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+
+                    <!-- Gestionar Calendario -->
+                    <MudItem xs="12" sm="6" md="4" lg="3">
+                        <MudCard onclick="@(() => Nav.NavigateTo("/tesoreria/calendario"))"
+                                Style="cursor: pointer; height: 100%; transition: all 0.3s ease;">
+                            <MudCardContent Class="pa-4">
+                                <MudStack Spacing="2" Justify="Justify.Center" AlignItems="AlignItems.Center">
+                                    <MudIcon Icon="@Icons.Material.Filled.EditCalendar"
+                                            Size="Size.Large"
+                                            Style="color: var(--color-info);" />
+                                    <MudText Typo="Typo.h6">Gestionar Calendario</MudText>
+                                    <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Secondary">
+                                        Turnos y eventos
+                                    </MudText>
+                                </MudStack>
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+                </MudGrid>
+            </MudStack>
+        </MudContainer>
+    </Authorized>
+    <NotAuthorized>
+        <MudContainer Class="py-8">
+            <ReDirectToLogin />
+        </MudContainer>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private bool puedeAgregarDocumento = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await VerificarPermisos();
+    }
+
+    private async Task VerificarPermisos()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        
+        puedeAgregarDocumento = user.IsInRole("admin") || 
+                                user.IsInRole("tesorero") || 
+                                user.IsInRole("protesorero");
+    }
+
+    private async Task ElegirDocumento()
+    {
+        var parametros = new DialogParameters();
+        var dialog = await DialogService.ShowAsync<DialogElegirDocumento>("Elegir Documento", new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true
+        });
+
+        var result = await dialog.Result;
+        if (!result.Canceled && result.Data is string datos)
+        {
+            Nav.NavigateTo($"/tesoreria/{datos}");
+        }
+    }
+}

@@ -1,0 +1,668 @@
+﻿@page "/tesoreria/listadoDocumentos"
+@using Microsoft.AspNetCore.Components.Authorization
+@using SistemaMPN.Client.Modules.Tesoreria.Dialogs
+@using SistemaMPN.Client.Pages
+@using SistemaMPN.Shared.DTO
+@layout SistemaMPN.Client.Layout.TesoreriaLayout
+
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject IJSRuntime JS
+
+<PageTitle>Listado de Documentos</PageTitle>
+
+<AuthorizeView Roles="admin, tesorero, protesorero, auditor">
+    <Authorized>
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+            <!-- Header Section -->
+            <MudPaper Elevation="0" Class="pa-6 rounded-lg" Style="background: linear-gradient(135deg, var(--color-primario) 0%, rgba(30, 58, 138, 0.8) 100%);">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="flex-wrap" Spacing="2">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                        <MudIcon Icon="@Icons.Material.Filled.Description"
+                                 Size="Size.Large"
+                                 Style="color: var(--color-texto-claro);" />
+                        <MudStack Spacing="0">
+                            <MudText Typo="Typo.h4" Style="color: var(--color-texto-claro);">
+                                Listado de Documentos
+                            </MudText>
+                            <MudText Typo="Typo.body2" Style="color: var(--color-texto-claro);">
+                                Gestión y consulta de documentos de tesorería
+                            </MudText>
+                        </MudStack>
+                    </MudStack>
+                    @if (esTesorero)
+                    {
+                        <MudChip T="string"
+                                 Color="Color.Tertiary"
+                                 Variant="Variant.Filled"
+                                 Style="width: fit-content;">
+                            <MudText Style="font-weight: 600;">Mis Documentos</MudText>
+                        </MudChip>
+                    }
+                </MudStack>
+            </MudPaper>
+
+            <!-- Main Content -->
+            <MudStack Spacing="4" Class="mt-6">
+                @RenderContenidoPrincipal()
+            </MudStack>
+        </MudContainer>
+    </Authorized>
+    <NotAuthorized>
+        <MudContainer Class="py-8">
+            <ReDirectToLogin />
+        </MudContainer>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private string mensajeError = string.Empty;
+    private List<DocumentoDTO> documentosVM = new();
+    private List<DocumentoDTO> documentosFiltrados = new();
+    private bool esTesorero = false;
+    private bool esProtesorero = false;
+    private int usuarioId;
+    private bool cargando = false;
+
+    private string tipoSeleccionado = "Todos";
+    private string estadoSeleccionado = "Todos";
+
+    private List<string> tiposDocumento = new();
+    private bool subiendoArchivo = false;
+    private int documentoIdSubiendo = 0;
+    private bool eliminandoDocumento = false;
+    private int documentoIdEliminando = 0;
+
+    private RenderFragment RenderContenidoPrincipal()
+    {
+        if (cargando)
+        {
+            return @<MudCard Elevation="2" Class="rounded-lg">
+        <MudCardContent>
+            <MudStack Spacing="3" AlignItems="AlignItems.Center" Class="py-6">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+                <MudText Typo="Typo.h6" Color="Color.Secondary">Cargando documentos...</MudText>
+            </MudStack>
+        </MudCardContent>
+    </MudCard>;
+        }
+
+        if (!string.IsNullOrEmpty(mensajeError))
+        {
+            return @<MudAlert Severity="Severity.Error" Class="rounded-lg">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudText>@mensajeError</MudText>
+                        </MudStack>
+                    </MudAlert>;
+        }
+
+        return RenderVistaDocumentos();
+    }
+
+    private RenderFragment RenderFiltros()
+    {
+        return @<MudCard Elevation="2" Class="rounded-lg">
+        <MudCardContent>
+            <MudStack Spacing="3">
+                <!-- Filtros Header -->
+                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Spacing="2">
+                    <MudStack Row="true">
+                        <MudIcon Icon="@Icons.Material.Filled.FilterList" Size="Size.Medium" Style="color: var(--color-primario);" />
+                        <MudText Typo="Typo.h6">Filtros de Búsqueda</MudText>
+                    </MudStack>
+                    <MudButton Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.ClearAll"
+                               Variant="Variant.Text"
+                               Disabled="@(tipoSeleccionado == "Todos" && estadoSeleccionado == "Todos")"
+                               OnClick="@LimpiarFiltros">
+                        Limpiar Filtros
+                    </MudButton>
+                </MudStack>
+
+                <MudDivider />
+
+                <!-- Filtros Grid -->
+                <MudGrid Spacing="3">
+                    <MudItem xs="12" sm="6">
+                        <MudStack Spacing="2">
+                            <MudText Typo="Typo.subtitle1" Class="mb-1">
+                                <MudIcon Icon="@Icons.Material.Filled.Category" Size="Size.Small" Class="mr-1" />
+                                Tipo de Documento
+                            </MudText>
+                            <MudStack Row="true" Spacing="2" Class="flex-wrap">
+                                <MudButton Variant="@(tipoSeleccionado == "Todos" ? Variant.Filled : Variant.Outlined)"
+                                           Color="@(tipoSeleccionado == "Todos" ? Color.Default : Color.Default)"
+                                           Size="Size.Medium"
+                                           StartIcon="@(tipoSeleccionado == "Todos" ? Icons.Material.Filled.Check : null)"
+                                           OnClick="@(() => FiltrarPorTipo("Todos"))">
+                                    Todos
+                                </MudButton>
+                                @foreach (var tipo in tiposDocumento)
+                                {
+                                    <MudButton Variant="@(tipoSeleccionado == tipo ? Variant.Filled : Variant.Outlined)"
+                                                Color="@(tipoSeleccionado == tipo ? Color.Info : Color.Default)"
+                                                Size="Size.Medium"
+                                                StartIcon="@(tipoSeleccionado == tipo ? Icons.Material.Filled.Check : null)"
+                                                OnClick="@(() => FiltrarPorTipo(tipo))">
+                                        @tipo
+                                    </MudButton>
+                                }
+                            </MudStack>
+                        </MudStack>
+                    </MudItem>
+
+                    <MudItem xs="12" md="6">
+                        <MudStack Spacing="2">
+                            <MudText Typo="Typo.subtitle1" Class="mb-1">
+                                <MudIcon Icon="@Icons.Material.Filled.TaskAlt" Size="Size.Small" Class="mr-1" />
+                                Estado del Documento
+                            </MudText>
+                            <MudStack Row="true" Spacing="2" Class="flex-wrap">
+                                <MudButton Variant="@(estadoSeleccionado == "Todos" ? Variant.Filled : Variant.Outlined)"
+                                           Color="@(estadoSeleccionado == "Todos" ? Color.Default : Color.Default)"
+                                           Size="Size.Medium"
+                                           StartIcon="@(estadoSeleccionado == "Todos" ? Icons.Material.Filled.Check : null)"
+                                           OnClick="@(() => FiltrarPorEstado("Todos"))">
+                                    Todos
+                                </MudButton>
+                                <MudButton Variant="@(estadoSeleccionado == "Firmados" ? Variant.Filled : Variant.Outlined)"
+                                           Color="@(estadoSeleccionado == "Firmados" ? Color.Success : Color.Default)"
+                                           Size="Size.Medium"
+                                           StartIcon="@(estadoSeleccionado == "Firmados" ? Icons.Material.Filled.Check : null)"
+                                           OnClick="@(() => FiltrarPorEstado("Firmados"))">
+                                    Firmados
+                                </MudButton>
+                                <MudButton Variant="@(estadoSeleccionado == "Pendientes" ? Variant.Filled : Variant.Outlined)"
+                                           Color="@(estadoSeleccionado == "Pendientes" ? Color.Warning : Color.Default)"
+                                           Size="Size.Medium"
+                                           StartIcon="@(estadoSeleccionado == "Pendientes" ? Icons.Material.Filled.Check : null)"
+                                           OnClick="@(() => FiltrarPorEstado("Pendientes"))">
+                                    Pendientes
+                                </MudButton>
+                            </MudStack>
+                        </MudStack>
+                    </MudItem>
+                </MudGrid>
+            </MudStack>
+        </MudCardContent>
+    </MudCard>;
+    }
+
+    private RenderFragment RenderVistaDocumentos()
+    {
+        if (!documentosVM.Any())
+        {
+            return @<MudCard Elevation="2" Class="rounded-lg">
+        <MudCardContent>
+            <MudStack Spacing="3" AlignItems="AlignItems.Center" Class="py-6">
+                <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Large" Color="Color.Secondary" Style="opacity: 0.5;" />
+                <MudText Typo="Typo.h6" Color="Color.Secondary">No hay documentos registrados</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Align="Align.Center">
+                    Los documentos aparecerán aquí una vez que sean creados
+                </MudText>
+            </MudStack>
+        </MudCardContent>
+    </MudCard>;
+        }
+
+        return @<MudStack Spacing="4">
+        <!-- Filtros Section -->
+        @RenderFiltros()
+
+        <!-- Table Section -->
+        <MudCard Elevation="2" Class="rounded-lg">
+            <MudCardContent>
+                <MudTable Items="@documentosFiltrados"
+                          RowsPerPage="10"
+                          Dense="false"
+                          Hover="true"
+                          Bordered="true"
+                          StripRows="true">
+                    <HeaderContent>
+                        <MudTh>Número</MudTh>
+                        <MudTh>Fecha</MudTh>
+                        <MudTh>Tipo</MudTh>
+                        <MudTh>Estado</MudTh>
+                        @if (!esTesorero)
+                    {
+                        <MudTh>Creado por</MudTh>
+                    }
+                        <MudTh>Supervisor</MudTh>
+                        <MudTh>Acciones</MudTh>
+                    </HeaderContent>
+                    <RowTemplate Context="vm">
+                        <MudTd DataLabel="Número">
+                            <MudText Typo="Typo.body2" Style="font-weight: 500;">@vm.nro_documento</MudText>
+                        </MudTd>
+                        <MudTd DataLabel="Fecha">
+                            <MudText Typo="Typo.body2">@vm.fecha.ToString("dd/MM/yyyy")</MudText>
+                        </MudTd>
+                        <MudTd DataLabel="Tipo">
+                            <MudChip T="string" Size="Size.Small" Color="Color.Info">@vm.tipo</MudChip>
+                        </MudTd>
+                        <MudTd DataLabel="Estado">
+                            @if (vm.firmado)
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Success" Icon="@Icons.Material.Filled.CheckCircle">
+                                Firmado
+                            </MudChip>
+                        }
+                        else
+                        {
+                            <MudChip T="string" Size="Size.Small" Color="Color.Warning" Icon="@Icons.Material.Filled.PendingActions">
+                                Pendiente
+                            </MudChip>
+                        }
+                        </MudTd>
+                        @if (!esTesorero)
+                    {
+                        <MudTd DataLabel="Creado por">
+                            <div class="d-flex flex-column">
+                                <MudText Typo="Typo.body2" Style="font-weight: 500;">@vm.nombre_tesorero</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@vm.cargo_tesorero</MudText>
+                            </div>
+                        </MudTd>
+                    }
+                        <MudTd DataLabel="Supervisor">
+                            <div class="d-flex flex-column">
+                                <MudText Typo="Typo.body2" Style="font-weight: 500;">@vm.nombre_supervisor</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@vm.cargo_supervisor</MudText>
+                            </div>
+                        </MudTd>
+                        <MudTd DataLabel="Acciones">
+                            <MudStack Row="true" Spacing="1">
+                                @if (vm.firmado)
+                            {
+                                <MudMenu Icon="@Icons.Material.Filled.VerifiedUser"
+                                         Color="Color.Success"
+                                         Size="Size.Small"
+                                         Variant="Variant.Filled">
+                                    <MudMenuItem OnClick="@(() => VerDocumento(vm.id_documento))">
+                                        <MudIcon Icon="@Icons.Material.Filled.RemoveRedEye" Size="Size.Small" Class="mr-2" />
+                                        Ver firmado
+                                    </MudMenuItem>
+                                    <MudMenuItem OnClick="@(() => DescargarDocumento(vm.id_documento))">
+                                        <MudIcon Icon="@Icons.Material.Filled.Download" Size="Size.Small" Class="mr-2" />
+                                        Descargar firmado
+                                    </MudMenuItem>
+                                </MudMenu>
+                            }
+                            else
+                            {
+                                <MudMenu Icon="@Icons.Material.Filled.Description"
+                                         Color="Color.Info"
+                                         Size="Size.Small"
+                                         Variant="Variant.Filled">
+                                    <MudMenuItem OnClick="@(() => VerDocumento(vm.id_documento))">
+                                        <MudIcon Icon="@Icons.Material.Filled.RemoveRedEye" Size="Size.Small" Class="mr-2" />
+                                        Ver documento
+                                    </MudMenuItem>
+                                    <MudMenuItem OnClick="@(() => DescargarDocumento(vm.id_documento))">
+                                        <MudIcon Icon="@Icons.Material.Filled.Download" Size="Size.Small" Class="mr-2" />
+                                        Descargar
+                                    </MudMenuItem>
+                                </MudMenu>
+
+                                @if (esTesorero || (esProtesorero && vm.id_tesorero == usuarioId))
+                            {
+                                <MudFileUpload T="IBrowserFile"
+                                               Accept=".pdf"
+                                               FilesChanged="@((file) => CargarDocumentoFirmado(file, vm.tipo, vm.id_documento))"
+                                               MaximumFileCount="1">
+                                    <ActivatorContent>
+                                        <MudTooltip Text="Subir documento firmado">
+                                            <MudIconButton Variant="Variant.Filled"
+                                                           Color="Color.Success"
+                                                           Size="Size.Small"
+                                                           Icon="@Icons.Material.Filled.UploadFile"
+                                                           Disabled="@(subiendoArchivo && documentoIdSubiendo == vm.id_documento)">
+                                                @if (subiendoArchivo && documentoIdSubiendo == vm.id_documento)
+                                            {
+                                                <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                                            }
+                                            </MudIconButton>
+                                        </MudTooltip>
+                                    </ActivatorContent>
+                                </MudFileUpload>
+
+                                <MudTooltip Text="Eliminar documento">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                   Color="Color.Error"
+                                                   Size="Size.Small"
+                                                   Variant="Variant.Filled"
+                                                   OnClick="@(() => ConfirmarEliminarDocumento(vm.id_documento))"
+                                                   Disabled="@(eliminandoDocumento && documentoIdEliminando == vm.id_documento)">
+                                        @if (eliminandoDocumento && documentoIdEliminando == vm.id_documento)
+                                    {
+                                        <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                                    }
+                                    </MudIconButton>
+                                </MudTooltip>
+                            }
+                            }
+                            </MudStack>
+                        </MudTd>
+                    </RowTemplate>
+                    <PagerContent>
+                        <MudTablePager HideRowsPerPage="false"
+                                       HidePageNumber="false" />
+                    </PagerContent>
+                </MudTable>
+
+                @if (!documentosFiltrados.Any() && (tipoSeleccionado != "Todos" || estadoSeleccionado != "Todos"))
+            {
+                <MudDivider Class="mt-3" />
+                <MudAlert Severity="Severity.Info" Class="mt-3 rounded-lg">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudText>No hay documentos que coincidan con los filtros seleccionados</MudText>
+                    </MudStack>
+                </MudAlert>
+            }
+            </MudCardContent>
+        </MudCard>
+    </MudStack>;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        cargando = true;
+        await DeterminarRolUsuario();
+        await CargarDocumentos();
+    }
+
+    private async Task DeterminarRolUsuario()
+    {
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            esTesorero = authState.User.IsInRole("tesorero") &&
+                     !authState.User.IsInRole("admin") &&
+                     !authState.User.IsInRole("protesorero");
+
+            esProtesorero = authState.User.IsInRole("protesorero");
+
+            if (esTesorero || esProtesorero)
+            {
+                await ConfigurarDatosTesorero(authState);
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al determinar rol de usuario: {ex.Message}";
+            Console.WriteLine(mensajeError);
+        }
+    }
+
+    private async Task CargarDocumentos()
+    {
+        try
+        {
+            if (!string.IsNullOrEmpty(mensajeError)) return;
+
+            string endpoint = esTesorero
+                ? $"api/documento/GetDocumentosPorTesorero/{usuarioId}"
+                : "api/documento/GetTodosLosDocumentos";
+
+            var response = await Http.GetAsync(endpoint);
+            if (response.IsSuccessStatusCode)
+            {
+                documentosVM = await response.Content.ReadFromJsonAsync<List<DocumentoDTO>>() ?? new();
+
+                tiposDocumento = documentosVM
+                    .Select(d => d.tipo)
+                    .Distinct()
+                    .OrderBy(t => t)
+                    .ToList();
+
+                AplicarFiltros();
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                mensajeError = $"Error al cargar documentos: {response.StatusCode} - {errorContent}";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar documentos: {ex.Message}";
+            Console.WriteLine(mensajeError);
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void FiltrarPorTipo(string tipo)
+    {
+        tipoSeleccionado = tipo;
+        AplicarFiltros();
+    }
+
+    private void FiltrarPorEstado(string estado)
+    {
+        estadoSeleccionado = estado;
+        AplicarFiltros();
+    }
+
+    private void AplicarFiltros()
+    {
+        documentosFiltrados = documentosVM;
+
+        if (tipoSeleccionado != "Todos")
+        {
+            documentosFiltrados = documentosFiltrados.Where(d => d.tipo == tipoSeleccionado).ToList();
+        }
+
+        if (estadoSeleccionado == "Firmados")
+        {
+            documentosFiltrados = documentosFiltrados.Where(d => d.firmado).ToList();
+        }
+        else if (estadoSeleccionado == "Pendientes")
+        {
+            documentosFiltrados = documentosFiltrados.Where(d => !d.firmado).ToList();
+        }
+
+        StateHasChanged();
+    }
+
+    private void LimpiarFiltros()
+    {
+        tipoSeleccionado = "Todos";
+        estadoSeleccionado = "Todos";
+        AplicarFiltros();
+    }
+
+    private async Task VerDocumento(int documentoId)
+    {
+        var parameters = new DialogParameters<DialogVisorPdf>
+        {
+            { x => x.DocumentoId, documentoId }
+        };
+
+        var options = new DialogOptions
+            {
+                MaxWidth = MaxWidth.ExtraLarge,
+                FullWidth = true,
+                CloseButton = true,
+                CloseOnEscapeKey = true
+            };
+
+        await DialogService.ShowAsync<DialogVisorPdf>(
+            "Ver Documento",
+            parameters,
+            options
+        );
+    }
+
+    private async Task DescargarDocumento(int documentoId)
+    {
+        Snackbar.Add("Descargando documento...", Severity.Info);
+        try
+        {
+            var response = await Http.GetAsync($"api/documento/DescargarDocumento/{documentoId}");
+
+            if (!response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Error al descargar el documento", Severity.Error);
+                return;
+            }
+
+            var bytes = await response.Content.ReadAsByteArrayAsync();
+            var fileName = $"documento_{documentoId}.pdf";
+
+            var blobUrl = await JS.InvokeAsync<string>("createBlobUrl", bytes, "application/pdf");
+            await JS.InvokeVoidAsync("downloadBlob", blobUrl, fileName);
+            await JS.InvokeVoidAsync("liberarBlobUrl", blobUrl);
+
+            Snackbar.Add("Documento descargado correctamente", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al descargar: {ex.Message}", Severity.Error);
+            Console.WriteLine($"Error completo: {ex}");
+        }
+    }
+
+    private async Task CargarDocumentoFirmado(IBrowserFile file, string tipo, int documentoId)
+    {
+        if (file == null) return;
+        subiendoArchivo = true;
+        documentoIdSubiendo = documentoId;
+
+        try
+        {
+            if (!file.ContentType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase))
+            {
+                Snackbar.Add("Solo se permiten archivos PDF", Severity.Error);
+                return;
+            }
+
+            var maxSize = 10 * 1024 * 1024;
+            if (file.Size > maxSize)
+            {
+                Snackbar.Add("El archivo es demasiado grande (máximo 10MB)", Severity.Error);
+                return;
+            }
+
+            using var stream = file.OpenReadStream(maxSize);
+            using var memoryStream = new MemoryStream();
+            await stream.CopyToAsync(memoryStream);
+            var fileBytes = memoryStream.ToArray();
+
+            var content = new MultipartFormDataContent();
+            content.Add(new ByteArrayContent(fileBytes), "archivo", file.Name);
+            content.Add(new StringContent(documentoId.ToString()), "documentoId");
+            content.Add(new StringContent(tipo), "tipoDocumento");
+            content.Add(new StringContent("true"), "esFirmado");
+
+            var response = await Http.PutAsync("api/documento/SubirDocumentoFirmado", content);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Documento firmado cargado exitosamente", Severity.Success);
+                await CargarDocumentos();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Error al subir documento: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al subir archivo: {ex.Message}", Severity.Error);
+            Console.WriteLine($"Error al subir archivo: {ex}");
+        }
+        finally
+        {
+            subiendoArchivo = false;
+            documentoIdSubiendo = 0;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ConfirmarEliminarDocumento(int documentoId)
+    {
+        var doc = documentosVM.FirstOrDefault(d => d.id_documento == documentoId);
+        if (doc == null) return;
+
+        if (doc.firmado)
+        {
+            Snackbar.Add("No se puede eliminar un documento firmado", Severity.Warning);
+            return;
+        }
+
+        bool? result = await DialogService.ShowMessageBox(
+            "Confirmar eliminación",
+            $"¿Está seguro de eliminar el documento Nro. {doc.nro_documento} del tipo {doc.tipo}? Esta acción no se puede deshacer.",
+            yesText: "Eliminar",
+            cancelText: "Cancelar");
+
+        if (result == true)
+        {
+            await EliminarDocumento(documentoId);
+        }
+    }
+
+    private async Task EliminarDocumento(int documentoId)
+    {
+        eliminandoDocumento = true;
+        documentoIdEliminando = documentoId;
+
+        try
+        {
+            var response = await Http.DeleteAsync($"api/documento/EliminarDocumento/{documentoId}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Documento eliminado exitosamente", Severity.Success);
+                await CargarDocumentos();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Error al eliminar: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al eliminar documento: {ex.Message}", Severity.Error);
+            Console.WriteLine($"Error al eliminar: {ex}");
+        }
+        finally
+        {
+            eliminandoDocumento = false;
+            documentoIdEliminando = 0;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ConfigurarDatosTesorero(AuthenticationState authState)
+    {
+        var userName = authState.User.Identity?.Name?.Trim();
+        if (string.IsNullOrEmpty(userName))
+        {
+            mensajeError = "No se pudo obtener el nombre de usuario";
+            return;
+        }
+
+        var response = await Http.GetAsync($"api/usuario/GetIdMiembroDelUsuario/{userName}");
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync();
+            mensajeError = $"Error al obtener información del usuario: {errorContent}";
+            return;
+        }
+
+        var result = await response.Content.ReadAsStringAsync();
+        if (!int.TryParse(result, out usuarioId))
+        {
+            mensajeError = "Error al parsear el ID del miembro";
+            return;
+        }
+    }
+}

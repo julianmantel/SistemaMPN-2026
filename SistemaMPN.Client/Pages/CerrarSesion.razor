@@ -1,0 +1,15 @@
+﻿@page "/cerrarSesion"
+
+@using Blazored.LocalStorage
+
+@inject ILocalStorageService LocalStorage
+@inject NavigationManager NavigationManager
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        await LocalStorage.RemoveItemAsync("Token");
+        StateHasChanged();
+        NavigationManager.NavigateTo("/");
+    }
+}

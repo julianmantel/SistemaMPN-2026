@@ -1,0 +1,483 @@
+@page "/miembros/asistencia/qr"
+@using SistemaMPN.Shared.DTO
+
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@inject IJSRuntime JsRuntime
+@inject IDialogService DialogService
+
+@layout SistemaMPN.Client.Layout.HomeLayout
+
+<PageTitle>Asistencia QR</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+    <MudStack Spacing="4">
+        <!-- Header -->
+        <MudPaper Elevation="0" Class="pa-6 rounded-lg" Style="background: linear-gradient(135deg, var(--color-primario) 0%, rgba(30, 58, 138, 0.8) 100%);">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="flex-wrap" Spacing="2">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                    <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" 
+                                           Size="Size.Small" 
+                                           OnClick="VolverAtras"
+                                           Style="color: var(--color-texto-claro); background-color: rgba(255, 255, 255, 0.2);" />
+                    <MudIcon Icon="@Icons.Material.Filled.QrCode"
+                            Size="Size.Large"
+                            Style="color: var(--color-texto-claro);" />
+                    <MudStack Spacing="0">
+                        <MudText Typo="Typo.h4" Style="color: var(--color-texto-claro);">
+                            Asistencia QR
+                        </MudText>
+                        <MudText Typo="Typo.body2" Style="color: var(--color-texto-claro);">
+                            Genera códigos QR y revisa la asistencia de eventos
+                        </MudText>
+                    </MudStack>
+                </MudStack>
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Secondary"
+                           StartIcon="@Icons.Material.Filled.Refresh"
+                           OnClick="RecargarTodo"
+                           Disabled="@_cargando"
+                           Style="color: var(--color-texto-claro); background-color: rgba(255, 255, 255, 0.2);">
+                    Actualizar
+                </MudButton>
+            </MudStack>
+        </MudPaper>
+
+        <!-- Selección de evento -->
+        <MudCard Elevation="2" Class="rounded-lg">
+            <MudCardContent>
+                <MudText Typo="Typo.h6" Class="mb-4">Seleccionar Evento</MudText>
+
+                @if (_cargando)
+                {
+                    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+                }
+                else if (_eventos.Any())
+                {
+                    <MudGrid Spacing="2">
+                        <MudItem xs="12" md="8">
+                            @foreach (var evento in _eventos)
+                            {
+                                var tieneAsistencia = _eventosConAsistencia.ContainsKey(evento.IdEvento);
+                                var count = tieneAsistencia ? _eventosConAsistencia[evento.IdEvento] : 0;
+
+                                <MudChip T="string"
+                                         Color="@(_eventoSeleccionado == evento.IdEvento ? Color.Primary : Color.Default)"
+                                         Clickable="true"
+                                         OnClick="@(() => SeleccionarEvento(evento.IdEvento))"
+                                         Class="ma-1">
+                                    @evento.Titulo - @(evento.Fecha?.ToString("dd/MM/yyyy") ?? "Sin fecha")
+                                    @if (tieneAsistencia)
+                                    {
+                                        <MudChip T="string" Color="Color.Success" Size="Size.Small" Class="ml-1">
+                                            @count
+                                        </MudChip>
+                                    }
+                                </MudChip>
+                            }
+                        </MudItem>
+                    </MudGrid>
+                }
+                else
+                {
+                    <MudAlert Severity="Severity.Info" Class="mt-4">
+                        No hay eventos disponibles. Crea un evento primero.
+                    </MudAlert>
+                }
+            </MudCardContent>
+        </MudCard>
+
+        <!-- Estadísticas del evento seleccionado (siempre visibles) -->
+        @if (_eventoSeleccionado > 0 && _cargandoStats)
+        {
+            <MudCard Elevation="2" Class="rounded-lg">
+                <MudCardContent>
+                    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+                </MudCardContent>
+            </MudCard>
+        }
+        else if (_eventoSeleccionado > 0 && _statsEvento != null)
+        {
+            <MudGrid Spacing="2">
+                <MudItem xs="12" md="8">
+                    <MudCard Elevation="2" Class="rounded-lg">
+                        <MudCardHeader>
+                            <CardHeaderContent>
+                                <MudText Typo="Typo.h6">Estadísticas del Evento</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Default">@_statsEvento.TituloEvento</MudText>
+                            </CardHeaderContent>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudGrid Spacing="3">
+                                <MudItem xs="4">
+                                    <MudPaper Elevation="2" Class="pa-4 text-center rounded-lg">
+                                        <MudText Typo="Typo.h4" Color="Color.Primary">
+                                            @_statsEvento.Cantidad
+                                        </MudText>
+                                        <MudText Typo="Typo.body2" Color="Color.Default">
+                                            Asistentes
+                                        </MudText>
+                                    </MudPaper>
+                                </MudItem>
+                                <MudItem xs="4">
+                                    <MudPaper Elevation="2" Class="pa-4 text-center rounded-lg">
+                                        <MudText Typo="Typo.h4" Color="Color.Success">
+                                            @_statsEvento.Miembros
+                                        </MudText>
+                                        <MudText Typo="Typo.body2" Color="Color.Default">
+                                            Miembros
+                                        </MudText>
+                                    </MudPaper>
+                                </MudItem>
+                                <MudItem xs="4">
+                                    <MudPaper Elevation="2" Class="pa-4 text-center rounded-lg">
+                                        <MudText Typo="Typo.h4" Color="Color.Warning">
+                                            @_statsEvento.Visitantes
+                                        </MudText>
+                                        <MudText Typo="Typo.body2" Color="Color.Default">
+                                            Visitantes
+                                        </MudText>
+                                    </MudPaper>
+                                </MudItem>
+                            </MudGrid>
+
+                            <MudGrid Spacing="2" Class="mt-4">
+                                <MudItem xs="12" sm="6">
+                                    <MudButton Variant="Variant.Filled"
+                                               Color="Color.Primary"
+                                               FullWidth="true"
+                                               OnClick="VerAsistentes"
+                                               StartIcon="@Icons.Material.Filled.People">
+                                        Ver Lista de Asistentes
+                                    </MudButton>
+                                </MudItem>
+                                <MudItem xs="12" sm="6">
+                                    <MudButton Variant="Variant.Outlined"
+                                               Color="Color.Primary"
+                                               FullWidth="true"
+                                               OnClick="ExportarEventoActual"
+                                               StartIcon="@Icons.Material.Filled.FileDownload">
+                                        Exportar Excel
+                                    </MudButton>
+                                </MudItem>
+                            </MudGrid>
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+
+                <!-- QR Generado (solo si se generó) -->
+                <MudItem xs="12" md="4">
+                    @if (_qrGenerado != null)
+                    {
+                        <MudCard Elevation="2" Class="rounded-lg">
+                            <MudCardHeader>
+                                <CardHeaderContent>
+                                    <MudText Typo="Typo.h6">Código QR</MudText>
+                                </CardHeaderContent>
+                            </MudCardHeader>
+                            <MudCardContent>
+                                <MudText Typo="Typo.subtitle2" Class="mb-2" Color="Color.Primary">
+                                    @_qrGenerado.TituloEvento
+                                </MudText>
+
+                                <div class="text-center mb-4">
+                                    @if (!string.IsNullOrEmpty(_qrBase64))
+                                    {
+                                        <img src="@_qrBase64" alt="QR Code"
+                                             style="max-width: 220px; border: 2px solid #e0e0e0; border-radius: 12px;" />
+                                    }
+                                    else if (_cargandoQR)
+                                    {
+                                        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                                    }
+                                </div>
+
+                                <MudText Typo="Typo.body2" Class="mb-1" Align="Align.Center">
+                                    <strong>Código:</strong> @_qrGenerado.CodigoVerificacion
+                                </MudText>
+
+                                <MudGrid Spacing="2" Class="mt-4">
+                                    <MudItem xs="6">
+                                        <MudButton Variant="Variant.Outlined"
+                                                   Color="Color.Primary"
+                                                   FullWidth="true"
+                                                   OnClick="ImprimirQR"
+                                                   StartIcon="@Icons.Material.Filled.Print"
+                                                   Size="Size.Small">
+                                            Imprimir
+                                        </MudButton>
+                                    </MudItem>
+                                    <MudItem xs="6">
+                                        <MudButton Variant="Variant.Outlined"
+                                                   Color="Color.Secondary"
+                                                   FullWidth="true"
+                                                   OnClick="DescargarQR"
+                                                   StartIcon="@Icons.Material.Filled.Download"
+                                                   Size="Size.Small">
+                                            Descargar
+                                        </MudButton>
+                                    </MudItem>
+                                </MudGrid>
+                            </MudCardContent>
+                        </MudCard>
+                    }
+                    else if (_eventoSeleccionado > 0 && _qrGenerado == null)
+                    {
+                        <MudCard Elevation="2" Class="rounded-lg">
+                            <MudCardContent>
+                                <MudText Typo="Typo.h6" Class="mb-2">Código QR</MudText>
+                                <MudText Typo="Typo.body2" Color="Color.Default">
+                                    Presiona "Generar QR" para crear el código de asistencia para este evento.
+                                </MudText>
+                                <MudButton Variant="Variant.Filled"
+                                           Color="Color.Primary"
+                                           FullWidth="true"
+                                           OnClick="GenerarQR"
+                                           StartIcon="@Icons.Material.Filled.QrCode"
+                                           Class="mt-4">
+                                    Generar QR
+                                </MudButton>
+                            </MudCardContent>
+                        </MudCard>
+                    }
+                </MudItem>
+            </MudGrid>
+        }
+    </MudStack>
+</MudContainer>
+
+@code {
+    private List<EventoDTO> _eventos = new();
+    private Dictionary<int, int> _eventosConAsistencia = new();
+    private bool _cargando = false;
+    private bool _cargandoStats = false;
+    private bool _cargandoQR = false;
+    private int _eventoSeleccionado = 0;
+    private QrEventoDTO? _qrGenerado;
+    private string _qrBase64 = string.Empty;
+    private StatsResumen? _statsEvento;
+
+    private record StatsResumen(string TituloEvento, int Cantidad, int Miembros, int Visitantes);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarEventos();
+    }
+
+    private async Task CargarEventos()
+    {
+        _cargando = true;
+        try
+        {
+            var response = await Http.GetAsync("api/Evento/GetEventos");
+            if (response.IsSuccessStatusCode)
+            {
+                _eventos = await response.Content.ReadFromJsonAsync<List<EventoDTO>>() ?? new();
+                _eventos = _eventos.Where(e => e.Fecha >= DateTime.Today.AddDays(-1))
+                                   .OrderByDescending(e => e.Fecha)
+                                   .ToList();
+
+                // Cargar cantidad de asistentes para cada evento
+                await CargarContadoresAsistencia();
+            }
+            else
+            {
+                Snackbar.Add("Error al cargar los eventos.", Severity.Error);
+            }
+        }
+        catch
+        {
+            Snackbar.Add("Error de conexión.", Severity.Error);
+        }
+        finally
+        {
+            _cargando = false;
+        }
+    }
+
+    private async Task CargarContadoresAsistencia()
+    {
+        foreach (var evento in _eventos)
+        {
+            try
+            {
+                var response = await Http.GetAsync($"api/Asistencia/GetCantidadAsistentes/{evento.IdEvento}");
+                if (response.IsSuccessStatusCode)
+                {
+                    var count = await response.Content.ReadFromJsonAsync<int>();
+                    if (count > 0)
+                        _eventosConAsistencia[evento.IdEvento] = count;
+                }
+            }
+            catch { }
+        }
+    }
+
+    private async Task SeleccionarEvento(int eventoId)
+    {
+        _eventoSeleccionado = eventoId;
+        _qrGenerado = null;
+        _qrBase64 = string.Empty;
+        await CargarStatsEvento();
+    }
+
+    private async Task CargarStatsEvento()
+    {
+        if (_eventoSeleccionado == 0) return;
+
+        _cargandoStats = true;
+        try
+        {
+            var response = await Http.GetAsync($"api/Asistencia/GetAsistentes/{_eventoSeleccionado}");
+            if (response.IsSuccessStatusCode)
+            {
+                var asistentes = await response.Content.ReadFromJsonAsync<List<AsistenciaDTO>>() ?? new();
+                var titulo = asistentes.FirstOrDefault()?.TituloEvento ?? "Sin título";
+
+                _statsEvento = new StatsResumen(
+                    titulo,
+                    asistentes.Count,
+                    asistentes.Count(a => a.EsMiembroRegistrado),
+                    asistentes.Count(a => !a.EsMiembroRegistrado)
+                );
+            }
+        }
+        catch { }
+        finally
+        {
+            _cargandoStats = false;
+        }
+    }
+
+    private async Task GenerarQR()
+    {
+        if (_eventoSeleccionado == 0) return;
+
+        try
+        {
+            var response = await Http.GetAsync($"api/Asistencia/GenerarQR/{_eventoSeleccionado}");
+            if (response.IsSuccessStatusCode)
+            {
+                _qrGenerado = await response.Content.ReadFromJsonAsync<QrEventoDTO>();
+                Snackbar.Add("QR generado correctamente.", Severity.Success);
+                await CargarQRImagen();
+                await CargarStatsEvento();
+            }
+            else
+            {
+                Snackbar.Add("Error al generar el QR.", Severity.Error);
+            }
+        }
+        catch
+        {
+            Snackbar.Add("Error de conexión.", Severity.Error);
+        }
+    }
+
+    private async Task CargarQRImagen()
+    {
+        if (_eventoSeleccionado == 0) return;
+
+        _cargandoQR = true;
+        try
+        {
+            var response = await Http.GetAsync($"api/Asistencia/QrImagen/{_eventoSeleccionado}");
+            if (response.IsSuccessStatusCode)
+            {
+                var bytes = await response.Content.ReadAsByteArrayAsync();
+                var base64 = Convert.ToBase64String(bytes);
+                _qrBase64 = $"data:image/png;base64,{base64}";
+            }
+        }
+        catch { }
+        finally
+        {
+            _cargandoQR = false;
+        }
+    }
+
+    private async Task VolverAtras()
+    {
+        Nav.NavigateTo("/home");
+    }
+
+    private void ImprimirQR()
+    {
+        if (string.IsNullOrEmpty(_qrBase64) || _qrGenerado == null) return;
+
+        var html = "<html><head><title>QR</title></head><body>" +
+            "<h1 style='text-align:center;'>QR de Asistencia</h1>" +
+            "<h2 style='text-align:center;'>" + _qrGenerado.TituloEvento + "</h2>" +
+            "<img src='" + _qrBase64 + "' style='max-width:300px;display:block;margin:20px auto;' />" +
+            "<p style='text-align:center;'>Codigo: " + _qrGenerado.CodigoVerificacion + "</p>" +
+            "</body></html>";
+        var escapedHtml = html.Replace("'", "\\'");
+
+        JsRuntime.InvokeVoidAsync("eval",
+            "(function(h){const w=window.open('','_blank');w.document.write(h);w.document.close();w.print();})('" + escapedHtml + "')");
+    }
+
+    private async Task DescargarQR()
+    {
+        if (_qrGenerado == null || string.IsNullOrEmpty(_qrBase64)) return;
+
+        try
+        {
+            var fileName = $"QR_{_qrGenerado.TituloEvento.Replace(' ', '_')}.png";
+            var base64Data = _qrBase64.Split(',')[1];
+
+            var js = "const a=document.createElement('a');" +
+                "a.href='data:image/png;base64," + base64Data + "';" +
+                "a.download='" + fileName + "';a.click();";
+
+            await JsRuntime.InvokeVoidAsync("eval", js);
+            Snackbar.Add("QR descargado correctamente.", Severity.Success);
+        }
+        catch
+        {
+            Snackbar.Add("Error al descargar el QR.", Severity.Error);
+        }
+    }
+
+    private void VerAsistentes()
+    {
+        Nav.NavigateTo($"/miembros/asistencia/evento/{_eventoSeleccionado}");
+    }
+
+    private async Task ExportarEventoActual()
+    {
+        try
+        {
+            var response = await Http.GetAsync($"api/Estadisticas/ExportarAsistenciaExcel/{_eventoSeleccionado}");
+            if (response.IsSuccessStatusCode)
+            {
+                var bytes = await response.Content.ReadAsByteArrayAsync();
+                var fileName = $"Asistencia_{_eventoSeleccionado}_{DateTime.Now:yyyyMMdd}.xlsx";
+                var base64 = Convert.ToBase64String(bytes);
+
+                var js = "const a=document.createElement('a');" +
+                    "a.href='data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64," + base64 + "';" +
+                    "a.download='" + fileName + "';a.click();";
+
+                await JsRuntime.InvokeVoidAsync("eval", js);
+                Snackbar.Add("Archivo descargado correctamente.", Severity.Success);
+            }
+        }
+        catch
+        {
+            Snackbar.Add("Error al exportar.", Severity.Error);
+        }
+    }
+
+    private async Task RecargarTodo()
+    {
+        _qrGenerado = null;
+        _qrBase64 = string.Empty;
+        _statsEvento = null;
+        _eventosConAsistencia.Clear();
+        await CargarEventos();
+        if (_eventoSeleccionado > 0)
+            await CargarStatsEvento();
+    }
+}

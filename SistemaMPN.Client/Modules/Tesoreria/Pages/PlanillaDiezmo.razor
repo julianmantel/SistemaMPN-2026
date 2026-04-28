@@ -1,0 +1,690 @@
+@page "/tesoreria/planilla-diezmo"
+@using Microsoft.AspNetCore.Components.Authorization
+@using SistemaMPN.Client.Modules.Tesoreria.Components
+@using SistemaMPN.Shared.DTO
+@using System.Net.Http.Headers
+@layout SistemaMPN.Client.Layout.TesoreriaLayout
+
+@inject IJSRuntime JS
+@inject ISnackbar Snackbar
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Planilla de Diezmos</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+    <!-- Header Section -->
+    <MudPaper Elevation="0" Class="pa-6 rounded-lg mb-6" Style="background: linear-gradient(135deg, var(--color-primario) 0%, rgba(30, 58, 138, 0.8) 100%);">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+            <MudIcon Icon="@Icons.Material.Filled.ListAlt"
+                    Size="Size.Large"
+                    Style="color: var(--color-texto-claro);" />
+            <MudStack Spacing="0">
+                <MudText Typo="Typo.h4" Style="color: var(--color-texto-claro);">
+                    Planilla de Diezmos
+                </MudText>
+                <MudText Typo="Typo.body2" Style="color: var(--color-texto-claro);">
+                    Registro y gestión de planillas de diezmos
+                </MudText>
+            </MudStack>
+        </MudStack>
+    </MudPaper>
+
+    <MudGrid Spacing="4">
+        <!-- FORMULARIO -->
+        <MudItem xs="12" lg="6">
+            <MudCard Elevation="2" Class="rounded-lg" Style="height: 100%;">
+                <MudCardContent Class="pa-4" Style="height: 100%;">
+                    <EditForm EditContext="editContext" OnValidSubmit="@(() => GenerarPdf(true))" Style="height: 100%; display: flex; flex-direction: column;">
+                        <div style="flex: 1; overflow-y: auto;">
+                            <DataAnnotationsValidator />
+
+                            @if (!tesoreroCargado)
+                            {
+                                <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="py-8">
+                                    <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+                                    <MudText Typo="Typo.body1" Class="mt-3">Cargando información del tesorero...</MudText>
+                                </MudStack>
+                            }
+                            else if (!mostrarOpcionesFirma)
+                            {
+                                <MudStack Spacing="3">
+                                <MudGrid Spacing="3">
+                                    <MudItem xs="12" md="6">
+                                        <MudDatePicker Label="Fecha"
+                                                       @bind-Date="_fechaDateTime"
+                                                       Adornment="Adornment.Start"
+                                                       AdornmentIcon="@Icons.Material.Filled.CalendarToday"
+                                                       DateFormat="dd/MM/yyyy"
+                                                       Variant="Variant.Outlined"
+                                                       Disabled="@(!tesoreroCargado || pdfGenerado)"
+                                                    />
+                                    </MudItem>
+
+                                    <MudItem xs="12" md="6">
+                                        <MudTextField T="string"
+                                                      Label="Número"
+                                                      @bind-Value="model.Numero"
+                                                      Variant="Variant.Outlined"
+                                                      For="@(() => model.Numero)"
+                                                      @bind-Value:after="OnValorChanged"
+                                                      Disabled="@(!tesoreroCargado || pdfGenerado)"
+                                                      FullWidth="true" />
+                                    </MudItem>
+                                </MudGrid>
+
+<MudGrid Spacing="3">
+                                    <MudItem xs="12" md="6">
+                                        <MudPaper Class="pa-3 rounded-lg" Style="background-color: var(--mud-palette-primary-hover); border: 1px solid var(--mud-palette-primary);">
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                                <MudIcon Icon="@Icons.Material.Filled.Person" Color="Color.Primary" />
+                                                <MudStack Spacing="0">
+                                                    <MudText Typo="Typo.caption" Color="Color.Primary">Tesorero (Usuario Actual)</MudText>
+                                                    <MudText Typo="Typo.body1" Style="font-weight: 500;">@tesoreroActualNombre</MudText>
+                                                </MudStack>
+                                            </MudStack>
+                                        </MudPaper>
+                                    </MudItem>
+
+                                    <MudItem xs="12" md="6">
+                                        <MudAutocomplete T="SupervisorDTO" Label="Supervisor"
+                                                          CoerceValue="true" ResetValueOnEmptyText="true"
+                                                          Variant="Variant.Outlined" SelectValueOnTab="true"
+                                                          SearchFunc="@BuscarSupervisores" @bind-Value="supervisorSel"
+                                                          Disabled="@(!tesoreroCargado || pdfGenerado)"
+                                                          FullWidth="true"
+                                                          ToStringFunc="@(s => s?.Nombre ?? "")">
+                                            <ItemTemplate Context="supervisor">
+                                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                                    <MudIcon Icon="@Icons.Material.Filled.Person" Color="Color.Info" Size="Size.Small" />
+                                                    <MudText>@supervisor.Nombre</MudText>
+                                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@supervisor.Cargo</MudText>
+                                                </MudStack>
+                                            </ItemTemplate>
+                                        </MudAutocomplete>
+                                    </MudItem>
+                                </MudGrid>
+
+                                @if (!string.IsNullOrEmpty(tesoreroActualNombre) || !string.IsNullOrEmpty(supervisorSel.Nombre))
+                                {
+                                    <MudStack Row="true" Spacing="2">
+                                        @if (!string.IsNullOrEmpty(tesoreroActualNombre))
+                                        {
+                                            <MudChip T="string" Color="Color.Primary" Size="Size.Small">
+                                                <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Class="mr-1" />
+                                                Tesorero: @tesoreroActualNombre
+                                            </MudChip>
+                                        }
+                                        @if (!string.IsNullOrEmpty(supervisorSel.Nombre))
+                                        {
+                                            <MudChip T="string" Color="Color.Secondary" Size="Size.Small">
+                                                <MudIcon Icon="@Icons.Material.Filled.SupervisorAccount" Size="Size.Small" Class="mr-1" />
+                                                Supervisor: @supervisorSel.Nombre
+                                            </MudChip>
+                                        }
+                                    </MudStack>
+                                }
+
+                                <MudDivider />
+
+                                <MudStack Spacing="2">
+                                    <MudText Typo="Typo.h6">
+                                        <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" Class="mr-2" Style="color: var(--color-primario);" />
+                                        Registros de Personas
+                                    </MudText>
+
+                                    <MudSelect T="int"
+                                               Label="Número de filas"
+                                               Value="@cantidadFilas"
+                                               ValueChanged="ActualizarCantidadFilas"
+                                               ValueExpression="@(() => cantidadFilas)"
+                                               Dense="true"
+                                               Variant="Variant.Outlined"
+                                               Disabled="@(!tesoreroCargado || pdfGenerado)"
+                                               FullWidth="true">
+                                        @foreach (var f in filas)
+                                        {
+                                            <MudSelectItem T="int" Value="@f">@f</MudSelectItem>
+                                        }
+                                    </MudSelect>
+
+                                    <MudPaper Class="pa-3 rounded-lg" Style="max-height: 400px; overflow-y: auto; border: 1px solid var(--mud-palette-divider);">
+                                        <MudStack Spacing="2">
+                                            @foreach (var (registro, index) in model.Registros.Select((r, i) => (r, i)))
+                                            {
+                                                <MudPaper Class="pa-3" Elevation="0" Style="background-color: var(--mud-palette-background-grey);">
+                                                    <MudGrid Spacing="2" AlignItems="AlignItems.Center">
+                                                        <MudItem xs="1">
+                                                            <MudText Typo="Typo.subtitle2" Style="font-weight: 600; color: var(--color-primario);">@(index + 1)</MudText>
+                                                        </MudItem>
+
+                                                        <MudItem xs="6">
+                                                            <MudTextField T="string"
+                                                                          @bind-Value="registro.NombreApellido"
+                                                                          For="@(() => registro.NombreApellido)"
+                                                                          Variant="Variant.Outlined"
+                                                                          Placeholder="Apellido, Nombre"
+                                                                          @bind-Value:after="OnValorChanged"
+                                                                          Disabled="@(!tesoreroCargado || pdfGenerado)"
+                                                                          Dense="true" />
+                                                        </MudItem>
+
+                                                        <MudItem xs="5">
+                                                            <MudTextField T="string"
+                                                                          @bind-Value="registro.Observacion"
+                                                                          For="@(() => registro.Observacion)"
+                                                                          Variant="Variant.Outlined"
+                                                                          Placeholder="Observación"
+                                                                          @bind-Value:after="OnValorChanged"
+                                                                          Disabled="@(!tesoreroCargado || pdfGenerado)"
+                                                                          Dense="true" />
+                                                        </MudItem>
+                                                    </MudGrid>
+                                                </MudPaper>
+                                            }
+                                        </MudStack>
+                                    </MudPaper>
+                                </MudStack>
+
+                                <MudTextField T="string"
+                                              Label="Texto de entrega"
+                                              @bind-Value="model.TextoEntrega"
+                                              Variant="Variant.Outlined"
+                                              @bind-Value:after="OnValorChanged"
+                                              Disabled="@(!tesoreroCargado || pdfGenerado)"
+                                              Lines="2"
+                                              FullWidth="true" />
+                            </MudStack>
+                        }
+                        </div>
+
+                        <DocumentFormActions IsGenerating="@isGenerating"
+                                             IsGuardando="@isGuardando"
+                                             FormEditContext="editContext"
+                                             @bind-PdfGenerado="@pdfGenerado"
+                                             @bind-IsFirmado="@pdfFirmado"
+                                             PdfUrl="@pdfUrl"
+                                             UsuarioId="@tesoreroActualId"
+                                             @bind-MostrarOpcionesFirma="@mostrarOpcionesFirma"
+                                             @bind-SupervisorSeleccionado="@supervisorSeleccionado"
+                                             SupervisorNombrePreSeleccionado="@supervisorSel.Nombre"
+                                             OnGenerarPdf="GenerarPdf"
+                                             OnGuardar="GuardarDocumento"
+                                             @bind-DocumentoGuardadoId="@documentoGuardadoId"
+                                             TipoDocumento="Planilla de Diezmo"
+                                             OnDescargar="DescargarPdf"
+                                             OnLimpiar="LimpiarFormulario"
+                                             OnEditar="EditarDocumento"
+                                             OnArchivoFisicoSubido="ManejarArchivoFisicoSubido"
+                                             OnSupervisorNombreChanged="ManejarSupervisorNombreCambiado"
+											 />
+
+                    </EditForm>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <!-- VISTA PREVIA DEL PDF -->
+        <MudItem xs="12" lg="6">
+            <MudCard Elevation="2" Class="rounded-lg" Style="height: 100%;">
+                <MudCardContent Class="pa-0" Style="height: 100%; display: flex; flex-direction: column;">
+                    @if (string.IsNullOrEmpty(pdfUrl))
+                    {
+                        <MudStack Spacing="3" AlignItems="AlignItems.Center" Class="py-12" Style="flex: 1; display: flex; flex-direction: column; justify-content: center;">
+                            <MudIcon Icon="@Icons.Material.Filled.ListAlt" Size="Size.Large" Color="Color.Secondary" Style="opacity: 0.5;" />
+                            <MudText Typo="Typo.h6" Color="Color.Secondary">Vista Previa del PDF</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary" Align="Align.Center">
+                                Completa los datos y haz clic en "Vista Previa PDF" para generar el documento
+                            </MudText>
+                        </MudStack>
+                    }
+                    else
+                    {
+                        <div class="d-flex flex-column" Style="height: 100%;">
+                            <MudStack Row="true" Class="pa-4 justify-space-between align-center" Style="border-bottom: 1px solid var(--mud-palette-divider); flex-shrink: 0;">
+                                <MudText Typo="Typo.h6">
+                                    <MudIcon Icon="@Icons.Material.Filled.PictureAsPdf" Size="Size.Small" Class="mr-2" Style="color: var(--color-primario);" />
+                                    Vista Previa
+                                </MudText>
+                                <MudChip T="bool" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.CheckCircle">
+                                    PDF Generado
+                                </MudChip>
+                            </MudStack>
+                            <iframe src="@pdfUrl"
+                                    style="width: 100%; flex: 1; border: none;">
+                            </iframe>
+                        </div>
+                    }
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+	private record DocumentoGuardadoResponse(int documentoId);
+
+	private TesoreroDisponibleDTO tesoreroActual = new();
+	private SupervisorDTO supervisorSel = new();
+
+	private PlanillaDiezmosDTO model = new()
+	{
+		TextoEntrega = ""
+	};
+    private EditContext editContext;
+
+	private DateTime? _fechaDateTime = DateTime.Today;
+	private string mensajeError = string.Empty;
+	private int tesoreroActualId;
+	private string tesoreroActualNombre = "";
+	private bool tesoreroCargado = false;
+	private int supervisorSeleccionado = 0;
+	private bool isGenerating = false;
+	private bool isGuardando = false;
+	private int documentoGuardadoId = 0;
+	private bool pdfGenerado = false;
+	private string errorMessage = "";
+	private string successMessage = "";
+	private bool jsPdfLoaded = false;
+	private string pdfUrl = "";
+	private int cantidadFilas = 25;
+	private bool mostrarOpcionesFirma = false;
+	private bool pdfFirmado = false;
+
+	private List<int> filas = new List<int>
+	{
+		10,
+		15,
+		20,
+		25
+	};
+
+	private async Task<IEnumerable<SupervisorDTO>> BuscarSupervisores(string value, CancellationToken token)
+	{
+		var supervisores = await Http.GetFromJsonAsync<List<SupervisorDTO>>($"api/usuario/GetSupervisores");
+
+		if (supervisores == null)
+			return Enumerable.Empty<SupervisorDTO>();
+
+		if (string.IsNullOrEmpty(value))
+			return supervisores;
+
+		return supervisores.Where(s =>
+			s.Nombre.Contains(value, StringComparison.OrdinalIgnoreCase) ||
+			(s.Cargo?.Contains(value, StringComparison.OrdinalIgnoreCase) ?? false));
+	}
+
+	protected override async Task OnInitializedAsync()
+	{
+		editContext = new EditContext(model);
+		await ConfigurarDatosTesorero();
+
+		for (int i = 0; i < 25; i++)
+		{
+			model.Registros.Add(new RegistroPersonaDTO());
+		}
+	}
+
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (firstRender && !jsPdfLoaded)
+		{
+			try
+			{
+				await JS.InvokeVoidAsync("chequearJSPDF");
+				await Task.Delay(1000);
+				jsPdfLoaded = true;
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine($"Error cargando jsPDF: {ex.Message}");
+			}
+		}
+	}
+
+	private void OnValorChanged()
+	{
+		pdfUrl = "";
+		pdfGenerado = false;
+		StateHasChanged();
+	}
+
+	private Task ManejarSupervisorNombreCambiado(string nombreSupervisor)
+	{
+		if (!string.IsNullOrEmpty(nombreSupervisor))
+		{
+			if (supervisorSel != null)
+			{
+				supervisorSel.Nombre = nombreSupervisor;
+			}
+			else
+			{
+				supervisorSel = new SupervisorDTO { Nombre = nombreSupervisor };
+			}
+		}
+		return Task.CompletedTask;
+	}
+
+	private void ActualizarCantidadFilas(int nuevasFilas)
+	{
+		cantidadFilas = nuevasFilas;
+		int actuales = model.Registros.Count;
+
+		if (nuevasFilas > actuales)
+		{
+			for (int i = actuales; i < nuevasFilas; i++)
+				model.Registros.Add(new RegistroPersonaDTO());
+		}
+		else if (nuevasFilas < actuales)
+		{
+			model.Registros.RemoveRange(nuevasFilas, actuales - nuevasFilas);
+		}
+
+		OnValorChanged();
+		StateHasChanged();
+	}
+
+	private async Task GenerarPdf(bool preview)
+	{
+		isGenerating = true;
+		errorMessage = "";
+		successMessage = "";
+
+		try
+		{
+			if (string.IsNullOrWhiteSpace(tesoreroActualNombre))
+			{
+				errorMessage = "No se pudo obtener el tesorero actual";
+				Snackbar.Add(errorMessage, Severity.Warning);
+				return;
+			}
+
+			if (string.IsNullOrWhiteSpace(supervisorSel.Nombre))
+			{
+				errorMessage = "Debe seleccionar un Supervisor";
+				Snackbar.Add(errorMessage, Severity.Warning);
+				return;
+			}
+
+			var data = new
+			{
+				fecha = (DateOnly.FromDateTime(_fechaDateTime.Value).ToString("dd/MM/yyyy")),
+				numero = model.Numero,
+				registros = model.Registros.Select((r, index) => new
+				{
+					numero = index + 1,
+					nombreApellido = r.NombreApellido ?? "",
+					observacion = r.Observacion ?? ""
+				}).ToArray(),
+				textoEntrega = model.TextoEntrega,
+				nombreSupervisor = supervisorSel.Nombre,
+				nombreTesorero = tesoreroActualNombre
+			};
+
+			if (!string.IsNullOrEmpty(pdfUrl))
+			{
+				await JS.InvokeVoidAsync("URL.revokeObjectURL", pdfUrl);
+			}
+
+			pdfUrl = await JS.InvokeAsync<string>("generarPlanillaDiezmos", data, preview);
+			pdfGenerado = true;
+
+			successMessage = "Planilla generada exitosamente";
+			Snackbar.Add(successMessage, Severity.Success);
+			StateHasChanged();
+		}
+		catch (Exception ex)
+		{
+			errorMessage = $"Error al generar PDF: {ex.Message}";
+			Snackbar.Add(errorMessage, Severity.Error);
+			Console.WriteLine($"Error completo: {ex}");
+		}
+		finally
+		{
+			isGenerating = false;
+			StateHasChanged();
+		}
+	}
+
+	private async Task GuardarDocumento(bool preview)
+	{
+		isGuardando = true;
+
+		try
+		{
+			var content = new MultipartFormDataContent();
+
+			content.Add(
+				new StringContent(
+					int.TryParse(model.Numero, out var num) ? num.ToString() : "0"
+				),
+				"nro_documento"
+			);
+
+			content.Add(
+				new StringContent(
+					DateOnly.FromDateTime(_fechaDateTime.Value).ToString("yyyy-MM-dd")
+				),
+				"fecha"
+			);
+
+			content.Add(new StringContent("Planilla de Diezmos"), "tipo");
+			content.Add(new StringContent(tesoreroActualId.ToString()), "id_tesorero");
+			content.Add(new StringContent(supervisorSeleccionado.ToString()), "id_supervisor");
+			content.Add(new StringContent(pdfFirmado.ToString()), "firmado");
+
+			var bytes = await JS.InvokeAsync<byte[]>(
+				"obtenerBytesDelBlob",
+				pdfUrl
+			);
+
+			var fileContent = new ByteArrayContent(bytes);
+			fileContent.Headers.ContentType =
+				new MediaTypeHeaderValue("application/pdf");
+
+			content.Add(
+				fileContent,
+				"archivo",
+				"planilla-diezmos.pdf"
+			);
+
+			var response = await Http.PostAsync(
+				"api/Documento/GuardarDocumento",
+				content
+			);
+
+			if (response.IsSuccessStatusCode)
+			{
+				var result = await response.Content.ReadFromJsonAsync<DocumentoGuardadoResponse>();
+				documentoGuardadoId = result?.documentoId ?? 0;
+				Snackbar.Add("Documento guardado exitosamente", Severity.Success);
+			}
+			else
+			{
+				var error = await response.Content.ReadAsStringAsync();
+				Snackbar.Add($"Error al guardar: {error}", Severity.Error);
+			}
+		}
+		catch (Exception ex)
+		{
+			Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+			Console.WriteLine($"Error al guardar documento: {ex}");
+		}
+		finally
+		{
+			isGuardando = false;
+			StateHasChanged();
+		}
+	}
+
+	private async Task ManejarArchivoFisicoSubido(IBrowserFile file)
+	{
+		if (file == null) return;
+
+		isGuardando = true;
+
+		try
+		{
+			// Validar que sea un PDF
+			if (!file.ContentType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase))
+			{
+				Snackbar.Add("Solo se permiten archivos PDF", Severity.Error);
+				return;
+			}
+
+			// Validar tamaño (máximo 10MB)
+			var maxSize = 10 * 1024 * 1024;
+			if (file.Size > maxSize)
+			{
+				Snackbar.Add("El archivo es demasiado grande (máximo 10MB)", Severity.Error);
+				return;
+			}
+
+			// Preparar el contenido multipart
+			var content = new MultipartFormDataContent();
+
+			// Agregar metadatos del documento
+			content.Add(
+				new StringContent(
+					int.TryParse(model.Numero, out var num) ? num.ToString() : "0"
+				),
+				"nro_documento"
+			);
+
+			content.Add(
+				new StringContent(
+					DateOnly.FromDateTime(_fechaDateTime.Value).ToString("yyyy-MM-dd")
+				),
+				"fecha"
+			);
+
+			content.Add(new StringContent("Planilla de Diezmos"), "tipo");
+			content.Add(new StringContent(tesoreroActualId.ToString()), "id_tesorero");
+			content.Add(new StringContent(supervisorSeleccionado.ToString()), "id_supervisor");
+
+			// Marcar como firmado (firma física)
+			content.Add(new StringContent("true"), "firmado");
+
+			// Leer el archivo físico subido por el usuario
+			using var stream = file.OpenReadStream(maxSize);
+			using var memoryStream = new MemoryStream();
+			await stream.CopyToAsync(memoryStream);
+			var bytes = memoryStream.ToArray();
+
+			var fileContent = new ByteArrayContent(bytes);
+			fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/pdf");
+
+			content.Add(
+				fileContent,
+				"archivo",
+				file.Name
+			);
+
+			// Enviar al servidor
+			var response = await Http.PostAsync(
+				"api/documento/GuardarDocumento",
+				content
+			);
+
+			if (response.IsSuccessStatusCode)
+			{
+				var result = await response.Content.ReadFromJsonAsync<DocumentoGuardadoResponse>();
+				documentoGuardadoId = result?.documentoId ?? 0;
+				Snackbar.Add("Documento firmado guardado exitosamente", Severity.Success);
+			}
+			else
+			{
+				var error = await response.Content.ReadAsStringAsync();
+				Snackbar.Add($"Error al guardar documento firmado: {error}", Severity.Error);
+			}
+		}
+		catch (Exception ex)
+		{
+			Snackbar.Add($"Error al procesar archivo: {ex.Message}", Severity.Error);
+			Console.WriteLine($"Error en ManejarArchivoFisicoSubido: {ex}");
+		}
+		finally
+		{
+			isGuardando = false;
+			StateHasChanged();
+		}
+	}
+
+	private async Task DescargarPdf()
+	{
+		if (!string.IsNullOrEmpty(pdfUrl))
+		{
+			await JS.InvokeVoidAsync("descargarPDF", "Diezmo", pdfUrl, model.Numero.Replace(' ', '-'));
+		}
+	}
+
+	private async Task ConfigurarDatosTesorero()
+	{
+		try
+		{
+			var response = await Http.GetAsync("api/documento/GetTesoreroActual");
+			if (response.IsSuccessStatusCode)
+			{
+				tesoreroActual = await response.Content.ReadFromJsonAsync<TesoreroDisponibleDTO>();
+				if (tesoreroActual != null)
+				{
+					tesoreroActualId = tesoreroActual.IdTesorero;
+					tesoreroActualNombre = tesoreroActual.Nombre;
+					tesoreroCargado = true;
+					StateHasChanged();
+				}
+			}
+			else
+			{
+				mensajeError = "No se pudo obtener la información del tesorero actual";
+				var error = await response.Content.ReadAsStringAsync();
+				Console.WriteLine($"Error API: {error}");
+			}
+		}
+		catch (Exception ex)
+		{
+			mensajeError = $"Error al obtener información del tesorero: {ex.Message}";
+			Console.WriteLine($"Excepción: {ex}");
+		}
+	}
+
+	private async Task EditarDocumento()
+	{
+		if (!string.IsNullOrEmpty(pdfUrl))
+		{
+			await JS.InvokeVoidAsync("URL.revokeObjectURL", pdfUrl);
+		}
+
+		pdfUrl = "";
+		pdfGenerado = false;
+		mostrarOpcionesFirma = false;
+
+		Snackbar.Add("Modo edición activado. Modifique los datos y regenere el PDF", Severity.Info);
+		StateHasChanged();
+	}
+
+	private void LimpiarFormulario()
+	{
+		model = new PlanillaDiezmosDTO
+		{
+			Numero = "",
+			TextoEntrega = ""
+		};
+
+		model.Registros.Clear();
+		for (int i = 0; i < 25; i++)
+		{
+			model.Registros.Add(new RegistroPersonaDTO());
+		}
+
+		_fechaDateTime = DateTime.Today;
+		cantidadFilas = 25;
+		supervisorSeleccionado = 0;
+		supervisorSel = new SupervisorDTO();
+		pdfUrl = "";
+		pdfGenerado = false;
+		errorMessage = "";
+		successMessage = "";
+		StateHasChanged();
+	}
+}

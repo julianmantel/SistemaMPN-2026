@@ -1,0 +1,179 @@
+﻿@using SistemaMPN.Shared.DTO
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Color="Color.Success" />
+            <MudText Typo="Typo.h6">Agregar Miembro al Grupo</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="4">
+            <MudSelect T="int?"
+                       Label="Seleccionar Miembro"
+                       @bind-Value="miembroSeleccionado"
+                       Required="true"
+                       Variant="Variant.Outlined"
+                       Disabled="@(cargandoMiembros || miembrosDisponibles == null || !miembrosDisponibles.Any())">
+                <MudSelectItem Value="@((int?)null)">
+                    @if (cargandoMiembros)
+                    {
+                        <text>-- Cargando miembros disponibles... --</text>
+                    }
+                    else if (miembrosDisponibles == null || !miembrosDisponibles.Any())
+                    {
+                        <text>-- No hay miembros disponibles --</text>
+                    }
+                    else
+                    {
+                        <text>-- Seleccione un miembro --</text>
+                    }
+                </MudSelectItem>
+
+                @if (miembrosDisponibles != null && miembrosDisponibles.Any())
+                {
+                    @foreach (var miembro in miembrosDisponibles)
+                    {
+                        <MudSelectItem Value="@((int?)miembro.id_miembro)">
+                            @($"{miembro.nombre_completo} - DNI: {miembro.dni}")
+                        </MudSelectItem>
+                    }
+                }
+            </MudSelect>
+
+            <MudTextField Label="Ocupación en el Grupo" 
+                          @bind-Value="ocupacionMiembro" 
+                          Required="true"
+                          Variant="Variant.Outlined"
+                          Placeholder="Ej: Tesorero, Secretario, etc..." />
+
+            @if (cargandoMiembros)
+            {
+                <MudStack Spacing="1">
+                    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Cargando miembros disponibles...</MudText>
+                </MudStack>
+            }
+            else if (miembrosDisponibles != null && !miembrosDisponibles.Any())
+            {
+                <MudAlert Severity="Severity.Info">
+                    <MudStack Row="true" AlignItems="AlignItems.Start" Spacing="2">
+                        <MudText Typo="Typo.body2">
+                            No hay miembros disponibles para agregar a este grupo.
+                        </MudText>
+                    </MudStack>
+                </MudAlert>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="() => MudDialog.Cancel()" 
+                   Color="Color.Default" 
+                   Variant="Variant.Outlined">
+            Cancelar
+        </MudButton>
+        <MudButton OnClick="Guardar"
+                   Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   Disabled="@(string.IsNullOrWhiteSpace(ocupacionMiembro) || !miembroSeleccionado.HasValue || guardando || cargandoMiembros || miembrosDisponibles == null || !miembrosDisponibles.Any())"
+                   StartIcon="@(guardando ? null : Icons.Material.Filled.Check)">
+            @if (guardando)
+            {
+                <MudProgressCircular Class="me-2" Size="Size.Small" Indeterminate="true" />
+                <MudText>Guardando</MudText>
+            }
+            else
+            {
+                <MudText>Guardar</MudText>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; }
+
+    [Parameter] public int IdGrupo { get; set; }
+
+    [Inject] private HttpClient Http { get; set; }
+    [Inject] private ISnackbar Snackbar { get; set; }
+
+    private int? miembroSeleccionado;
+    private string ocupacionMiembro = string.Empty;
+    private List<InfoMiembroGrupoDTO>? miembrosDisponibles = null;
+    private bool cargandoMiembros = false;
+    private bool guardando = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await GetMiembrosParaGrupo();
+    }
+
+    private async Task GetMiembrosParaGrupo()
+    {
+        cargandoMiembros = true;
+        StateHasChanged();
+        try
+        {
+            var response = await Http.GetFromJsonAsync<List<InfoMiembroGrupoDTO>>("api/grupo/GetMiembrosSinGrupo");
+            miembrosDisponibles = response ?? new List<InfoMiembroGrupoDTO>();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar miembros: {ex.Message}");
+            miembrosDisponibles = new List<InfoMiembroGrupoDTO>();
+        }
+        finally
+        {
+            cargandoMiembros = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task Guardar()
+    {
+        if (string.IsNullOrWhiteSpace(ocupacionMiembro) || !miembroSeleccionado.HasValue)
+        {
+            return;
+        }
+
+        guardando = true;
+        StateHasChanged();
+
+        try
+        {
+            var response = await Http.PostAsJsonAsync($"api/grupo/AgregarMiembroAlGrupo/{IdGrupo}/{miembroSeleccionado.Value}", ocupacionMiembro.Trim());
+
+            if (response.IsSuccessStatusCode)
+            {
+                var grupoCreado = await response.Content.ReadFromJsonAsync<GrupoDTO>();
+                Snackbar.Add("Miembro agregado al grupo exitosamente.", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(grupoCreado));
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Error al crear grupo: {error}");
+                Snackbar.Add($"Error: {error}", Severity.Error);
+                // Mostrar error al usuario
+                await ShowErrorMessage(error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+            Snackbar.Add($"Error inesperado: {ex.Message}", Severity.Error);
+            await ShowErrorMessage("Ocurrió un error inesperado al crear el grupo.");
+        }
+        finally
+        {
+            guardando = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ShowErrorMessage(string error)
+    {
+        MudDialog.Cancel();
+    }
+}

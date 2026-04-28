@@ -1,0 +1,267 @@
+@page "/checkin"
+@using SistemaMPN.Shared.DTO
+@using SistemaMPN.Client.Layout
+
+@layout LoginLayout
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<PageTitle>Registro de Asistencia</PageTitle>
+
+<MudPaper Elevation="2" Class="pa-8" Style="max-width: 500px; margin: 0 auto;">
+    <MudText Typo="Typo.h4" Class="mb-2 text-center">
+        <MudIcon Icon="@Icons.Material.Filled.QrCode" Size="Size.Large" Class="mr-2" />
+        Registro de Asistencia
+    </MudText>
+
+    @if (!string.IsNullOrEmpty(_tituloEvento))
+    {
+        <MudText Typo="Typo.h6" Class="mb-6 text-center" Color="Color.Primary">
+            @_tituloEvento
+        </MudText>
+    }
+
+    @if (_estado == EstadoCheckIn.Error)
+    {
+        <MudAlert Severity="Severity.Error" Class="mb-4">
+            @_mensaje
+        </MudAlert>
+
+        <MudLink Href="/"
+                 Class="mt-4 d-block"
+                 Typo="Typo.body2"
+                 Color="Color.Primary">
+            Volver al inicio
+        </MudLink>
+    }
+    else if (_estado == EstadoCheckIn.Exito)
+    {
+        <MudAlert Severity="Severity.Success" Class="mb-4">
+            <MudText Typo="Typo.h6" Class="mb-2">¡Asistencia Registrada!</MudText>
+            <MudText>@_mensaje</MudText>
+        </MudAlert>
+
+        <MudButton ButtonType="ButtonType.Button"
+                   Variant="Variant.Filled"
+                   FullWidth="true"
+                   Class="mt-4 botton-azul-oscuro"
+                   OnClick="LimpiarFormulario">
+            Registrar otra asistencia
+        </MudButton>
+    }
+    else if (_estado == EstadoCheckIn.Duplicado)
+    {
+        <MudAlert Severity="Severity.Warning" Class="mb-4">
+            <MudText Typo="Typo.h6" Class="mb-2">⚠️ Ya Registrado</MudText>
+            <MudText>@_mensaje</MudText>
+        </MudAlert>
+
+        <MudButton ButtonType="ButtonType.Button"
+                   Variant="Variant.Filled"
+                   FullWidth="true"
+                   Class="mt-4 botton-azul-oscuro"
+                   OnClick="LimpiarFormulario">
+            Registrar otra asistencia
+        </MudButton>
+    }
+    else if (_estado == EstadoCheckIn.Formulario)
+    {
+        <EditForm Model="_registro" OnValidSubmit="RegistrarAsistencia">
+            <DataAnnotationsValidator />
+
+            <MudTextField @bind-Value="_registro.Dni"
+                          For="@(() => _registro.Dni)"
+                          Label="DNI (opcional - para autocompletar si sos miembro)"
+                          Variant="Variant.Outlined"
+                          FullWidth="true"
+                          Class="mb-4"
+                          OnBlur="OnDniBlurred" />
+
+            @if (_miembroEncontrado != null)
+            {
+                <MudAlert Severity="Severity.Info" Class="mb-4">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" />
+                        <MudText Typo="Typo.body2">
+                            Miembro reconocido: <strong>@_miembroEncontrado.nombre @_miembroEncontrado.apellido</strong>
+                        </MudText>
+                    </MudStack>
+                </MudAlert>
+            }
+
+            <MudTextField @bind-Value="_registro.Nombre"
+                          For="@(() => _registro.Nombre)"
+                          Label="Nombre *"
+                          Variant="Variant.Outlined"
+                          FullWidth="true"
+                          Required="true"
+                          Class="mb-4"
+                          RequiredError="El nombre es requerido" />
+
+            <MudTextField @bind-Value="_registro.Apellido"
+                          For="@(() => _registro.Apellido)"
+                          Label="Apellido *"
+                          Variant="Variant.Outlined"
+                          FullWidth="true"
+                          Required="true"
+                          Class="mb-4"
+                          RequiredError="El apellido es requerido" />
+
+            <MudTextField @bind-Value="_registro.Email"
+                          For="@(() => _registro.Email)"
+                          Label="Email (opcional)"
+                          Variant="Variant.Outlined"
+                          InputType="InputType.Email"
+                          FullWidth="true"
+                          Class="mb-4" />
+
+            <MudButton ButtonType="ButtonType.Submit"
+                       Variant="Variant.Filled"
+                       FullWidth="true"
+                       Class="mt-4 botton-azul-oscuro"
+                       Disabled="@_isLoading">
+                @if (_isLoading)
+                {
+                    <MudProgressCircular Size="Size.Small" Color="Color.Inherit" />
+                    <span class="ml-2">Registrando...</span>
+                }
+                else
+                {
+                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Class="mr-2" />
+                    <span>Confirmar Asistencia</span>
+                }
+            </MudButton>
+        </EditForm>
+    }
+</MudPaper>
+
+<MudText Typo="Typo.caption" Align="Align.Center" Class="mt-4" Color="Color.Default">
+    Sistema MPN - Registro de Asistencia
+</MudText>
+
+@code {
+    private enum EstadoCheckIn { Formulario, Exito, Duplicado, Error }
+
+    private EstadoCheckIn _estado = EstadoCheckIn.Formulario;
+    private bool _isLoading = false;
+    private string _mensaje = string.Empty;
+    private string _tituloEvento = string.Empty;
+    private RegistroAsistenciaDTO _registro = new();
+    private InfoBasicaMiembroDTO? _miembroEncontrado;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var uri = new Uri(Nav.Uri);
+        var query = System.Web.HttpUtility.ParseQueryString(uri.Query);
+
+        var eventoParam = query["evento"];
+        var codigoParam = query["codigo"];
+
+        if (string.IsNullOrEmpty(eventoParam) || string.IsNullOrEmpty(codigoParam))
+        {
+            _estado = EstadoCheckIn.Error;
+            _mensaje = "Código de evento inválido. Escanee el código QR del evento.";
+            return;
+        }
+
+        _registro.CodigoEvento = $"{eventoParam}_{codigoParam}";
+        _tituloEvento = $"Evento #{eventoParam}";
+    }
+
+    private async Task OnDniBlurred(FocusEventArgs args)
+    {
+        var dni = _registro.Dni?.Trim() ?? "";
+
+        if (string.IsNullOrWhiteSpace(dni))
+        {
+            _miembroEncontrado = null;
+            StateHasChanged();
+            return;
+        }
+
+        try
+        {
+            var response = await Http.GetAsync($"api/Asistencia/BuscarMiembro?dni={Uri.EscapeDataString(dni)}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                var miembro = await response.Content.ReadFromJsonAsync<InfoBasicaMiembroDTO>();
+                if (miembro != null)
+                {
+                    _miembroEncontrado = miembro;
+                    _registro.Nombre = miembro.nombre;
+                    _registro.Apellido = miembro.apellido;
+                }
+                else
+                {
+                    _miembroEncontrado = null;
+                }
+            }
+            else
+            {
+                _miembroEncontrado = null;
+            }
+        }
+        catch
+        {
+            _miembroEncontrado = null;
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task RegistrarAsistencia()
+    {
+        try
+        {
+            _isLoading = true;
+            StateHasChanged();
+
+            _registro.Nombre = _registro.Nombre.Trim();
+            _registro.Apellido = _registro.Apellido.Trim();
+            _registro.Email = string.IsNullOrWhiteSpace(_registro.Email) ? null : _registro.Email.Trim();
+
+            var response = await Http.PostAsJsonAsync("api/Asistencia/Registrar", _registro);
+            var content = await response.Content.ReadAsStringAsync();
+
+            if (response.IsSuccessStatusCode)
+            {
+                _estado = EstadoCheckIn.Exito;
+                _mensaje = content;
+                Snackbar.Add("¡Asistencia registrada exitosamente!", Severity.Success);
+            }
+            else if (response.StatusCode == System.Net.HttpStatusCode.Conflict)
+            {
+                _estado = EstadoCheckIn.Duplicado;
+                _mensaje = content;
+                Snackbar.Add("Ya registraste asistencia para este evento.", Severity.Warning);
+            }
+            else
+            {
+                _estado = EstadoCheckIn.Error;
+                _mensaje = content;
+                Snackbar.Add("Error al registrar asistencia.", Severity.Error);
+            }
+        }
+        catch
+        {
+            _estado = EstadoCheckIn.Error;
+            _mensaje = "Error de conexión. Intente nuevamente.";
+            Snackbar.Add("Error de conexión.", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void LimpiarFormulario()
+    {
+        _registro = new RegistroAsistenciaDTO { CodigoEvento = _registro.CodigoEvento };
+        _estado = EstadoCheckIn.Formulario;
+        _mensaje = string.Empty;
+        _miembroEncontrado = null;
+    }
+}

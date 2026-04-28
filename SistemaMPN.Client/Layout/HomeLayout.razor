@@ -1,0 +1,22 @@
+﻿@using Blazored.LocalStorage
+@inherits MainLayout
+
+<MainLayout>
+    <NavigationContent>
+        <MudNavMenu>
+            <MudNavLink Href="/cerrarSesion" Icon="@Icons.Material.Filled.ExitToApp">Cerrar Sesion</MudNavLink>
+            <MudNavLink Href="/miembros/asistencia/qr" Icon="@Icons.Material.Filled.QrCode">Asistencia QR</MudNavLink>
+        </MudNavMenu>
+    </NavigationContent>
+    <Body>
+        @Body
+    </Body>
+</MainLayout>
+
+@code {
+    private bool _open = false;
+    private void ToggleDrawer()
+    {
+        _open = !_open;
+    }
+}

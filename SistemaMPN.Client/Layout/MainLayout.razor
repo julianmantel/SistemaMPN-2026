@@ -1,0 +1,107 @@
+﻿@inherits LayoutComponentBase
+@using Microsoft.AspNetCore.Components.Authorization
+@using SistemaMPN.Client.Modules.Miembros.Pages.Notificaciones
+@using SistemaMPN.Client.Pages
+
+@inject NavigationManager Navigation
+@inject IJSRuntime JSRuntime
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
+
+@implements IDisposable
+
+<MudThemeProvider />
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<MudLayout>
+<MudAppBar Style="background-color: var(--color-primario); color: var(--color-texto-claro);" Elevation="1">
+        <AuthorizeView>
+            <Authorized>
+                <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@ToggleDrawer" />
+            </Authorized>
+        </AuthorizeView>
+        <MudSpacer />
+        <MudText Typo="Typo.h5" Align="Align.Center" Class="ml-3">SISTEMA MODULAR MPN</MudText>
+        <MudSpacer />
+        <AuthorizeView>
+            @if (verNotificaciones)
+            {
+                <Notificaciones />
+            }
+        </AuthorizeView>
+    </MudAppBar>
+    <AuthorizeView>
+        <MudDrawer @bind-Open="_open" ClipMode="@DrawerClipMode.Always" Elevation="2" Variant="@DrawerVariant.Responsive">
+            @NavigationContent
+        </MudDrawer>
+    </AuthorizeView>
+    <MudMainContent Style="padding-top: 64px; padding-bottom: 64px; height: 100vh;">
+
+        @if (!redirectChecked)
+        {
+            <ReDirectToLogin />
+        }
+        else
+        {
+            <MudContainer Style="height: 90vh;" Class="py-4">
+                @Body
+            </MudContainer>
+        }
+    </MudMainContent>
+</MudLayout>
+
+@code {
+    [Parameter]
+    public RenderFragment? NavigationContent { get; set; }
+
+    [Parameter]
+    public bool DrawerOpenByDefault { get; set; } = false;
+
+    bool redirectChecked = false;
+    protected bool _open = false;
+    private bool verNotificaciones = false;
+
+    private void ToggleDrawer()
+    {
+        _open = !_open;
+    }
+
+    protected override void OnInitialized()
+    {
+        if (DrawerOpenByDefault)
+        {
+            _open = true;
+        }
+
+        Navigation.LocationChanged += OnLocationChanged;
+
+        base.OnInitialized();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+
+            var roles = new[] { "tesorero", "admin", "protesorero", "gestor de miembros", "consultor", "auditor" };
+            verNotificaciones = roles.Any(role => authState.User.IsInRole(role));
+
+            redirectChecked = true;
+            StateHasChanged();
+        }
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        Snackbar.Clear();
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= OnLocationChanged;
+    }
+}

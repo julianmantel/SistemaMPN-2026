@@ -1,0 +1,270 @@
+@page "/miembros/asistencia/evento/{eventoId:int}"
+@using SistemaMPN.Shared.DTO
+@using MudBlazor
+
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+
+@layout SistemaMPN.Client.Layout.HomeLayout
+
+<PageTitle>Asistentes</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+    <MudStack Spacing="4">
+        <!-- Header -->
+        <MudPaper Elevation="0" Class="pa-6 rounded-lg" Style="background: linear-gradient(135deg, var(--color-primario) 0%, rgba(30, 58, 138, 0.8) 100%);">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="flex-wrap" Spacing="2">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                    <MudIcon Icon="@Icons.Material.Filled.People"
+                            Size="Size.Large"
+                            Style="color: var(--color-texto-claro);" />
+                    <MudStack Spacing="0">
+                        <MudText Typo="Typo.h4" Style="color: var(--color-texto-claro);">
+                            Asistentes del Evento
+                        </MudText>
+                        <MudText Typo="Typo.body2" Style="color: var(--color-texto-claro);">
+                            @(!string.IsNullOrEmpty(_tituloEvento) ? _tituloEvento : "Cargando...")
+                        </MudText>
+                    </MudStack>
+                </MudStack>
+                <MudStack Row="true" Spacing="2">
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Success"
+                               StartIcon="@Icons.Material.Filled.FileDownload"
+                               OnClick="ExportarExcel"
+                               Style="color: var(--color-texto-claro); background-color: rgba(255, 255, 255, 0.2);">
+                        Exportar Excel
+                    </MudButton>
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Secondary"
+                               StartIcon="@Icons.Material.Filled.Refresh"
+                               OnClick="CargarAsistentes"
+                               Style="color: var(--color-texto-claro); background-color: rgba(255, 255, 255, 0.2);">
+                        Actualizar
+                    </MudButton>
+                </MudStack>
+            </MudStack>
+        </MudPaper>
+
+        <!-- Estadísticas -->
+        <MudGrid Spacing="2">
+            <MudItem xs="12" sm="4">
+                <MudPaper Elevation="2" Class="pa-4 text-center rounded-lg">
+                    <MudText Typo="Typo.h4" Color="Color.Primary">
+                        @_asistentes.Count
+                    </MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Default">
+                        Total Asistentes
+                    </MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudPaper Elevation="2" Class="pa-4 text-center rounded-lg">
+                    <MudText Typo="Typo.h4" Color="Color.Success">
+                        @_asistentes.Count(a => a.EsMiembroRegistrado)
+                    </MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Default">
+                        Miembros Registrados
+                    </MudText>
+                </MudPaper>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudPaper Elevation="2" Class="pa-4 text-center rounded-lg">
+                    <MudText Typo="Typo.h4" Color="Color.Warning">
+                        @_asistentes.Count(a => !a.EsMiembroRegistrado)
+                    </MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Default">
+                        Visitantes
+                    </MudText>
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+
+        <!-- Filtros -->
+        <MudCard Elevation="2" Class="rounded-lg">
+            <MudCardContent>
+                <MudGrid Spacing="2" AlignItems="AlignItems.Center">
+                    <MudItem xs="12" md="4">
+                        <MudText Typo="Typo.body2" Class="mb-1">Filtrar por tipo:</MudText>
+                        <MudStack Row="true" Spacing="2">
+                            <MudChip T="string" Color="@(_filtroTipo == "todos" ? Color.Primary : Color.Default)"
+                                     Clickable="true" OnClick="@(() => AplicarFiltro("todos"))" Size="Size.Small">
+                                Todos
+                            </MudChip>
+                            <MudChip T="string" Color="@(_filtroTipo == "miembro" ? Color.Success : Color.Default)"
+                                     Clickable="true" OnClick="@(() => AplicarFiltro("miembro"))" Size="Size.Small">
+                                Miembros
+                            </MudChip>
+                            <MudChip T="string" Color="@(_filtroTipo == "visitante" ? Color.Warning : Color.Default)"
+                                     Clickable="true" OnClick="@(() => AplicarFiltro("visitante"))" Size="Size.Small">
+                                Visitantes
+                            </MudChip>
+                        </MudStack>
+                    </MudItem>
+                </MudGrid>
+            </MudCardContent>
+        </MudCard>
+
+        <!-- Tabla de asistentes -->
+        <MudCard Elevation="2" Class="rounded-lg">
+            <MudCardContent>
+                @if (_cargando)
+                {
+                    <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="py-8">
+                        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                        <MudText Typo="Typo.body2" Class="mt-2" Color="Color.Secondary">Cargando asistentes...</MudText>
+                    </MudStack>
+                }
+                else if (_asistentesFiltrados.Any())
+                {
+                    <MudTable Items="@_asistentesFiltrados" RowsPerPage="10" Dense="true" Hover="true" Bordered="true" Striped="true" Elevation="0">
+                        <HeaderContent>
+                            <MudTh>Nombre</MudTh>
+                            <MudTh>Tipo</MudTh>
+                            <MudTh>Email</MudTh>
+                            <MudTh>Fecha Registro</MudTh>
+                            <MudTh>Origen</MudTh>
+                        </HeaderContent>
+                        <RowTemplate Context="asist">
+                            <MudTd DataLabel="Nombre">
+                                @if (asist.EsMiembroRegistrado)
+                                {
+                                    <MudChip T="string" Color="Color.Success" Size="Size.Small">
+                                        @asist.NombreMiembro @asist.ApellidoMiembro
+                                    </MudChip>
+                                }
+                                else
+                                {
+                                    <MudChip T="string" Color="Color.Warning" Size="Size.Small">
+                                        @asist.NombreVisitante @asist.ApellidoVisitante
+                                    </MudChip>
+                                }
+                            </MudTd>
+                            <MudTd DataLabel="Tipo">
+                                <MudChip T="string" Size="Size.Small"
+                                         Color="@(asist.EsMiembroRegistrado ? Color.Success : Color.Warning)">
+                                    @(asist.EsMiembroRegistrado ? "Miembro" : "Visitante")
+                                </MudChip>
+                            </MudTd>
+                            <MudTd DataLabel="Email">@(asist.EmailVisitante ?? "-")</MudTd>
+                            <MudTd DataLabel="Fecha Registro">@asist.FechaRegistro.ToString("dd/MM/yyyy HH:mm")</MudTd>
+                            <MudTd DataLabel="Origen">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    <MudIcon Icon="@Icons.Material.Filled.QrCode" Size="Size.Small" />
+                                    <MudText Typo="Typo.body2">@asist.Origen</MudText>
+                                </MudStack>
+                            </MudTd>
+                        </RowTemplate>
+                        <PagerContent>
+                            <MudTablePager HideRowsPerPage="true" HidePageNumber="true" />
+                        </PagerContent>
+                    </MudTable>
+                }
+                else
+                {
+                    <MudAlert Severity="Severity.Info" Class="mt-4">
+                        No hay asistentes registrados para este evento.
+                    </MudAlert>
+                }
+            </MudCardContent>
+        </MudCard>
+
+        <!-- Botón volver -->
+        <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="Volver" StartIcon="@Icons.Material.Filled.ArrowBack">
+            Volver a Asistencia QR
+        </MudButton>
+    </MudStack>
+</MudContainer>
+
+@code {
+    [Parameter] public int eventoId { get; set; }
+
+    private List<AsistenciaDTO> _asistentes = new();
+    private List<AsistenciaDTO> _asistentesFiltrados = new();
+    private string _tituloEvento = string.Empty;
+    private string _filtroTipo = "todos";
+    private bool _cargando = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarAsistentes();
+    }
+
+    private async Task CargarAsistentes()
+    {
+        _cargando = true;
+        try
+        {
+            var response = await Http.GetAsync($"api/Asistencia/GetAsistentes/{eventoId}");
+            if (response.IsSuccessStatusCode)
+            {
+                _asistentes = await response.Content.ReadFromJsonAsync<List<AsistenciaDTO>>() ?? new();
+                AplicarFiltro(_filtroTipo);
+            }
+            else
+            {
+                Snackbar.Add("Error al cargar los asistentes.", Severity.Error);
+            }
+        }
+        catch
+        {
+            Snackbar.Add("Error de conexión.", Severity.Error);
+        }
+        finally
+        {
+            _cargando = false;
+        }
+    }
+
+    private void AplicarFiltro(string tipo)
+    {
+        _filtroTipo = tipo;
+        _asistentesFiltrados = tipo switch
+        {
+            "miembro" => _asistentes.Where(a => a.EsMiembroRegistrado).ToList(),
+            "visitante" => _asistentes.Where(a => !a.EsMiembroRegistrado).ToList(),
+            _ => _asistentes
+        };
+
+        if (_asistentes.Any())
+        {
+            _tituloEvento = _asistentes.First().TituloEvento ?? "";
+        }
+    }
+
+    private async Task ExportarExcel()
+    {
+        try
+        {
+            var response = await Http.GetAsync($"api/Estadisticas/ExportarAsistenciaExcel/{eventoId}");
+            if (response.IsSuccessStatusCode)
+            {
+                var bytes = await response.Content.ReadAsByteArrayAsync();
+                var fileName = $"Asistencia_{eventoId}_{DateTime.Now:yyyyMMdd}.xlsx";
+                var base64 = Convert.ToBase64String(bytes);
+
+                var js = "const a=document.createElement('a');" +
+                    "a.href='data:application/vnd.openxmlformats-officedocument.spreadsheetml.sheet;base64," + base64 + "';" +
+                    "a.download='" + fileName + "';a.click();";
+
+                await JS.InvokeVoidAsync("eval", js);
+                Snackbar.Add("Archivo descargado correctamente.", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Error al exportar.", Severity.Error);
+            }
+        }
+        catch
+        {
+            Snackbar.Add("Error de conexión.", Severity.Error);
+        }
+    }
+
+    private void Volver()
+    {
+        Nav.NavigateTo("/miembros/asistencia/qr");
+    }
+}

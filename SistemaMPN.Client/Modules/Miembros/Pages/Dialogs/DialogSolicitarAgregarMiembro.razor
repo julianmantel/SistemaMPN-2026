@@ -1,0 +1,170 @@
+@using SistemaMPN.Client.Modules.Miembros.Services
+@using SistemaMPN.Shared.DTO
+
+@inject INacionalidadesService NacionalidadesService
+
+<EditForm Model="peticionAgregar" OnValidSubmit="PedirAgregarMiembro">
+
+    <DataAnnotationsValidator />
+
+    <MudDialog MaxWidth="MaxWidth.Large" FullWidth="true">
+        <TitleContent>
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Color="Color.Success" />
+                <MudText Typo="Typo.h6">Solicitar Agregar Miembro</MudText>
+            </MudStack>
+        </TitleContent>
+        <DialogContent>
+            <MudText Typo="Typo.body2" Class="mb-4" Color="Color.Secondary">
+                Complete los datos que conozca del nuevo miembro. Los campos con * son obligatorios.
+            </MudText>
+
+            <MudGrid Spacing="3">
+                <MudItem xs="12" sm="6">
+                    <MudTextField T="string"
+                                  Label="Nombre *"
+                                  @bind-Value="peticionAgregar.Nombre"
+                                  For="@(() => peticionAgregar.Nombre)"
+                                  Required="true"
+                                  Immediate="true"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField T="string"
+                                  Label="Apellido *"
+                                  @bind-Value="peticionAgregar.Apellido"
+                                  For="@(() => peticionAgregar.Apellido)"
+                                  Required="true"
+                                  Immediate="true"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField T="string"
+                                  Label="DNI"
+                                  @bind-Value="peticionAgregar.Dni"
+                                  For="@(() => peticionAgregar.Dni)"
+                                  Immediate="true"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudDatePicker Editable="true"
+                                   @bind-Date="fechaNacimiento"
+                                   Mask="@(new DateMask("dd/MM/yyyy"))"
+                                   DateFormat="dd/MM/yyyy"
+                                   Label="Fecha de Nacimiento"
+                                   Variant="Variant.Outlined"
+                                   Clearable="true" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="string"
+                               Label="Nacionalidad"
+                               @bind-Value="peticionAgregar.Nacionalidad"
+                               For="@(() => peticionAgregar.Nacionalidad)"
+                               Clearable="true"
+                               Variant="Variant.Outlined">
+                        @foreach (var n in nacionalidades)
+                        {
+                            <MudSelectItem Value="@n">@n</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField T="string"
+                                  Label="Lugar de Nacimiento"
+                                  @bind-Value="peticionAgregar.LugarNacimiento"
+                                  For="@(() => peticionAgregar.LugarNacimiento)"
+                                  Immediate="true"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField T="string"
+                                  Label="Teléfono *"
+                                  @bind-Value="peticionAgregar.Telefono"
+                                  For="@(() => peticionAgregar.Telefono)"
+                                  Required="true"
+                                  Immediate="true"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2" Color="Color.Primary">Sexo:</MudText>
+                    <MudRadioGroup T="char" @bind-Value="peticionAgregar.Sexo">
+                        <MudRadio T="char" Value="@('M')" Color="Color.Primary" Label="Masculino" />
+                        <MudRadio T="char" Value="@('F')" Color="Color.Primary" Label="Femenino" />
+                    </MudRadioGroup>
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField T="string"
+                                  Label="Mensaje adicional (opcional)"
+                                  @bind-Value="peticionAgregar.Peticion.Mensaje"
+                                  Lines="3"
+                                  Immediate="true"
+                                  Variant="Variant.Outlined"
+                                  Placeholder="Información adicional sobre el nuevo miembro..." />
+                </MudItem>
+            </MudGrid>
+        </DialogContent>
+        <DialogActions>
+            <MudButton OnClick="() => MudDialog.Cancel()" 
+                       Color="Color.Default" 
+                       Variant="Variant.Outlined">
+                Cancelar
+            </MudButton>
+            <MudButton Color="Color.Primary"
+                       ButtonType="ButtonType.Submit"
+                       Variant="Variant.Filled"
+                       Disabled="@(!EsFormularioValido())"
+                       StartIcon="@Icons.Material.Filled.PersonAdd">
+                Solicitar Agregar Miembro
+            </MudButton>
+        </DialogActions>
+    </MudDialog>
+
+</EditForm>
+
+@code {
+    [CascadingParameter] 
+    private IMudDialogInstance MudDialog { get; set; }
+
+    [Parameter] public int IdLider { get; set; }
+
+    private PeticionAgregarDTO peticionAgregar = new();
+    private DateTime? fechaNacimiento { get; set; }
+    private List<string> nacionalidades = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        peticionAgregar.Peticion = new PeticionDTO
+        {
+            Tipo = "Agregar",
+            IdLider = IdLider,
+            FechaSolicitud = DateTime.UtcNow
+        };
+
+        nacionalidades = (await NacionalidadesService.GetAsync()).ToList();
+    }
+
+    private bool EsFormularioValido()
+    {
+        return !string.IsNullOrWhiteSpace(peticionAgregar.Nombre) &&
+               !string.IsNullOrWhiteSpace(peticionAgregar.Apellido) &&
+               !string.IsNullOrWhiteSpace(peticionAgregar.Telefono);
+    }
+
+    async Task PedirAgregarMiembro()
+    {
+        try
+        {
+            if (fechaNacimiento.HasValue)
+            {
+                peticionAgregar.FechaNacimiento = DateOnly.FromDateTime(fechaNacimiento.Value);
+            }
+
+            MudDialog.Close(DialogResult.Ok(peticionAgregar));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error: {ex.Message}");
+            MudDialog.Cancel();
+        }
+    }   
+}

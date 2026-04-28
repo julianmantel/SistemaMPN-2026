@@ -1,0 +1,637 @@
+﻿@page "/tesoreria/detalle-caja"
+@using Microsoft.AspNetCore.Components.Authorization
+@using SistemaMPN.Client.Modules.Tesoreria.Components
+@using SistemaMPN.Shared.DTO
+@using System.Globalization
+@using System.Net.Http.Headers
+@layout SistemaMPN.Client.Layout.TesoreriaLayout
+
+@inject IJSRuntime JS
+@inject ISnackbar Snackbar
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Detalle de Caja</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+    <!-- Header Section -->
+    <MudPaper Elevation="0" Class="pa-6 rounded-lg mb-6" Style="background: linear-gradient(135deg, var(--color-primario) 0%, rgba(30, 58, 138, 0.8) 100%);">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+            <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet"
+                    Size="Size.Large"
+                    Style="color: var(--color-texto-claro);" />
+            <MudStack Spacing="0">
+                <MudText Typo="Typo.h4" Style="color: var(--color-texto-claro);">
+                    Detalle de Caja
+                </MudText>
+                <MudText Typo="Typo.body2" Style="color: var(--color-texto-claro);">
+                    Gestión y registro de detalles de caja
+                </MudText>
+            </MudStack>
+        </MudStack>
+    </MudPaper>
+
+    <MudGrid Spacing="4">
+        <!-- FORMULARIO -->
+        <MudItem xs="12" lg="6">
+            <MudCard Elevation="2" Class="rounded-lg" Style="height: 100%;">
+                <MudCardContent Class="pa-4" Style="height: 100%;">
+                    <EditForm EditContext="editContext" OnValidSubmit="@(() => GenerarPdf(true))" Style="height: 100%; display: flex; flex-direction: column;">
+                        <div style="flex: 1; overflow-y: auto;">
+                            <DataAnnotationsValidator />
+
+                            @if (!mostrarOpcionesFirma)
+                            {
+                                <MudStack Spacing="3">
+                                <MudGrid Spacing="3">
+                                    <MudItem xs="12" md="6">
+                                        <MudDatePicker Label="Fecha"
+                                                       @bind-Date="_fechaDateTime"
+                                                       Adornment="Adornment.Start"
+                                                       AdornmentIcon="@Icons.Material.Filled.CalendarToday"
+                                                       DateFormat="dd/MM/yyyy"
+                                                       Variant="Variant.Outlined"
+                                                       Disabled="@pdfGenerado"
+                                                       />
+                                    </MudItem>
+                                    <MudItem xs="12" md="6">
+                                        <MudAutocomplete T="string"
+                                                         Label="Reunión"
+                                                         @bind-Value="model.Reunion"
+                                                         For="@(() => model.Reunion)"
+                                                         CoerceText="true"
+                                                         Clearable="true"
+                                                         Disabled="@pdfGenerado"
+                                                         SearchFunc="@Search"
+                                                         Variant="Variant.Outlined"
+                                                         FullWidth="true" />
+                                    </MudItem>
+                                </MudGrid>
+
+                                <MudTextField @bind-Value="model.NumeroALF"
+                                              Label="Código alfanumérico"
+                                              Variant="Variant.Outlined"
+                                              For="@(() => model.NumeroALF)"
+                                              Immediate="true"
+                                              Disabled="@pdfGenerado"
+                                              @bind-Value:after="OnValorChanged"
+                                              FullWidth="true" />
+
+                                <MudDivider />
+
+                                <MudStack Spacing="2">
+                                    <MudText Typo="Typo.h6">
+                                        <MudIcon Icon="@Icons.Material.Filled.Money" Size="Size.Small" Class="mr-2" Style="color: var(--color-primario);" />
+                                        Denominaciones
+                                    </MudText>
+
+                                    <MudTable T="int" Items="@DenominacionesActuales" Hover="true" Breakpoint="Breakpoint.Sm" Dense="true" Elevation="0" Outlined="true">
+                                        <HeaderContent>
+                                            <MudTh>Denominación</MudTh>
+                                            <MudTh Style="width: 100px">Cantidad</MudTh>
+                                            <MudTh>Subtotal</MudTh>
+                                        </HeaderContent>
+
+                                        <RowTemplate Context="denomContext">
+                                            @{
+                                                var denom = denomContext;
+                                                var cantidad = GetCantidad(denom);
+                                                var subtotal = denom * cantidad;
+                                                var subtotalText = $"$ {subtotal.ToString("N0", new System.Globalization.CultureInfo("es-AR"))}";
+                                            }
+                                            <MudTd DataLabel="Denominación">
+                                                <MudText Typo="Typo.subtitle2">$ @denom.ToString("N0", new System.Globalization.CultureInfo("es-AR"))</MudText>
+                                            </MudTd>
+                                            <MudTd DataLabel="Cantidad">
+                                                <MudNumericField T="int"
+                                                                 Value="@cantidad"
+                                                                 ValueChanged="@((v) => { ActualizarCantidad(denom, v); OnValorChanged(); })"
+                                                                 Min="0"
+                                                                 HideSpinButtons="false"
+                                                                 Variant="Variant.Outlined"
+                                                                 Margin="Margin.Dense"
+                                                                 Disabled="@pdfGenerado" />
+                                            </MudTd>
+                                            <MudTd DataLabel="Subtotal">
+                                                <MudText Typo="Typo.subtitle2" Color="@(subtotal > 0 ? Color.Success : Color.Default)">
+                                                    @subtotalText
+                                                </MudText>
+                                            </MudTd>
+                                        </RowTemplate>
+
+                                        <FooterContent>
+                                            <MudTh ColSpan="2" Style="font-weight: bold;">TOTAL:</MudTh>
+                                            <MudTh>
+                                                <MudText Typo="Typo.subtitle1" Color="Color.Primary">
+                                                    $ @Total.ToString("N2", new System.Globalization.CultureInfo("es-AR"))
+                                                </MudText>
+                                            </MudTh>
+                                        </FooterContent>
+                                    </MudTable>
+                                </MudStack>
+
+                                <MudGrid Spacing="2">
+                                    <MudItem xs="12" sm="8">
+                                        <MudNumericField T="int?" @bind-Value="nuevaDenominacion"
+                                                         Label="Nueva Denominación"
+                                                         Variant="Variant.Outlined"
+                                                         InputType="InputType.Number"
+                                                         Adornment="Adornment.Start"
+                                                         AdornmentText="$"
+                                                         Disabled="@pdfGenerado"
+                                                         Culture="@(new System.Globalization.CultureInfo("es-AR"))"
+                                                         FullWidth="true" />
+                                    </MudItem>
+                                    <MudItem xs="12" sm="4">
+                                        <MudButton ButtonType="ButtonType.Button"
+                                                   Variant="Variant.Filled"
+                                                   Color="Color.Success"
+                                                   StartIcon="@Icons.Material.Filled.AddCircleOutline"
+                                                   OnClick="AgregarNuevaDenominacion"
+                                                   Disabled="@pdfGenerado"
+                                                   FullWidth="true"
+                                                   Style="height: 100%;">
+                                            Añadir
+                                        </MudButton>
+                                    </MudItem>
+                                </MudGrid>
+
+                                <MudNumericField T="decimal"
+                                                 @bind-Value="model.TotalUSD"
+                                                 Label="Total USD"
+                                                 Variant="Variant.Outlined"
+                                                 InputType="InputType.Number"
+                                                 Adornment="Adornment.Start"
+                                                 AdornmentText="$"
+                                                 Culture="CultureInfo.CurrentCulture"
+                                                 Immediate="true"
+                                                 Disabled="@pdfGenerado"
+                                                 @bind-Value:after="OnValorChanged"
+                                                 FullWidth="true" />
+
+                                <MudTextField @bind-Value="model.Observaciones"
+                                              Label="Observaciones"
+                                              Variant="Variant.Outlined"
+                                              Immediate="true"
+                                              MaxLength="200"
+                                              Disabled="@pdfGenerado"
+                                              For="@(() => model.Observaciones)"
+                                              @bind-Value:after="OnValorChanged"
+                                              Lines="2"
+                                              FullWidth="true" />
+
+                                <MudDivider />
+                                </MudStack>
+                            }
+                        </div>
+
+                        <DocumentFormActions IsGenerating="@isGenerating"
+                                             IsGuardando="@isGuardando"
+                                             FormEditContext="editContext"
+                                             @bind-PdfGenerado="@pdfGenerado"
+                                             @bind-IsFirmado="@pdfFirmado"
+                                             @bind-MostrarOpcionesFirma="mostrarOpcionesFirma"
+                                             PdfUrl="@pdfUrl"
+                                             UsuarioId="@usuarioId"
+                                             @bind-SupervisorSeleccionado="@supervisorSeleccionado"
+                                             OnGenerarPdf="GenerarPdf"
+                                             OnGuardar="GuardarDocumento"
+                                             @bind-DocumentoGuardadoId="@documentoGuardadoId"
+                                             TipoDocumento="DetalleCaja"
+                                             OnDescargar="DescargarPdf"
+                                             OnLimpiar="LimpiarFormulario"
+                                             OnEditar="EditarDocumento"
+                                             />
+
+                    </EditForm>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <!-- VISTA PREVIA DEL PDF -->
+        <MudItem xs="12" lg="6">
+            <MudCard Elevation="2" Class="rounded-lg" Style="height: 100%;">
+                <MudCardContent Class="pa-0" Style="height: 100%; display: flex; flex-direction: column;">
+                    @if (string.IsNullOrEmpty(pdfUrl))
+                    {
+                        <MudStack Spacing="3" AlignItems="AlignItems.Center" Class="py-12" Style="flex: 1; display: flex; flex-direction: column; justify-content: center;">
+                            <MudIcon Icon="@Icons.Material.Filled.PictureAsPdf" Size="Size.Large" Color="Color.Secondary" Style="opacity: 0.5;" />
+                            <MudText Typo="Typo.h6" Color="Color.Secondary">Vista Previa del PDF</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary" Align="Align.Center">
+                                Completa los datos y haz clic en "Vista Previa PDF" para generar el documento
+                            </MudText>
+                        </MudStack>
+                    }
+                    else
+                    {
+                        <div class="d-flex flex-column" Style="height: 100%;">
+                            <MudStack Row="true" Class="pa-4 justify-space-between align-center" Style="border-bottom: 1px solid var(--mud-palette-divider); flex-shrink: 0;">
+                                <MudText Typo="Typo.h6">
+                                    <MudIcon Icon="@Icons.Material.Filled.PictureAsPdf" Size="Size.Small" Class="mr-2" Style="color: var(--color-primario);" />
+                                    Vista Previa
+                                </MudText>
+                                <MudChip T="bool" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.CheckCircle">
+                                    PDF Generado
+                                </MudChip>
+                            </MudStack>
+                            <iframe src="@pdfUrl"
+                                    style="width: 100%; flex: 1; border: none;">
+                            </iframe>
+                        </div>
+                    }
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+</MudContainer>
+
+@code {
+    private record DocumentoGuardadoResponse(int documentoId);
+
+    private List<string> _reuniones = new() { "Mañana", "Tarde", "Jueves", "Especial" };
+
+    private async Task<IEnumerable<string>> Search(string value, CancellationToken token)
+    {
+        await Task.Delay(5, token);
+        if (string.IsNullOrEmpty(value))
+            return _reuniones;
+        return _reuniones.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase));
+    }
+
+    private DetalleCajaDTO model = new();
+    private EditContext editContext = default!;
+
+    private DateTime? _fechaDateTime = DateTime.Today;
+    private List<int> denominacionesBase = new List<int> { 2000, 1000, 500, 200, 100 };
+    private int? nuevaDenominacion;
+    private string mensajeError = string.Empty;
+    private int usuarioId;
+    private int supervisorSeleccionado = 0;
+    private bool isGenerating = false;
+    private bool isGuardando = false;
+    private int documentoGuardadoId = 0;
+    private bool pdfGenerado = false;
+    private string errorMessage = "";
+    private string successMessage = "";
+    private bool jsPdfLoaded = false;
+    private string pdfUrl = "";
+    private bool mostrarOpcionesFirma = false;
+    private IEnumerable<int> DenominacionesActuales =>
+        denominacionesBase
+            .Union(model.Denominaciones.Select(d => d.Denominacion))
+            .Distinct()
+            .OrderByDescending(d => d);
+    private bool pdfFirmado = false;
+
+    private decimal Total
+    {
+        get
+        {
+            decimal total = 0;
+            foreach (var denom in DenominacionesActuales)
+            {
+                total += denom * GetCantidad(denom);
+            }
+            return total;
+        }
+    }
+
+    private void OnValorChanged()
+    {
+        pdfUrl = "";
+        pdfGenerado = false;
+        StateHasChanged();
+    }
+
+    private void AgregarNuevaDenominacion()
+    {
+        if (nuevaDenominacion.HasValue && nuevaDenominacion.Value > 0)
+        {
+            var denomToAdd = nuevaDenominacion.Value;
+            if (!denominacionesBase.Contains(denomToAdd))
+            {
+                denominacionesBase.Add(denomToAdd);
+                nuevaDenominacion = null;
+            }
+            OnValorChanged();
+            StateHasChanged();
+        }
+    }
+
+    private int GetCantidad(int denominacion)
+    {
+        var item = model.Denominaciones.FirstOrDefault(d => d.Denominacion == denominacion);
+        return item?.Cantidad ?? 0;
+    }
+
+    private void ActualizarCantidad(int denominacion, int cantidad)
+    {
+        var item = model.Denominaciones.FirstOrDefault(d => d.Denominacion == denominacion);
+        if (item != null)
+        {
+            if (cantidad > 0)
+                item.Cantidad = cantidad;
+            else
+                model.Denominaciones.Remove(item);
+        }
+        else if (cantidad > 0)
+        {
+            model.Denominaciones.Add(new DenominacionDTO
+            {
+                Denominacion = denominacion,
+                Cantidad = cantidad
+            });
+        }
+        StateHasChanged();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        editContext = new EditContext(model);
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        await ConfigurarDatosTesorero(authState);
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !jsPdfLoaded)
+        {
+            try
+            {
+                await JS.InvokeVoidAsync("chequearJSPDF");
+                await Task.Delay(1000);
+                jsPdfLoaded = true;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error cargando jsPDF: {ex.Message}");
+            }
+        }
+    }
+
+    private async Task GenerarPdf(bool preview)
+    {
+        isGenerating = true;
+        errorMessage = "";
+        successMessage = "";
+
+        try
+        {
+            var data = new
+            {
+                fecha = (DateOnly.FromDateTime(_fechaDateTime.Value).ToString("dd/MM/yyyy")),
+                reunion = model.Reunion,
+                numero = model.NumeroALF,
+                denominaciones = DenominacionesActuales.Select(d => new
+                {
+                    denominacion = d,
+                    cantidad = GetCantidad(d)
+                }).ToArray(),
+                totalUSD = model.TotalUSD,
+                obs = model.Observaciones
+            };
+
+            if (!string.IsNullOrEmpty(pdfUrl))
+            {
+                await JS.InvokeVoidAsync("URL.revokeObjectURL", pdfUrl);
+            }
+
+            pdfUrl = await JS.InvokeAsync<string>("generarDetalleCaja", data, preview);
+            pdfGenerado = true;
+            successMessage = "PDF generado exitosamente";
+            Snackbar.Add(successMessage, Severity.Success);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error: {ex.Message}";
+            Snackbar.Add(errorMessage, Severity.Error);
+            Console.WriteLine($"Error completo: {ex}");
+        }
+        finally
+        {
+            isGenerating = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task GuardarDocumento(bool preview)
+    {
+        isGuardando = true;
+        try
+        {
+            var content = new MultipartFormDataContent();
+
+            content.Add(new StringContent(
+                int.TryParse(model.NumeroALF, out var num) ? num.ToString() : "0"),
+                "nro_documento");
+
+            content.Add(new StringContent(
+                DateOnly.FromDateTime(_fechaDateTime.Value).ToString("yyyy-MM-dd")),
+                "fecha");
+
+            content.Add(new StringContent("Detalle de Caja"), "tipo");
+            content.Add(new StringContent(usuarioId.ToString()), "id_tesorero");
+            content.Add(new StringContent(supervisorSeleccionado.ToString()), "id_supervisor");
+            content.Add(new StringContent(pdfFirmado.ToString()), "firmado");
+
+            // pdfBlobUrl viene de jsPDF
+            var bytes = await JS.InvokeAsync<byte[]>(
+                "obtenerBytesDelBlob",
+                pdfUrl
+            );
+
+            var fileContent = new ByteArrayContent(bytes);
+            fileContent.Headers.ContentType =
+                new MediaTypeHeaderValue("application/pdf");
+
+            content.Add(
+                fileContent,
+                "archivo",
+                "detalle-caja.pdf"
+            );
+
+            var response = await Http.PostAsync(
+                "api/documento/GuardarDocumento",
+                content
+            );
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<DocumentoGuardadoResponse>();
+                documentoGuardadoId = result?.documentoId ?? 0;
+                Snackbar.Add("Documento guardado exitosamente", Severity.Success);
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Error al guardar: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+            Console.WriteLine(ex);
+        }
+        finally
+        {
+            isGuardando = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ManejarArchivoFisicoSubido(IBrowserFile file)
+    {
+        if (file == null) return;
+
+        isGuardando = true;
+
+        try
+        {
+            // Validar que sea un PDF
+            if (!file.ContentType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase))
+            {
+                Snackbar.Add("Solo se permiten archivos PDF", Severity.Error);
+                return;
+            }
+
+            // Validar tamaño (máximo 10MB)
+            var maxSize = 10 * 1024 * 1024;
+            if (file.Size > maxSize)
+            {
+                Snackbar.Add("El archivo es demasiado grande (máximo 10MB)", Severity.Error);
+                return;
+            }
+
+            // Preparar el contenido multipart
+            var content = new MultipartFormDataContent();
+
+            // Agregar metadatos del documento
+            content.Add(new StringContent(
+                int.TryParse(model.NumeroALF, out var num) ? num.ToString() : "0"),
+                "nro_documento");
+
+            content.Add(new StringContent(
+                DateOnly.FromDateTime(_fechaDateTime.Value).ToString("yyyy-MM-dd")),
+                "fecha");
+
+            content.Add(new StringContent("Detalle de Caja"), "tipo");
+
+            content.Add(new StringContent(usuarioId.ToString()), "id_tesorero");
+            content.Add(new StringContent(supervisorSeleccionado.ToString()), "id_supervisor");
+
+            // Marcar como firmado (firma física)
+            content.Add(new StringContent("true"), "firmado");
+
+            // Leer el archivo físico subido por el usuario
+            using var stream = file.OpenReadStream(maxSize);
+            using var memoryStream = new MemoryStream();
+            await stream.CopyToAsync(memoryStream);
+            var bytes = memoryStream.ToArray();
+
+            var fileContent = new ByteArrayContent(bytes);
+            fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/pdf");
+
+            content.Add(
+                fileContent,
+                "archivo",
+                file.Name // Usar el nombre original del archivo subido
+            );
+
+            // Enviar al servidor
+            var response = await Http.PostAsync(
+                "api/Documento/GuardarDocumento",
+                content
+            );
+
+            if (response.IsSuccessStatusCode)
+            {
+                var result = await response.Content.ReadFromJsonAsync<DocumentoGuardadoResponse>();
+                documentoGuardadoId = result?.documentoId ?? 0;
+                Snackbar.Add("Documento firmado guardado exitosamente", Severity.Success);
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Error al guardar documento firmado: {error}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al procesar archivo: {ex.Message}", Severity.Error);
+            Console.WriteLine($"Error en ManejarArchivoFisicoSubido: {ex}");
+        }
+        finally
+        {
+            isGuardando = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ConfigurarDatosTesorero(AuthenticationState authState)
+    {
+        var userName = authState.User.Identity?.Name?.Trim();
+        if (string.IsNullOrEmpty(userName))
+        {
+            mensajeError = "No se pudo obtener el nombre de usuario";
+            return;
+        }
+
+        var response = await Http.GetAsync($"api/usuario/GetIdMiembroDelUsuario/{userName}");
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync();
+            mensajeError = $"Error al obtener información del usuario: {errorContent}";
+            return;
+        }
+
+        var result = await response.Content.ReadAsStringAsync();
+        if (!int.TryParse(result, out usuarioId))
+        {
+            mensajeError = "Error al parsear el ID del miembro";
+            return;
+        }
+    }
+
+    private async Task DescargarPdf()
+    {
+        if (!string.IsNullOrEmpty(pdfUrl))
+        {
+            await JS.InvokeVoidAsync("descargarPDF", "DetalleCaja", pdfUrl, model.NumeroALF);
+        }
+    }
+
+    private async Task EditarDocumento()
+    {
+        if (!string.IsNullOrEmpty(pdfUrl))
+        {
+            await JS.InvokeVoidAsync("URL.revokeObjectURL", pdfUrl);
+        }
+
+        pdfUrl = "";
+        pdfGenerado = false;
+        mostrarOpcionesFirma = false;
+
+        Snackbar.Add("Modo edición activado. Modifique los datos y regenere el PDF", Severity.Info);
+        StateHasChanged();
+    }
+
+    private void LimpiarFormulario()
+    {
+        model = new DetalleCajaDTO
+        {
+            Reunion = "",
+            NumeroALF = "",
+            TotalUSD = 0
+        };
+        editContext = new EditContext(model);
+        _fechaDateTime = DateTime.Today;
+        pdfUrl = "";
+        pdfGenerado = false;
+        errorMessage = "";
+        successMessage = "";
+        supervisorSeleccionado = 0;
+        denominacionesBase = new List<int> { 2000, 1000, 500, 200, 100 };
+        StateHasChanged();
+    }
+}

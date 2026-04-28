@@ -1,0 +1,459 @@
+﻿@page "/paneldecontrol/modificar"
+
+@using Blazored.LocalStorage
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using SistemaMPN.Shared.DTO
+@using SistemaMPN.Shared.Models
+@using System.Net.Http.Headers
+@using MudBlazor
+
+@layout SistemaMPN.Client.Layout.PanelDeControlLayout
+
+@inject AuthenticationStateProvider auth
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject ILocalStorageService LocalStorage
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Modificar usuario</PageTitle>
+
+<AuthorizeView Roles="admin,gestor de miembros" Context="authContext">
+    <Authorized>
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+            <!-- Header -->
+            <MudPaper Elevation="0" Class="pa-6 rounded-lg" Style="background: linear-gradient(135deg, var(--color-advertencia) 0%, rgba(230, 126, 34, 0.8) 100%);">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                    <MudIcon Icon="@Icons.Material.Filled.Edit"
+                            Size="Size.Large"
+                            Style="color: var(--color-texto-claro);" />
+                    <MudStack Spacing="0">
+                        <MudText Typo="Typo.h4" Style="color: var(--color-texto-claro);">
+                            Modificar Usuario
+                        </MudText>
+                        <MudText Typo="Typo.body2" Style="color: var(--color-texto-claro);">
+                            Editar datos y roles de usuarios
+                        </MudText>
+                    </MudStack>
+                </MudStack>
+            </MudPaper>
+
+            <!-- Formulario de Modificación -->
+            <MudPaper Elevation="2" Class="pa-6 mt-6">
+                <EditForm Model="usuario" OnValidSubmit="ModificarUsuario">
+                    <DataAnnotationsValidator />
+                    <MudGrid Spacing="1">
+                        <MudItem xs="12">
+                            <MudAutocomplete T="string"
+                                                Label="Seleccione un usuario"
+                                                Value="@nombreSeleccionado"
+                                                ValueChanged="CargarUsuarioSeleccionado"
+                                                ValueExpression="() => nombreSeleccionado"
+                                                Variant="Variant.Outlined"
+                                                SearchFunc="Search1"
+                                                ToStringFunc="@(x => x)"
+                                                Class="mb-4" />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudTextField @bind-Value="usuario.correo"
+                                            Label="Correo"
+                                            Variant="Variant.Outlined"
+                                            Required="true"
+                                            Immediate="true"
+                                            Class="mb-4" />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudTextField @bind-Value="usuario.new_user_name"
+                                            Label="Usuario"
+                                            Variant="Variant.Outlined"
+                                            Required="true"
+                                            Immediate="true"
+                                            Class="mb-4">
+                                <ValidationMessage style="margin-left: 5px;" For="@(() => usuario.new_user_name)" />
+                            </MudTextField>
+                        </MudItem>
+                        <!-- Sección de roles -->
+                        <MudItem xs="12" Class="mb-4">
+                            <MudText Typo="Typo.h6" Class="mb-2">Seleccione los roles del usuario</MudText>
+                            @if (roles != null)
+                            {
+                                <MudCard Elevation="2" Class="pa-3">
+                                    <MudGrid Spacing="1">
+                                        @foreach (var rol in roles.Keys.ToList())
+                                        {
+                                            <MudItem xs="6" sm="4" md="3">
+                                                <MudCheckBox T="bool"
+                                                                @bind-Value="@roles[rol]"
+                                                                Label="@rol.nombre"
+                                                                Color="Color.Primary"
+                                                                Size="Size.Medium" />
+                                            </MudItem>
+                                        }
+                                    </MudGrid>
+                                </MudCard>
+
+                                @if (RolesSeleccionadosCount() > 0)
+                                {
+                                    <MudAlert Severity="Severity.Info" Class="mt-3">
+                                        <strong>Roles seleccionados (@RolesSeleccionadosCount()):</strong>
+                                        @GetRolesSeleccionadosTexto()
+                                    </MudAlert>
+                                }
+                                else if (!string.IsNullOrEmpty(nombreSeleccionado))
+                                {
+                                    <MudAlert Severity="Severity.Warning" Class="mt-3">
+                                        <strong>Advertencia:</strong> Debe seleccionar al menos un rol para continuar.
+                                    </MudAlert>
+                                }
+                            }
+                            else
+                            {
+                                <MudCard Elevation="2" Class="pa-4 text-center">
+                                    <MudStack Spacing="2" Justify="Justify.Center" AlignItems="AlignItems.Center">
+                                        <MudProgressCircular Size="Size.Small" Color="Color.Info" />
+                                        <MudText Typo="Typo.body2">Cargando roles...</MudText>
+                                    </MudStack>
+                                </MudCard>
+                            }
+                        </MudItem>
+
+                        <MudStack Row="true" Spacing="2" Class="mt-4">
+                            <MudButton ButtonType="ButtonType.Submit"
+                                        Variant="Variant.Filled"
+                                        Color="Color.Warning"
+                                        Disabled="@(isLoading || !IsFormularioValido())">
+                                @if (isLoading)
+                                {
+                                    <MudProgressCircular Size="Size.Small" Color="Color.Inherit" />
+                                    <span class="ml-2">Procesando...</span>
+                                }
+                                else
+                                {
+                                    <MudIcon Icon="@Icons.Material.Filled.Save" Size="Size.Small" Class="mr-1" />
+                                    <span>Modificar</span>
+                                }
+                            </MudButton>
+                            <MudButton Variant="Variant.Outlined"
+                                        Color="Color.Secondary"
+                                        OnClick="LimpiarSeleccion"
+                                        Disabled="@(isLoading || string.IsNullOrEmpty(nombreSeleccionado))">
+                                <MudIcon Icon="@Icons.Material.Filled.Clear" Size="Size.Small" Class="mr-1" />
+                                Limpiar
+                            </MudButton>
+                        </MudStack>
+                    </MudGrid>
+                </EditForm>
+            </MudPaper>
+        </MudContainer>
+    </Authorized>
+    <NotAuthorized>
+        <ReDirectToLogin />
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private ChangeUsuario usuario = new ChangeUsuario();
+    private List<UsuarioDTO> usuarios = null;
+    private Dictionary<RolDTO, bool>? roles = null;
+    private string nombreSeleccionado;
+    private bool isLoading = false;
+    private bool rolesCargados = false;
+    private string Respuesta = "Procesando...";
+    string userName = "";
+
+    async Task ModificarUsuario()
+    {
+        isLoading = true;
+        try
+        {
+            usuario.roles.Clear();
+
+            if (roles != null && roles.Count > 0)
+            {
+                var listaRoles = roles
+                                .Where(r => r.Value)
+                                .Select(r => r.Key)
+                                .ToList();
+
+                if (!listaRoles.Any())
+                {
+                    Snackbar.Add("Debe seleccionar al menos un rol para el usuario", Severity.Warning);
+                    isLoading = false;
+                    return;
+                }
+
+                // Verificar si está quitando el rol de líder
+                var usuarioOriginal = usuarios.FirstOrDefault(u => u.user_name == usuario.old_user_name);
+                if (usuarioOriginal != null)
+                {
+                    var tieneLiderActualmente = usuarioOriginal.roles?.Any(r => r.nombre.ToLower() == "lider") ?? false;
+                    var mantieneLider = listaRoles.Any(r => r.nombre.ToLower() == "lider");
+
+                    if (tieneLiderActualmente && !mantieneLider)
+                    {
+                        // Verificar si tiene grupo asignado
+                        try
+                        {
+                            var tieneGrupoResponse = await Http.GetAsync($"api/usuario/TieneGrupoAsignado/{usuario.old_user_name}");
+
+                            if (tieneGrupoResponse.IsSuccessStatusCode)
+                            {
+                                var tieneGrupo = await tieneGrupoResponse.Content.ReadFromJsonAsync<bool>();
+
+                                if (tieneGrupo)
+                                {
+                                    await DialogService.ShowMessageBox(
+                                        "No se puede modificar",
+                                        "No se puede quitar el rol de líder porque este usuario está liderando un grupo. Primero transfiera el liderazgo del grupo.",
+                                        yesText: "Entendido");
+
+                                    // Restaurar el checkbox de líder
+                                    var rolLider = roles.Keys.FirstOrDefault(r => r.nombre.ToLower() == "lider");
+                                    if (rolLider != null)
+                                    {
+                                        roles[rolLider] = true;
+                                    }
+
+                                    isLoading = false;
+                                    StateHasChanged();
+                                    return;
+                                }
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            Snackbar.Add($"Error al verificar el estado del usuario: {ex.Message}", Severity.Error);
+                            isLoading = false;
+                            return;
+                        }
+                    }
+                }
+
+                usuario.roles = listaRoles;
+            }
+            else
+            {
+                Snackbar.Add("No se han cargado los roles disponibles", Severity.Error);
+                isLoading = false;
+                return;
+            }
+
+            usuario.correo = usuario.correo.Trim();
+            usuario.new_user_name = usuario.new_user_name.Trim();
+            usuario.old_user_name = usuario.old_user_name.Trim();
+
+            var result = await Http.PostAsJsonAsync("api/usuario/Modificar", usuario);
+            if (result.IsSuccessStatusCode)
+            {
+                if (userName == usuario.old_user_name)
+                {
+                    await Task.Delay(5);
+                    await LocalStorage.RemoveItemAsync("Token");
+                    Snackbar.Add($"Será redirigido al login ya que cambió información de la cuenta que está utilizando", Severity.Success);
+                    Navigation.NavigateTo("/");
+                }
+                else
+                {
+                    nombreSeleccionado = usuario.new_user_name;
+                    Snackbar.Add($"Usuario {usuario.old_user_name} modificado correctamente", Severity.Success);
+                    usuario.old_user_name = usuario.new_user_name;
+
+                    ActualizarListaUsuarios();
+                }
+            }
+            else
+            {
+                Respuesta = await result.Content.ReadAsStringAsync();
+                Snackbar.Add("Error al modificar usuario: " + Respuesta, Severity.Error);
+            }
+        }
+        catch (HttpRequestException httpEx)
+        {
+            Snackbar.Add($"Error de conexión: {httpEx.Message}", Severity.Error);
+        }
+        catch (Exception ex)
+        {
+            Respuesta = $"Error: {ex.Message}";
+            Snackbar.Add(Respuesta, Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void ActualizarListaUsuarios()
+    {
+        if (usuarios != null)
+        {
+            var usuarioActualizado = usuarios.FirstOrDefault(u => u.user_name == usuario.old_user_name);
+            if (usuarioActualizado != null)
+            {
+                usuarioActualizado.user_name = usuario.new_user_name;
+                usuarioActualizado.correo = usuario.correo;
+                usuarioActualizado.roles = usuario.roles.ToList();
+            }
+        }
+    }
+
+    private void LimpiarSeleccion()
+    {
+        nombreSeleccionado = string.Empty;
+        usuario = new ChangeUsuario();
+
+        if (roles != null)
+        {
+            var keys = roles.Keys.ToList();
+            roles.Clear();
+            foreach (var key in keys)
+            {
+                roles[key] = false;
+            }
+        }
+
+        StateHasChanged();
+    }
+
+    private int RolesSeleccionadosCount()
+    {
+        return roles?.Count(r => r.Value) ?? 0;
+    }
+
+    private string GetRolesSeleccionadosTexto()
+    {
+        if (roles == null) return string.Empty;
+
+        var rolesSeleccionados = roles
+            .Where(r => r.Value)
+            .Select(r => r.Key.nombre)
+            .ToList();
+
+        return string.Join(", ", rolesSeleccionados);
+    }
+
+    private bool IsFormularioValido()
+    {
+        return !string.IsNullOrWhiteSpace(usuario.correo) &&
+               !string.IsNullOrWhiteSpace(usuario.new_user_name) &&
+               !string.IsNullOrWhiteSpace(usuario.old_user_name) &&
+               !string.IsNullOrEmpty(nombreSeleccionado) &&
+               RolesSeleccionadosCount() > 0;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Cargar roles
+            if (!rolesCargados)
+            {
+                try
+                {
+                    var resultRoles = await Http.GetFromJsonAsync<List<RolDTO>>("api/usuario/GetRoles");
+                    if (resultRoles?.Any() == true)
+                    {
+                        roles = resultRoles.ToDictionary(rol => rol, _ => false);
+                        rolesCargados = true;
+                        StateHasChanged();
+                    }
+                    else
+                    {
+                        Snackbar.Add("No se encontraron roles disponibles", Severity.Warning);
+                    }
+                }
+                catch (HttpRequestException httpEx)
+                {
+                    Snackbar.Add($"Error de conexión al cargar roles: {httpEx.Message}", Severity.Error);
+                }
+                catch (Exception ex)
+                {
+                    Snackbar.Add($"Error al cargar los roles: {ex.Message}", Severity.Error);
+                }
+            }
+
+            // Cargar usuarios
+            if (usuarios == null)
+            {
+                try
+                {
+                    var resultUsuarios = await Http.GetFromJsonAsync<List<UsuarioDTO>>("api/usuario/GetUsuarios");
+                    if (resultUsuarios?.Any() == true)
+                    {
+                        usuarios = resultUsuarios;
+                        StateHasChanged();
+                    }
+                    else
+                    {
+                        Snackbar.Add("No se encontraron usuarios disponibles", Severity.Warning);
+                    }
+                }
+                catch (HttpRequestException httpEx)
+                {
+                    Snackbar.Add($"Error de conexión al cargar usuarios: {httpEx.Message}", Severity.Error);
+                }
+                catch (Exception ex)
+                {
+                    Snackbar.Add($"Error al cargar usuarios: {ex.Message}", Severity.Error);
+                }
+            }
+        }
+    }
+
+    private async Task<IEnumerable<string>> Search1(string value, CancellationToken Token)
+    {
+        await Task.Delay(5, Token);
+
+        if (usuarios == null)
+            return new List<string>();
+
+        if (string.IsNullOrWhiteSpace(value))
+            return usuarios.Select(u => u.user_name).AsEnumerable();
+
+        return usuarios
+            .Where(u => u.user_name.Contains(value, StringComparison.OrdinalIgnoreCase))
+            .Select(u => u.user_name)
+            .AsEnumerable() ?? new List<string>();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await auth.GetAuthenticationStateAsync();
+        var user = authState.User;
+        userName = user.Identity?.Name ?? string.Empty;
+    }
+
+    private async Task CargarUsuarioSeleccionado(string nombreUsuario)
+    {
+        nombreSeleccionado = nombreUsuario;
+
+        if (usuarios == null) return;
+
+        var seleccionado = usuarios.FirstOrDefault(u => u.user_name == nombreSeleccionado);
+        if (seleccionado != null)
+        {
+            usuario = new ChangeUsuario
+            {
+                old_user_name = seleccionado.user_name,
+                new_user_name = seleccionado.user_name,
+                correo = seleccionado.correo,
+                roles = seleccionado.roles?.ToList() ?? new List<RolDTO>()
+            };
+
+            if (roles != null)
+            {
+                foreach (var rol in roles.Keys.ToList())
+                {
+                    roles[rol] = usuario.roles.Any(r => r.id == rol.id);
+                }
+            }
+        }
+        else
+        {
+            LimpiarSeleccion();
+        }
+
+        StateHasChanged();
+    }
+}

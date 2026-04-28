@@ -1,0 +1,11 @@
+.custom-body {
+    margin: 0;
+    padding: 0;
+    flex: 1;
+    padding: 16px;
+}
+
+.layout-container {
+    display: flex;
+    flex-direction: row;
+}

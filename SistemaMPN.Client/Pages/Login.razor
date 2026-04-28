@@ -1,0 +1,176 @@
+﻿@page "/"
+@using Blazored.LocalStorage
+@using Microsoft.AspNetCore.Components.Authorization
+@using SistemaMPN.Client.Layout
+@using SistemaMPN.Shared.DTO
+
+@layout LoginLayout
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProv
+@inject NavigationManager nav
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject ILocalStorageService LocalStorage
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Login</PageTitle>
+
+<MudPaper Elevation="2" Class="pa-8" Style="max-width: 500px; margin: 0 auto;">
+    <MudText Typo="Typo.h4" Class="mb-6 text-center">
+        <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Large" Class="mr-2"/>
+        Iniciar Sesión
+    </MudText>
+
+    <EditForm id="login_form_id" Model="usuario" OnValidSubmit="IniciarSesion">
+        <DataAnnotationsValidator />
+                    
+        <MudTextField @bind-Value="usuario.user_name"
+                        Label="Usuario"
+                        Variant="Variant.Outlined"
+                        FullWidth="true"
+                        Required="true"
+                        Class="mb-4"
+                        Immediate="true" />
+
+        <MudTextField @bind-Value="usuario.password"
+                        Label="Contraseña"
+                        Variant="Variant.Outlined"
+                        InputType="InputType.Password"
+                        FullWidth="true"
+                        Required="true"
+                        Class="mb-4"
+                        Immediate="true" />
+
+        <MudLink Href="RestaurarContrasenia" 
+                Class="mb-4 d-block" 
+                Typo="Typo.body2" 
+                Color="Color.Primary">
+            Restaurar contraseña
+        </MudLink>
+
+        <MudButton ButtonType="ButtonType.Submit"
+                    Variant="Variant.Filled"
+                    FullWidth="true"
+                    Class="mt-4 botton-azul-oscuro"
+                    Disabled="@isLoading">
+            @if (isLoading)
+            {
+                <MudProgressCircular Size="Size.Small" Color="Color.Inherit" />
+                <span class="ml-2">Verificando...</span>
+            }
+            else
+            {
+                <span >Continuar</span>
+            }
+        </MudButton>
+    </EditForm>
+
+                
+</MudPaper>
+
+@code {
+    UsuarioDTO usuario = new UsuarioDTO();
+    string token = null;
+    bool isLoading = false;
+    bool recaptchaLoaded = false;
+    string errorMessage = string.Empty;
+    string siteKey = "6LdrEQErAAAAACIv8ecVjPEH07bw9KkuvPKpzbWe";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !recaptchaLoaded)
+        {
+            try
+            {
+                await JSRuntime.InvokeVoidAsync("initializeRecaptcha", siteKey);
+                recaptchaLoaded = true;
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error inicializando reCAPTCHA: {ex.Message}");
+                errorMessage = "Error al cargar el sistema de seguridad. Recarga la página.";
+                StateHasChanged();
+            }
+        }
+    }
+
+    private async Task IniciarSesion()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = string.Empty;
+            StateHasChanged();
+
+            // Obtener token de reCAPTCHA con timeout
+            var captchaToken = await GetTokenWithTimeout();
+
+            if (string.IsNullOrEmpty(captchaToken))
+            {
+                errorMessage = "Error en la validación de seguridad. Intente nuevamente.";
+                return;
+            }
+
+            usuario.recaptcha_token = captchaToken;
+
+            // Verificar el token con tu backend
+            usuario.user_name = usuario.user_name.Trim();
+            var result = await Http.PostAsJsonAsync("api/login/loguear", usuario);
+
+            if (result.IsSuccessStatusCode)
+            {
+                token = await result.Content.ReadAsStringAsync();
+                await LocalStorage.SetItemAsStringAsync("Token", token);
+                await AuthStateProv.GetAuthenticationStateAsync();
+                nav.NavigateTo("/home");
+            }
+            else
+            {
+                errorMessage = await GetErrorMessage(result);
+                Snackbar.Add(errorMessage, Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Error al iniciar sesión. Por favor, intente nuevamente.";
+            Snackbar.Add(errorMessage, Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task<string> GetTokenWithTimeout()
+    {
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        return await JSRuntime.InvokeAsync<string>(
+            "getRecaptchaToken",
+            cts.Token,
+            siteKey,
+            "login");
+    }
+
+    private async Task<string> GetErrorMessage(HttpResponseMessage response)
+    {
+        try
+        {
+            var content = await response.Content.ReadAsStringAsync();
+            if (content.Contains("reCAPTCHA"))
+            {
+                return "Error en la validación de seguridad (reCAPTCHA)";
+            }
+            if (content.Contains("credenciales"))
+            {
+                return "Usuario o contraseña incorrectos";
+            }
+            return content;
+        }
+        catch
+        {
+            return "Error desconocido al iniciar sesión";
+        }
+    }
+}

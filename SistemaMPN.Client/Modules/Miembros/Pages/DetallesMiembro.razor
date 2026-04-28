@@ -1,0 +1,2415 @@
+﻿@page "/miembros/listadoMiembros/detalleMiembro/{id:int}"
+
+@layout SistemaMPN.Client.Layout.MiembrosLayout
+
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.WebUtilities
+@using SistemaMPN.Client.Pages
+@using SistemaMPN.Shared.DTO
+@using System.Net
+@using System.Text.RegularExpressions
+@using System.Text.Json
+
+@inject AuthenticationStateProvider auth
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@inject SistemaMPN.Client.Modules.Miembros.Services.INacionalidadesService NacionalidadesService
+@inject IJSRuntime JS
+
+<PageTitle>Detalles de miembro</PageTitle>
+
+<AuthorizeView Roles="admin, gestor de miembros, lider, auditor">
+    <Authorized Context="auth">
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+            <MudStack Spacing="4">
+                <!-- Header -->
+                <MudPaper Elevation="0" Class="pa-6 rounded-lg" Style="background: linear-gradient(135deg, var(--color-primario) 0%, rgba(30, 58, 138, 0.8) 100%);">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="flex-wrap" Spacing="2">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                            <MudIconButton Icon="@Icons.Material.Filled.ArrowBack" 
+                                           Size="Size.Small" 
+                                           OnClick="VolverAtras"
+                                           Style="color: var(--color-texto-claro); background-color: rgba(255, 255, 255, 0.2);" />
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.h4" Style="color: var(--color-texto-claro);">
+                                    Detalles del Miembro
+                                </MudText>
+                                <MudText Typo="Typo.body2" Style="color: var(--color-texto-claro);">
+                                    Información completa del miembro
+                                </MudText>
+                            </MudStack>
+                        </MudStack>
+                        @if (hasUnsavedChanges)
+                        {
+                            <MudStack Row="true" Spacing="2">
+                                <MudIconButton Variant="Variant.Filled"
+                                               Color="Color.Success"
+                                               Icon="@Icons.Material.Filled.Save"
+                                               ButtonType="ButtonType.Button"
+                                               OnClick="SaveAllChanges"
+                                               Disabled="isSaving"
+                                               Style="color: var(--color-texto-claro); background-color: rgba(255, 255, 255, 0.2);">
+                                </MudIconButton>
+                                <MudIconButton Variant="Variant.Text"
+                                               Color="Color.Error"
+                                               Icon="@Icons.Material.Filled.Cancel"
+                                               ButtonType="ButtonType.Button"
+                                               OnClick="CancelAllChanges"
+                                               Style="color: var(--color-texto-claro);">
+                                </MudIconButton>
+                            </MudStack>
+                        }
+                    </MudStack>
+                </MudPaper>
+
+                <MudCard Elevation="2" Class="rounded-lg">
+
+                @if (vieneDePeticion)
+                {
+                    <MudCardContent>
+                        <MudAlert Severity="Severity.Warning" Dense="true">
+            
+                            <MudStack Spacing="1">
+                
+                                <!-- Header del alert responsive -->
+                                <MudStack Row="true"
+                                          Justify="Justify.SpaceBetween"
+                                          AlignItems="AlignItems.Center"
+                                          Wrap="Wrap.Wrap">
+
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                        <MudIcon Icon="@Icons.Material.Filled.Description" Size="Size.Small" />
+                                        <MudText Typo="Typo.body2">
+                                            <strong>Petición de actualización</strong>
+                                        </MudText>
+                                    </MudStack>
+
+                                    <MudIconButton Icon="@(mostrarMensajePeticion? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)"
+                                                   Size="Size.Small"
+                                                   OnClick="@(() => mostrarMensajePeticion = !mostrarMensajePeticion)" />
+                                </MudStack>
+
+                                @if (mostrarMensajePeticion)
+                                {
+                                    <MudDivider />
+                                    <MudText Typo="Typo.body2">
+                                        @mensajePeticion
+                                    </MudText>
+                                }
+                            </MudStack>
+
+                        </MudAlert>
+                    </MudCardContent>
+                }
+
+            <MudCardContent>
+                <MudExpansionPanels Elevation="0" MultiExpansion="true">             
+                    <!-- Información Básica -->
+                    <MudExpansionPanel Dense="true" @bind-Expanded='@expandedPanels["basica"]'>
+
+                        <TitleContent>
+                            <div class="d-flex align-center justify-space-between w-100">
+                                <div class="d-flex align-center">
+                                    <MudIcon Icon="@Icons.Material.Filled.Person" class="mr-3" Color="Color.Primary" />
+                                    <MudText Typo="Typo.h6">Información Básica Del Miembro</MudText>
+                                </div>
+                                <EditSectionButton Section="basica"
+                                                    IsEditing="@editingSections.Contains("basica")"
+                                                    OnEdit="StartEditSection"
+                                                    OnEditRequested="OnEditSectionRequested" />
+
+                            </div>
+                            @if (editingSections.Contains("basica"))
+                            {
+                                <MudChip T="string" Color="Color.Info" Size="Size.Small" Class="ml-2">Editando</MudChip>
+                            }
+                            @if (modifiedSections.Contains("basica"))
+                            {
+                                <MudChip T="string" Color="Color.Warning" Size="Size.Small">
+                                    Cambios pendientes
+                                </MudChip>
+                            }
+                            
+                        </TitleContent>
+                        <ChildContent>
+                            @if (editingSections.Contains("basica"))
+                            {
+                                <!-- Modo Edición -->
+                                <EditForm Context="InformacionBasica" Model="miembroEditable.info_basica_miembro" OnValidSubmit='() => SaveSection("basica")'>
+                                    <DataAnnotationsValidator />
+                                    <ValidationSummary />
+                                    
+                                    <MudGrid>
+                                    
+                                    <MudItem xs="12" sm="6">
+                                        <MudTextField T="string" Label="DNI" @bind-Value="miembroEditable.info_basica_miembro.dni"
+                                                      Variant="Variant.Outlined" 
+                                                      Required="true"
+                                                      For="@(() =>miembroEditable.info_basica_miembro.dni)"
+                                                      @bind-Value:after="@(() => MarkSectionAsModified("basica"))"/>
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        <MudText Style="color: #9b9b9f;font-weight:bold;">Sexo:</MudText>
+                                        <MudRadioGroup T="char"
+                                                        @bind-Value="miembro.info_basica_miembro.sexo"
+                                                        Required="true"
+                                                        RequiredError="Seleccione una opcion"
+                                                        @bind-Value:after="@(() => MarkSectionAsModified("basica"))">
+                                            <MudRadio T="char" Option="M" Color="Color.Primary" Label="Masculino" />
+                                            <MudRadio T="char" Option="F" Color="Color.Primary" Label="Femenino" />
+                                        </MudRadioGroup>
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        <MudTextField @bind-Value="miembroEditable.info_basica_miembro.nombre"
+                                                        Label="Nombre"
+                                                        Variant="Variant.Outlined"
+                                                        Required="true"
+                                                        For="@(() => miembroEditable.info_basica_miembro.nombre)"
+                                                        @bind-Value:after="@(() => MarkSectionAsModified("basica"))" />
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        <MudTextField @bind-Value="miembroEditable.info_basica_miembro.apellido"
+                                                        Label="Apellido"
+                                                        Variant="Variant.Outlined"
+                                                        Required="true"
+                                                        For="@(() => miembroEditable.info_basica_miembro.apellido)"
+                                                        @bind-Value:after="@(() => MarkSectionAsModified("basica"))" />
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        <MudDatePicker @bind-Date="miembroEditable.info_basica_miembro.fecha_nacimiento"
+                                                       @bind-Date:after="@(() => MarkSectionAsModified("basica"))"
+                                                       Label="Fecha de Nacimiento"
+                                                       Variant="Variant.Outlined"
+                                                       DateFormat="dd/MM/yyyy"
+                                                       MaxDate="DateTime.Today.AddYears(-16)"
+                                                       Validation="@(new Func<DateTime?, string>(ValidarFechaNacimiento))"/>
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        <MudTextField @bind-Value="miembroEditable.info_basica_miembro.lugarNacimiento"
+                                                      Label="Lugar de Nacimiento"
+                                                      Variant="Variant.Outlined"
+                                                      @bind-Value:after="@(() => MarkSectionAsModified("basica"))" />
+                                    </MudItem>
+                                    <MudItem xs="12">
+                                                <MudSelect T="string"
+                                                           Label="Nacionalidad"
+                                                           @bind-Value="miembro.info_basica_miembro.nacionalidad"
+                                                           Dense="true"
+                                                           Variant="Variant.Outlined"
+                                                           Clearable="true"
+                                                           @bind-Value:after="@(() => MarkSectionAsModified("basica"))">
+                                                    @foreach (var n in nacionalidades)
+                                                    {
+                                                        <MudSelectItem Value="@n">@n</MudSelectItem>
+                                                    }
+                                                </MudSelect>
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        <MudText Typo="Typo.subtitle1" Class="mb-2">Foto de perfil (JPG)</MudText>
+                                        
+                                        <MudFileUpload T="IBrowserFile" 
+                                                    Accept="image/jpeg"
+                                                    FilesChanged="OnFotoSelected"
+                                                    MaximumFileCount="1">
+                                            <ActivatorContent>
+                                                <MudButton Variant="Variant.Filled"
+                                                        Color="Color.Primary"
+                                                        StartIcon="@Icons.Material.Filled.CloudUpload"
+                                                        Size="Size.Small"
+                                                        Class="rounded-lg">
+                                                    Seleccionar Foto
+                                                </MudButton>
+                                            </ActivatorContent>
+                                        </MudFileUpload>
+
+                                        @if (fotoSeleccionada != null)
+                                        {
+                                            <MudChip T="string" 
+                                                    Color="Color.Info" 
+                                                    Size="Size.Small"
+                                                    OnClose="EliminarFotoPreview"
+                                                    Class="mt-2 rounded-lg">
+                                                @fotoSeleccionada.Name
+                                            </MudChip>
+                                        }
+
+                                        @if (subiendoFoto)
+                                        {
+                                            <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-2" />
+                                            <MudText Typo="Typo.body2" Color="Color.Info">Guardando foto...</MudText>
+                                        }
+                                    </MudItem>
+
+                                    <MudItem xs="12" sm="6">
+                                        <MudText Typo="Typo.subtitle2" Class="mb-2">Foto actual:</MudText>
+
+                                        @if (isLoadingFoto)
+                                        {
+                                            <div style="max-width:220px; text-align:center;">
+                                                <MudSkeleton Width="220px" Height="220px" Variant="Variant.Rectangular" Animation="Animation.Pulse" />
+                                                <MudText Typo="Typo.caption" Class="mt-2" Color="Color.Secondary">Cargando foto...</MudText>
+                                            </div>
+                                        }
+                                        else if (!string.IsNullOrWhiteSpace(FotoPreviewUrl))
+                                        {
+                                            <MudStack Spacing="2">
+                                                <MudText Typo="Typo.caption" Color="Color.Warning">Vista previa (sin guardar):</MudText>
+                                                <MudImage src="@FotoPreviewUrl"
+                                                    alt="Vista previa"
+                                                    style="max-width:220px;height:auto;border-radius:10px;border:2px dashed #ff9800;" />
+                                            </MudStack>
+                                        }
+                                        else if (!string.IsNullOrWhiteSpace(FotoUrl))
+                                        {
+                                            <MudImage @key="FotoTimestamp"
+                                                src="@GetSrc()"
+                                                alt="Foto del miembro"
+                                                style="max-width:220px;height:auto;border-radius:10px;border:2px solid #e0e0e0;box-shadow: 0 2px 4px rgba(0,0,0,0.1);"
+                                                onerror="@GetOnErrorJs()" />
+                                        }
+                                        else
+                                        {
+                                            <MudImage src="@GetPlaceholder()"
+                                                alt="Sin foto"
+                                                style="max-width:220px;height:auto;border-radius:10px; opacity: 0.7;" />
+                                        }
+                                    </MudItem>
+                                    
+                                    <MudItem xs="12" sm="6">
+                                        <MudTextField @bind-Value="miembroEditable.info_basica_miembro.telefono"
+                                                      Label="Teléfono"
+                                                      Variant="Variant.Outlined"
+                                                      Required="true"
+                                                      For="@(() =>miembroEditable.info_basica_miembro.telefono)"
+                                                      @bind-Value:after="@(() => MarkSectionAsModified("basica"))" />
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        <MudTextField @bind-Value="miembroEditable.info_basica_miembro.telefono_fijo"
+                                                      Label="Teléfono Fijo"
+                                                      Variant="Variant.Outlined"
+                                                      For="@(() =>miembroEditable.info_basica_miembro.telefono_fijo)"
+                                                      @bind-Value:after="@(() => MarkSectionAsModified("basica"))" />
+                                    </MudItem>
+                                    <MudItem xs="12">
+                                        <div class="d-flex">
+                                            <MudButton Size="Size.Small"
+                                                       Variant="Variant.Filled"
+                                                       Color="Color.Success"
+                                                       StartIcon="@Icons.Material.Filled.Check"
+                                                       ButtonType="ButtonType.Submit"
+                                                       Disabled="isSaving">
+                                                Guardar
+                                            </MudButton>
+                                            <MudButton Size="Size.Small"
+                                                       Variant="Variant.Text"
+                                                       Color="Color.Error"
+                                                       StartIcon="@Icons.Material.Filled.Close"
+                                                       ButtonType="ButtonType.Button"
+                                                       OnClick='@(() => CancelSectionEdit("basica"))'
+                                                       Class="ml-1">
+                                                Cancelar
+                                            </MudButton>
+                                        </div>
+                                    </MudItem>
+                                </MudGrid>
+                                </EditForm>
+                            }
+                            else
+                            {
+                                <!-- Modo Vista (código original) -->
+                                <MudGrid>
+                                    <MudItem xs="12">
+                                        <MudText Typo="Typo.subtitle2" Class="mb-2">Foto actual:</MudText>
+
+                                        @if (isLoadingFoto)
+                                        {
+                                            <MudSkeleton  Width="220px" Height="220px" Variant="Variant.Rectangular" Animation="Animation.Pulse" />
+                                        }
+                                        else
+                                        {
+                                            <MudImage @key="FotoTimestamp"
+                                                    src="@FotoUrl"
+                                                    alt="Foto actual"
+                                                    style="max-width:220px; height:auto; border-radius:10px; border:2px solid #e0e0e0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"
+                                                    onerror="@GetOnErrorJs()" />
+                                        }
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        <MudText><strong>DNI:</strong> @miembro.info_basica_miembro.dni</MudText>
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        <MudText>
+                                            <strong>Fecha de Nacimiento:</strong>
+                                            @(miembro.info_basica_miembro.fecha_nacimiento?.ToString("dd/MM/yyyy") ?? "No especificada")
+                                        </MudText>
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        <MudText>
+                                            <strong>Nombre Completo:</strong> @($"{miembro.info_basica_miembro.nombre} {miembro.info_basica_miembro.apellido}")
+                                        </MudText>
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        @if (miembro.info_basica_miembro.sexo == 'F')
+                                        {
+                                            <MudText><strong>Sexo:</strong> Femenino</MudText>
+                                        }
+                                        else if (miembro.info_basica_miembro.sexo == 'M')
+                                        {
+                                            <MudText><strong>Sexo:</strong> Masculino</MudText>
+                                        }
+                                        else
+                                        {
+                                            <MudText><strong>Sexo:</strong> Sin datos</MudText>
+                                        }
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        <MudText><strong>Lugar de Nacimiento:</strong> @miembro.info_basica_miembro.lugarNacimiento</MudText>
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        <MudText><strong>Nacionalidad:</strong> @miembro.info_basica_miembro.nacionalidad</MudText>
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        <MudText><strong>Teléfono:</strong> @miembro.info_basica_miembro.telefono</MudText>
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        <MudText><strong>Teléfono Fijo:</strong> @miembro.info_basica_miembro.telefono_fijo</MudText>
+                                    </MudItem>
+                                    <MudItem xs="12">
+                                        <MudText Color="Color.Primary">
+                                            <strong>Fecha de Creación:</strong> @(miembro.fecha_creacion?.ToString("dd/MM/yyyy HH:mm") ?? "No disponible")
+                                        </MudText>
+                                    </MudItem>
+                                </MudGrid>
+                            }
+                        </ChildContent>
+                    </MudExpansionPanel>
+
+                    <!-- Información de Salud -->
+                    <MudExpansionPanel @bind-Expanded='@expandedPanels["salud"]'>
+                        <TitleContent>
+                            <div class="d-flex align-center justify-space-between w-100">
+                                <div class="d-flex align-center">
+                                    <MudIcon Icon="@Icons.Material.Filled.HealthAndSafety" class="mr-3" Color="Color.Primary" />
+                                    <MudText Typo="Typo.h6">Información de Salud</MudText>
+                                </div>
+                                <div class="d-flex">
+                                    <EditSectionButton Section="salud"
+                                                        IsEditing="@editingSections.Contains("salud")"
+                                                        OnEdit="StartEditSection"
+                                                        OnEditRequested="OnEditSectionRequested" />
+                                </div>
+                            </div>
+                            <div class="d-flex">
+                                @if (editingSections.Contains("salud"))
+                                {
+                                    <MudChip T="string" Color="Color.Info" Size="Size.Small" Class="ml-2">Editando</MudChip>
+                                }
+                                @if (modifiedSections.Contains("salud"))
+                                {
+                                    <MudChip T="string" Color="Color.Warning" Size="Size.Small" Class="ml-2">Cambios pendientes</MudChip>
+                                }
+                            </div>
+                        </TitleContent>
+                        <ChildContent>
+                            @if (editingSections.Contains("salud"))
+                            {
+                                <!-- Modo Edición Salud -->
+                                <EditForm Context="InformacionSalud" Model="miembroEditable.info_salud" OnValidSubmit='() => SaveSection("salud")'>
+                                <DataAnnotationsValidator />
+                                <ValidationSummary />
+                                <MudGrid>
+                                    <MudItem xs="12" sm="6">
+                                        <MudSelect @bind-Value="miembroEditable.info_salud.grupo_sanguineo"
+                                                   Label="Grupo Sanguíneo"
+                                                   Variant="Variant.Outlined"
+                                                   @bind-Value:after="@(() => MarkSectionAsModified("salud"))">
+                                            <MudSelectItem Value="@("A+")" />
+                                            <MudSelectItem Value="@("A-")" />
+                                            <MudSelectItem Value="@("B+")" />
+                                            <MudSelectItem Value="@("B-")" />
+                                            <MudSelectItem Value="@("AB+")" />
+                                            <MudSelectItem Value="@("AB-")" />
+                                            <MudSelectItem Value="@("O+")" />
+                                            <MudSelectItem Value="@("O-")" />
+                                        </MudSelect>
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        <MudTextField @bind-Value="miembroEditable.info_salud.observaciones"
+                                                      Label="Observaciones de Salud"
+                                                      Variant="Variant.Outlined"
+                                                      Lines="3"
+                                                      For="@(() => miembroEditable.info_salud.observaciones)"
+                                                      @bind-Value:after="@(() => MarkSectionAsModified("salud"))" />
+                                    </MudItem>
+                                    <MudItem xs="12">
+                                        <MudText Typo="Typo.subtitle1" Class="mb-2">Alergias</MudText>
+
+                                        @if (miembroEditable.info_salud.alergias != null)
+                                        {
+                                            @foreach (var alergia in miembroEditable.info_salud.alergias.ToList())
+                                            {
+                                                <MudChip T="string" OnClose="@(() => RemoveAlergia(alergia))">
+                                                    @alergia
+                                                </MudChip>
+                                            }
+                                        }
+                                        <div class="d-flex mt-2">
+                                            <MudTextField @bind-Value="nuevaAlergia"
+                                                          Label="Nueva alergia"
+                                                          Variant="Variant.Outlined"
+                                                          @onkeypress="@((e) => { if (e.Key == "Enter") AddAlergia(); })" />
+                                            <MudButton Variant="Variant.Text"
+                                                       Color="Color.Primary"
+                                                       StartIcon="@Icons.Material.Filled.Add"
+                                                       OnClick="AddAlergia"
+                                                       Class="ml-2">
+                                                Agregar
+                                            </MudButton>
+                                        </div>
+                                    </MudItem>
+                                    <MudItem xs="12">
+                                        <MudText Typo="Typo.subtitle1" Class="mb-2">Condiciones Médicas</MudText>
+                                        @if (miembroEditable.info_salud.condiciones_medicas != null)
+                                        {
+                                            @foreach (var condicion in miembroEditable.info_salud.condiciones_medicas.ToList())
+                                            {
+                                                <MudChip T="string" OnClose="@(() => RemoveCondicionMedica(condicion))" CloseIcon="@Icons.Material.Filled.Close" Color="Color.Tertiary" Variant="Variant.Outlined">
+                                                    @condicion
+                                                </MudChip>
+                                            }
+                                        }
+                                        <div class="d-flex mt-2">
+                                            <MudTextField @bind-Value="nuevaCondicionMedica"
+                                                          Label="Nueva condición médica"
+                                                          Variant="Variant.Outlined"
+                                                          @onkeypress="@((e) => { if (e.Key == "Enter") AddCondicionMedica(); })"/>
+                                            <MudButton Variant="Variant.Text"
+                                                       Color="Color.Primary"
+                                                       StartIcon="@Icons.Material.Filled.Add"
+                                                       OnClick="AddCondicionMedica"
+                                                       Class="ml-2">
+                                                Agregar
+                                            </MudButton>
+                                        </div>
+                                    </MudItem>
+
+                                    <MudItem xs="12">
+                                        <MudText Typo="Typo.subtitle1" Class="mb-2">Medicamentos</MudText>
+                                        @if (miembroEditable.info_salud.medicamentos != null)
+                                        {
+                                            @foreach (var medicamento in miembroEditable.info_salud.medicamentos.ToList())
+                                            {
+                                                <MudChip T="string" OnClose="@(() => RemoveMedicamento(medicamento))" CloseIcon="@Icons.Material.Filled.Close" Color="Color.Warning" Variant="Variant.Outlined">
+                                                    @medicamento
+                                                </MudChip>
+                                            }
+                                        }
+                                        <div class="d-flex mt-2">
+                                            <MudTextField @bind-Value="nuevoMedicamento"
+                                                          Label="Nuevo medicamento"
+                                                          Variant="Variant.Outlined"
+                                                          @onkeypress="@((e) => { if (e.Key == "Enter") AddMedicamento(); })" />
+                                            <MudButton Variant="Variant.Text"
+                                                       Color="Color.Primary"
+                                                       StartIcon="@Icons.Material.Filled.Add"
+                                                       OnClick="AddMedicamento"
+                                                       Class="ml-2">
+                                                Agregar
+                                            </MudButton>
+                                        </div>
+                                    </MudItem>
+
+                                    <!-- Teléfonos de Emergencia Editables -->
+                                    <MudItem xs="12">
+                                        <MudText Typo="Typo.subtitle1" Class="mb-2">Teléfonos de Emergencia</MudText>
+                                        @if (miembroEditable.info_salud.telefonosEmergencias != null)
+                                        {
+                                            @for (int i = 0; i < miembroEditable.info_salud.telefonosEmergencias.Count; i++)
+                                            {
+                                                var index = i; // Captura para el closure
+                                                <div class="d-flex mb-2">
+                                                    <MudTextField @bind-Value="miembroEditable.info_salud.telefonosEmergencias[index].propietario_telefono"
+                                                                  Label="Propietario"
+                                                                  Variant="Variant.Outlined"
+                                                                  Required="true"
+                                                                  For="@(() => miembroEditable.info_salud.telefonosEmergencias[index].propietario_telefono)"
+                                                                  Class="mr-2" />
+                                                    <MudTextField @bind-Value="miembroEditable.info_salud.telefonosEmergencias[index].nro_telefono"
+                                                                  Label="Teléfono"
+                                                                  Variant="Variant.Outlined"
+                                                                  Required="true"
+                                                                  For="@(() => miembroEditable.info_salud.telefonosEmergencias[index].nro_telefono)"
+                                                                  Class="mr-2" />
+                                                    <MudButton Variant="Variant.Text"
+                                                               Color="Color.Error"
+                                                               StartIcon="@Icons.Material.Filled.Delete"
+                                                               OnClick="() => RemoveTelefonoEmergencia(index)">
+                                                        Eliminar
+                                                    </MudButton>
+                                                </div>
+                                            }
+                                        }
+                                        <MudButton Variant="Variant.Text"
+                                                   Color="Color.Primary"
+                                                   StartIcon="@Icons.Material.Filled.Add"
+                                                   OnClick="AddTelefonoEmergencia">
+                                            Agregar Teléfono de Emergencia
+                                        </MudButton>
+                                    </MudItem>
+                                    <MudItem xs="12">
+                                        <div class="d-flex">
+                                            <MudButton Size="Size.Small"
+                                                       Variant="Variant.Filled"
+                                                       Color="Color.Success"
+                                                       StartIcon="@Icons.Material.Filled.Check"
+                                                       ButtonType="ButtonType.Submit"
+                                                       Disabled="isSaving">
+                                                Guardar
+                                            </MudButton>
+                                            <MudButton Size="Size.Small"
+                                                       Variant="Variant.Text"
+                                                       Color="Color.Error"
+                                                       StartIcon="@Icons.Material.Filled.Close"
+                                                       ButtonType="ButtonType.Button"
+                                                       OnClick='@(() => CancelSectionEdit("salud"))'
+                                                       Class="ml-1">
+                                                Cancelar
+                                            </MudButton>
+                                        </div>
+                                    </MudItem>
+                                </MudGrid>
+                                </EditForm>
+                            }
+                            else
+                            {
+                                <!-- Modo Vista Salud (código original) -->
+                                @if (miembro.info_salud.tiene_informacion_salud)
+                                {
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="6">
+                                            <MudText><strong>Grupo Sanguíneo:</strong> @miembro.info_salud.grupo_sanguineo</MudText>
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudText><strong>Observaciones de Salud:</strong> @miembro.info_salud.observaciones </MudText>
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            @if (miembro.info_salud.alergias != null && miembro.info_salud.alergias.Any())
+                                            {
+                                                <MudText><strong>Alergias:</strong> @string.Join(", ", miembro.info_salud.alergias)</MudText>
+                                            }
+                                            else
+                                            {
+                                                <MudText><strong>Alergias:</strong> No hay alergias registradas</MudText>
+                                            }
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            @if (miembro.info_salud.condiciones_medicas != null && miembro.info_salud.condiciones_medicas.Any())
+                                            {
+                                                <MudText><strong>Condiciones Médicas:</strong> @string.Join(", ", miembro.info_salud.condiciones_medicas)</MudText>
+                                            }
+                                            else
+                                            {
+                                                <MudText><strong>Condiciones Médicas:</strong> No hay condiciones médicas registradas</MudText>
+                                            }
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            @if (miembro.info_salud.medicamentos != null && miembro.info_salud.medicamentos.Any())
+                                            {
+                                                <MudText><strong>Medicamentos:</strong> @string.Join(", ", miembro.info_salud.medicamentos)</MudText>
+                                            }
+                                            else
+                                            {
+                                                <MudText><strong>Medicamentos:</strong> No hay medicamentos registrados</MudText>
+                                            }
+                                        </MudItem>
+                                        <MudItem xs="12">
+                                            @if (miembro.info_salud.telefonosEmergencias != null && miembro.info_salud.telefonosEmergencias.Any())
+                                            {
+                                                <MudText><strong>Teléfonos de Emergencia:</strong></MudText>
+                                                <MudList T="string" Dense="true">
+                                                    @foreach (var telefonoEmergencia in miembro.info_salud.telefonosEmergencias)
+                                                    {
+                                                        <MudListItem>
+                                                            <MudText>@($"{telefonoEmergencia.propietario_telefono} - {telefonoEmergencia.nro_telefono}")</MudText>
+                                                        </MudListItem>
+                                                    }
+                                                </MudList>
+                                            }
+                                            else
+                                            {
+                                                <MudText><strong>Teléfonos de Emergencia:</strong> No hay teléfonos de emergencia registrados</MudText>
+                                            }
+                                        </MudItem>
+                                    </MudGrid>
+                                }
+                                else
+                                {
+                                    <MudAlert Severity="Severity.Info">No hay información de salud disponible para este miembro.</MudAlert>
+                                }
+                            }
+                        </ChildContent>
+                    </MudExpansionPanel>
+
+
+                    <MudExpansionPanel @bind-Expanded='@expandedPanels["academica"]'>
+                        <TitleContent>
+                            <div class="d-flex align-center justify-space-between w-100">
+                                <div class="d-flex align-center">
+                                    <MudIcon Icon="@Icons.Material.Filled.School" class="mr-3" Color="Color.Primary" />
+                                    <MudText Typo="Typo.h6">Información Académica</MudText>
+                                </div>
+                                <div class="d-flex">
+                                    <EditSectionButton Section="academica"
+                                                        IsEditing="@editingSections.Contains("academica")"
+                                                        OnEdit="StartEditSection"
+                                                        OnEditRequested="OnEditSectionRequested" />
+                                </div>
+                            </div>
+                            <div class="d-flex">
+                                @if (editingSections.Contains("academica"))
+                                {
+                                    <MudChip T="string" Color="Color.Info" Size="Size.Small" Class="ml-2">Editando</MudChip>
+                                }
+                                @if (modifiedSections.Contains("academica"))
+                                {
+                                    <MudChip T="string" Color="Color.Warning" Size="Size.Small" Class="ml-2">Cambios pendientes</MudChip>
+                                }
+                            </div>
+                        </TitleContent>
+                        <ChildContent>
+                            @if (editingSections.Contains("academica"))
+                            {
+                                <!-- Modo Edición Académica -->
+                                <EditForm Context="InformacionAcademica" Model="miembroEditable.info_academica" OnValidSubmit='() => SaveSection("academica")'>
+                                <DataAnnotationsValidator />
+                                <ValidationSummary />
+
+                                <MudGrid>
+                                    <MudItem xs="12" sm="6">
+                                        <MudSelect @bind-Value="miembroEditable.info_academica.estudios_primario"
+                                                   Label="Estudios Primarios"
+                                                   Variant="Variant.Outlined"
+                                                   For="@(() => miembroEditable.info_academica.estudios_primario)"
+                                                   @bind-Value:after=@(() => MarkSectionAsModified("academica"))>
+                                            <MudSelectItem Value="@("Completo")" />
+                                            <MudSelectItem Value="@("Incompleto")" />
+                                            <MudSelectItem Value="@("No cursado")" />
+                                        </MudSelect>
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        <MudSelect @bind-Value="miembroEditable.info_academica.estudios_secundario"
+                                                   Label="Estudios Secundarios"
+                                                   Variant="Variant.Outlined"
+                                                   For="@(() => miembroEditable.info_academica.estudios_secundario)"
+                                                   @bind-Value:after=@(() => MarkSectionAsModified("academica"))>
+                                            <MudSelectItem Value="@("Completo")" />
+                                            <MudSelectItem Value="@("Incompleto")" />
+                                            <MudSelectItem Value="@("No cursado")" />
+                                        </MudSelect>
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        <MudSelect @bind-Value="miembroEditable.info_academica.estudios_terciario"
+                                                   Label="Estudios Terciarios"
+                                                   Variant="Variant.Outlined"
+                                                   For="@(() => miembroEditable.info_academica.estudios_terciario)"
+                                                   @bind-Value:after=@(() => MarkSectionAsModified("academica"))>
+                                            <MudSelectItem Value="@("Completo")" />
+                                            <MudSelectItem Value="@("Incompleto")" />
+                                            <MudSelectItem Value="@("No cursado")" />
+                                        </MudSelect>
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        <MudSelect @bind-Value="miembroEditable.info_academica.estudios_universitario"
+                                                   Label="Estudios Universitarios"
+                                                   Variant="Variant.Outlined"
+                                                   For="@(() => miembroEditable.info_academica.estudios_universitario)"
+                                                   @bind-Value:after=@(() => MarkSectionAsModified("academica"))>
+                                            <MudSelectItem Value="@("Completo")" />
+                                            <MudSelectItem Value="@("Incompleto")" />
+                                            <MudSelectItem Value="@("No cursado")" />
+                                        </MudSelect>
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        <MudTextField @bind-Value="miembroEditable.info_academica.carrera"
+                                                      @bind-Value:after=@(() => MarkSectionAsModified("academica"))
+                                                      Label="Carrera/Título"
+                                                      Variant="Variant.Outlined"
+                                                      For="@(() => miembroEditable.info_academica.carrera)"
+                                                      Placeholder="Ej: Licenciatura en Administración"/>
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        <MudTextField @bind-Value="miembroEditable.info_academica.cursos_realizados"
+                                                      Label="Cursos Realizados"
+                                                      Variant="Variant.Outlined"
+                                                      For="@(() => miembroEditable.info_academica.cursos_realizados)"
+                                                      Lines="3"
+                                                      Placeholder="Describa los cursos más relevantes..."
+                                                      @bind-Value:after=@(() => MarkSectionAsModified("academica")) />
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        <div class="d-flex">
+                                            <MudButton Size="Size.Small"
+                                                        Variant="Variant.Filled"
+                                                        Color="Color.Success"
+                                                        StartIcon="@Icons.Material.Filled.Check"
+                                                        ButtonType="ButtonType.Submit"
+                                                        Disabled="isSaving">
+                                                Guardar
+                                            </MudButton>
+                                            <MudButton Size="Size.Small"
+                                                        Variant="Variant.Text"
+                                                        Color="Color.Error"
+                                                        StartIcon="@Icons.Material.Filled.Close"
+                                                        ButtonType="ButtonType.Button"
+                                                        OnClick='@(() => CancelSectionEdit("academica"))'
+                                                        Class="ml-1">
+                                                Cancelar
+                                            </MudButton>
+                                        </div>
+                                    </MudItem>
+                                </MudGrid>
+                                </EditForm>
+                            }
+                            else
+                            {
+                                <!-- Modo Vista Académica -->
+                                @if (miembro.info_academica.tiene_informacion_academica)
+                                {
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="6">
+                                            <MudText><strong>Estudios Primarios:</strong> @miembro.info_academica.estudios_primario</MudText>
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudText><strong>Estudios Secundarios:</strong> @miembro.info_academica.estudios_secundario</MudText>
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudText><strong>Estudios Terciarios:</strong> @miembro.info_academica.estudios_terciario</MudText>
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudText><strong>Estudios Universitarios:</strong> @miembro.info_academica.estudios_universitario</MudText>
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudText><strong>Carrera:</strong> @miembro.info_academica.carrera</MudText>
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudText><strong>Cursos Realizados:</strong> @miembro.info_academica.cursos_realizados</MudText>
+                                        </MudItem>
+                                    </MudGrid>
+                                }
+                                else
+                                {
+                                    <MudAlert Severity="Severity.Info">No hay información académica disponible para este miembro.</MudAlert>
+                                }
+                            }
+                        </ChildContent>
+                    </MudExpansionPanel>
+
+                    <!--Informacion Laboral-->
+                    <MudExpansionPanel @bind-Expanded='@expandedPanels["laboral"]'>
+                        <TitleContent>
+                            <div class="d-flex align-center justify-space-between w-100">
+                                <div class="d-flex align-center">
+                                    <MudIcon Icon="@Icons.Material.Filled.Work" class="mr-3" Color="Color.Primary" />
+                                    <MudText Typo="Typo.h6">Información Laboral</MudText>
+                                </div>
+                        
+                                <div class="d-flex">
+                                    <EditSectionButton Section="laboral"
+                                                        IsEditing="@editingSections.Contains("laboral")"
+                                                        OnEdit="StartEditSection"
+                                                        OnEditRequested="OnEditSectionRequested" />
+                                </div>
+                            </div>
+                            <div class="d-flex">
+                                @if (editingSections.Contains("laboral"))
+                                {
+                                    <MudChip T="string" Color="Color.Info" Size="Size.Small" Class="ml-2">Editando</MudChip>
+                                }
+                                @if (modifiedSections.Contains("laboral"))
+                                {
+                                    <MudChip T="string" Color="Color.Warning" Size="Size.Small" Class="ml-2">Cambios pendientes</MudChip>
+                                }
+                            </div>
+                        </TitleContent>
+                        <ChildContent>
+                            @if (editingSections.Contains("laboral"))
+                            {
+                                <!-- Modo Edición Laboral -->
+                                <EditForm Context="InformacionLaboral" Model="miembroEditable.info_laboral" OnValidSubmit='() => SaveSection("laboral")'>
+                                <DataAnnotationsValidator />
+                                <ValidationSummary />
+
+                                <MudGrid>
+                                    <MudItem xs="12" sm="6">
+                                        <MudTextField T="string" 
+                                                      @bind-Value="miembroEditable.info_laboral.situacion_laboral"
+                                                      For="@(() => miembroEditable.info_laboral.situacion_laboral)"
+                                                      Label="Situación Laboral"
+                                                      Variant="Variant.Outlined"
+                                                      @bind-Value:after='@(() => MarkSectionAsModified("laboral"))' />
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        <MudTextField T="string" 
+                                                      @bind-Value="miembroEditable.info_laboral.rubro"
+                                                      For="@(() => miembroEditable.info_laboral.rubro)"
+                                                      Label="Rubro/Sector" 
+                                                      Variant="Variant.Outlined"
+                                                      @bind-Value:after='@(() => MarkSectionAsModified("laboral"))' />
+                                    </MudItem>
+                                    <MudItem xs="12">
+                                        <div class="d-flex">
+                                            <MudButton Size="Size.Small"
+                                                       Variant="Variant.Filled"
+                                                       Color="Color.Success"
+                                                       StartIcon="@Icons.Material.Filled.Check"
+                                                       ButtonType="ButtonType.Submit"
+                                                       Disabled="isSaving">
+                                                Guardar
+                                            </MudButton>
+                                            <MudButton Size="Size.Small"
+                                                       Variant="Variant.Text"
+                                                       Color="Color.Error"
+                                                       StartIcon="@Icons.Material.Filled.Close"
+                                                       ButtonType="ButtonType.Button"
+                                                       OnClick='@(() => CancelSectionEdit("laboral"))'
+                                                       Class="ml-1">
+                                                Cancelar
+                                            </MudButton>
+                                        </div>
+                                    </MudItem>
+                                </MudGrid>
+                                </EditForm>
+                            }
+                            else
+                            {
+                                <!-- Modo Vista Laboral -->
+                                @if (miembro.info_laboral.tiene_informacion_laboral)
+                                {
+                                    <MudGrid>
+                                        <MudItem xs="12">
+                                            <MudText><strong>Situación Laboral:</strong> @miembro.info_laboral.situacion_laboral</MudText>
+                                        </MudItem>
+                                        <MudItem xs="12">
+                                            <MudText><strong>Rubro:</strong> @miembro.info_laboral.rubro</MudText>
+                                        </MudItem>
+                                    </MudGrid>
+                                }
+                                else
+                                {
+                                    <MudAlert Severity="Severity.Info">No hay información laboral disponible para este miembro.</MudAlert>
+                                }
+                            }
+                        </ChildContent>
+                    </MudExpansionPanel>
+                    <MudExpansionPanel @bind-Expanded='@expandedPanels["direccion"]'>
+                        <TitleContent>
+                            <div class="d-flex align-center justify-space-between w-100">
+                                <div class="d-flex align-center">
+                                    <MudIcon Icon="@Icons.Material.Filled.LocationOn" class="mr-3" Color="Color.Primary" />
+                                    <MudText Typo="Typo.h6">Información de la Dirección</MudText>
+                                </div>
+                                <div class="d-flex">
+                                    <EditSectionButton Section="direccion"
+                                                        IsEditing="@editingSections.Contains("direccion")"
+                                                        OnEdit="StartEditSection"
+                                                        OnEditRequested="OnEditSectionRequested" />
+                                </div>
+                            </div>
+                            <div class="d-flex">
+                                @if (editingSections.Contains("direccion"))
+                                {
+                                    <MudChip T="string" Color="Color.Info" Size="Size.Small" Class="ml-2">Editando</MudChip>
+                                }
+                                @if (modifiedSections.Contains("direccion"))
+                                {
+                                    <MudChip T="string" Color="Color.Warning" Size="Size.Small" Class="ml-2">Cambios pendientes</MudChip>
+                                }
+                            </div>
+                        </TitleContent>
+                        <ChildContent>
+                            @if (editingSections.Contains("direccion"))
+                            {
+                                <!-- Modo Edición Dirección -->
+                                <MudGrid>
+                                    <MudItem xs="12" sm="8">
+                                        <MudTextField @bind-Value="miembroEditable.direccion.calle"
+                                                      Label="Calle"
+                                                      Variant="Variant.Outlined"
+                                                      For="@(() => miembroEditable.direccion.calle)"
+                                                      Placeholder="Ej: Av. San Martín"
+                                                      @bind-Value:after="@(() => MarkSectionAsModified("direccion"))" />
+                                    </MudItem>
+                                    <MudItem xs="12" sm="4">
+                                        <MudTextField @bind-Value="miembroEditable.direccion.altura"
+                                                      Label="Número"
+                                                      Variant="Variant.Outlined"
+                                                      For="@(() => miembroEditable.direccion.altura)"
+                                                      Placeholder="1234"
+                                                      @bind-Value:after='@(() => MarkSectionAsModified("direccion"))' />
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        <MudTextField @bind-Value="miembroEditable.direccion.barrio"
+                                                      Label="Barrio"
+                                                      Variant="Variant.Outlined"
+														  For="@(() => miembroEditable.direccion.barrio)"
+                                                      Placeholder="Nombre del barrio"
+                                                      @bind-Value:after="@(() => MarkSectionAsModified("direccion"))" />
+                                    </MudItem>
+                                    <MudItem xs="12">
+                                        <div class="d-flex">
+                                            <MudButton Size="Size.Small"
+                                                       Variant="Variant.Filled"
+                                                       Color="Color.Success"
+                                                       StartIcon="@Icons.Material.Filled.Check"
+                                                       OnClick='@(() => SaveSection("direccion"))'
+                                                       Disabled="isSaving">
+                                                Guardar
+                                            </MudButton>
+                                            <MudButton Size="Size.Small"
+                                                       Variant="Variant.Text"
+                                                       Color="Color.Error"
+                                                       StartIcon="@Icons.Material.Filled.Close"
+                                                       OnClick='@(() => CancelSectionEdit("direccion"))'
+                                                       Class="ml-1">
+                                                Cancelar
+                                            </MudButton>
+                                        </div>
+                                    </MudItem>
+                                </MudGrid>
+                            }
+                            else
+                            {
+                                <!-- Modo Vista Dirección -->
+                                @if (miembro.direccion.tiene_direccion)
+                                {
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="6">
+                                            <MudText><strong>Calle:</strong> @miembro.direccion.calle</MudText>
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudText><strong>Número:</strong> @miembro.direccion.altura</MudText>
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudText><strong>Barrio:</strong> @miembro.direccion.barrio</MudText>
+                                        </MudItem>
+                                    </MudGrid>
+                                }
+                                else
+                                {
+                                    <MudAlert Severity="Severity.Info">No hay información de la dirección del miembro.</MudAlert>
+                                }
+                            }
+                        </ChildContent>
+                    </MudExpansionPanel>
+                    <!-- Información Eclesiástica -->
+                    <MudExpansionPanel @bind-Expanded='@expandedPanels["eclesiastica"]'>
+                        <TitleContent>
+                            <div class="d-flex align-center justify-space-between w-100">
+                                <div class="d-flex align-center">
+                                    <MudIcon Icon="@Icons.Material.Filled.Church" class="mr-3" Color="Color.Primary" />
+                                    <MudText Typo="Typo.h6">Información Eclesiástica</MudText>
+                                </div>
+                                <div class="d-flex">
+                                    <EditSectionButton Section="eclesiastica"
+                                                        IsEditing="@editingSections.Contains("eclesiastica")"
+                                                        OnEdit="StartEditSection"
+                                                        OnEditRequested="OnEditSectionRequested" />
+                                </div>
+                            </div>
+                            <div class="d-flex">
+                                @if (editingSections.Contains("eclesiastica"))
+                                {
+                                    <MudChip T="string" Color="Color.Info" Size="Size.Small" Class="ml-2">Editando</MudChip>
+                                }
+                                @if (modifiedSections.Contains("eclesiastica"))
+                                {
+                                    <MudChip T="string" Color="Color.Warning" Size="Size.Small" Class="ml-2">Cambios pendientes</MudChip>
+                                }
+                            </div>
+                        </TitleContent>
+                        <ChildContent>
+                            @if (editingSections.Contains("eclesiastica"))
+                            {
+                                <!-- Modo Edición Eclesiástica -->
+                                <EditForm Context="InformacionEclesiastica" Model="miembroEditable.info_eclesiastica" OnValidSubmit='() => SaveSection("eclesiastica")'>
+                                <DataAnnotationsValidator />
+                                <ValidationSummary />
+
+                                <MudGrid>
+                                    <MudItem xs="12" sm="6">
+                                        <MudTextField @bind-Value="miembroEditable.info_eclesiastica.convocante"
+                                                      Label="Convocante"
+                                                      Variant="Variant.Outlined"
+                                                      For="@(() => miembroEditable.info_eclesiastica.convocante)"
+                                                      Placeholder="Persona que lo invitó a la iglesia"
+                                                      @bind-Value:after="@(() => MarkSectionAsModified("eclesiastica"))" />
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        <MudNumericField T="int?"
+                                                         @bind-Value="miembroEditable.info_eclesiastica.fecha_desde_la_que_asiste"
+                                                         Label="Año desde el que asiste"
+                                                         Variant="Variant.Outlined"
+                                                         Min="1900"
+                                                         Max="@DateTime.Now.Year"
+                                                         @bind-Value:after="@(() => MarkSectionAsModified("eclesiastica"))" />
+                                    </MudItem>
+                                    
+                                    <MudItem xs="12">
+                                        <MudSwitch @bind-Value="miembroEditable.info_eclesiastica.realizo_bautismo" 
+                                                   Label="Bautismo"
+                                                   Color="Color.Success"
+                                                   UncheckedColor="Color.Default"
+                                                   T="bool?"
+                                                   @bind-Value:after="@(() => MarkSectionAsModified("eclesiastica"))" />
+                                    </MudItem>
+
+                                    @if (miembroEditable.info_eclesiastica.realizo_bautismo != null && miembroEditable.info_eclesiastica.realizo_bautismo.Value)
+                                    {
+                                        <MudItem xs="12" sm="6">
+                                            <MudTextField @bind-Value="miembroEditable.info_eclesiastica.pastor"
+                                                          Label="Pastor que lo bautizó"
+                                                          Variant="Variant.Outlined"
+                                                          @bind-Value:after="@(() => MarkSectionAsModified("eclesiastica"))"
+                                                          For="@(() => miembroEditable.info_eclesiastica.pastor)"/>
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudNumericField T="int?"
+                                                             @bind-value="miembroEditable.info_eclesiastica.fecha_de_bautismo"
+                                                             For="@(() => miembroEditable.info_eclesiastica.fecha_de_bautismo)"
+                                                             Label="Fecha de Bautismo"
+                                                             Variant="Variant.Outlined"
+                                                             Validation="ValidarFechaBautismo" />
+                                        </MudItem>
+                                        <MudItem xs="12">
+                                            <MudTextField @bind-Value="miembroEditable.info_eclesiastica.lugar_bautismo"
+                                                          Label="Lugar de Bautismo"
+                                                          Variant="Variant.Outlined"
+                                                          Placeholder="Iglesia o lugar donde fue bautizado"
+                                                          @bind-Value:after="@(() => MarkSectionAsModified("eclesiastica"))"
+                                                          For="@(() => miembroEditable.info_eclesiastica.lugar_bautismo)" />
+                                        </MudItem>
+                                    }
+                                    <!-- Editor de Seminarios -->
+                                    <MudItem xs="12">
+                                        <MudText Typo="Typo.subtitle1" Class="mb-3">Seminarios Realizados</MudText>
+
+                                        @if (miembroEditable.info_eclesiastica.seminarios != null && miembroEditable.info_eclesiastica.seminarios.Any())
+                                        {
+                                            @for (int i = 0; i < miembroEditable.info_eclesiastica.seminarios.Count; i++)
+                                            {
+                                                var index = i;
+                                                <MudCard Class="mb-3" Elevation="1">
+                                                    <MudCardContent>
+                                                        <div class="d-flex justify-space-between align-center mb-2">
+                                                            <MudText Typo="Typo.subtitle2">Seminario #@(index + 1)</MudText>
+                                                            <MudButton Size="Size.Small"
+                                                                       Variant="Variant.Text"
+                                                                       Color="Color.Error"
+                                                                       StartIcon="@Icons.Material.Filled.Delete"
+                                                                       OnClick="() => RemoveSeminario(index)">
+                                                                Eliminar
+                                                            </MudButton>
+                                                        </div>
+                                                        <MudGrid>
+                                                            <MudItem xs="12" sm="6">
+                                                                <MudTextField @bind-Value="miembroEditable.info_eclesiastica.seminarios[index].nombre"
+                                                                              Label="Nombre del Seminario"
+                                                                              Variant="Variant.Outlined"
+                                                                              Required="true"
+                                                                              For="@(() => miembroEditable.info_eclesiastica.seminarios[index].nombre)" />
+                                                            </MudItem>
+                                                            <MudItem xs="12" sm="6">
+                                                                <MudNumericField @bind-Value="miembroEditable.info_eclesiastica.seminarios[index].anio_comienzo"
+                                                                                 Label="Año de Inicio"
+                                                                                 Variant="Variant.Outlined"
+                                                                                 Min="1900"
+                                                                                 Max="@DateTime.Now.Year" />
+                                                            </MudItem>
+                                                            <MudItem xs="12" sm="6">
+                                                                <MudNumericField @bind-Value="miembroEditable.info_eclesiastica.seminarios[index].anio_cursado"
+                                                                                 Label="Año que se curso"
+                                                                                 Variant="Variant.Outlined"
+                                                                                 Min="1900"
+                                                                                 Max="@DateTime.Now.Year" />
+                                                            </MudItem>
+                                                            <MudItem xs="12" sm="6">
+                                                                <MudSelect @bind-Value="miembroEditable.info_eclesiastica.seminarios[index].estado"
+                                                                           Label="Estado"
+                                                                           Variant="Variant.Outlined">
+                                                                    <MudSelectItem Value="@("Completado")" />
+                                                                    <MudSelectItem Value="@("En curso")" />
+                                                                    <MudSelectItem Value="@("Abandonado")" />
+                                                                    <MudSelectItem Value="@("Pausado")" />
+                                                                </MudSelect>
+                                                            </MudItem>
+                                                        </MudGrid>
+                                                    </MudCardContent>
+                                                </MudCard>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <MudAlert Severity="Severity.Info" Class="mb-3">
+                                                No hay seminarios registrados
+                                            </MudAlert>
+                                        }
+
+                                        <MudButton Variant="Variant.Outlined"
+                                                   Color="Color.Primary"
+                                                   StartIcon="@Icons.Material.Filled.Add"
+                                                   OnClick="AddSeminario"
+                                                   FullWidth="true">
+                                            Agregar Seminario
+                                        </MudButton>
+                                    </MudItem>
+                                    <MudItem xs="12">
+                                        <div class="d-flex">
+                                            <MudButton Size="Size.Small"
+                                                       Variant="Variant.Filled"
+                                                       Color="Color.Success"
+                                                       StartIcon="@Icons.Material.Filled.Check"
+                                                       ButtonType="ButtonType.Submit"
+                                                       Disabled="isSaving">
+                                                Guardar
+                                            </MudButton>
+                                            <MudButton Size="Size.Small"
+                                                       Variant="Variant.Text"
+                                                       Color="Color.Error"
+                                                       StartIcon="@Icons.Material.Filled.Close"
+                                                       ButtonType="ButtonType.Button"
+                                                       OnClick='@(() => CancelSectionEdit("eclesiastica"))'
+                                                       Class="ml-1">
+                                                Cancelar
+                                            </MudButton>
+                                        </div>
+                                    </MudItem>
+                                </MudGrid>
+                                </EditForm>
+                            }
+                            else
+                            {
+                                <!-- Modo Vista Eclesiástica -->
+                                @if (miembro.info_eclesiastica.tiene_informacion_eclesiastica)
+                                {
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="6">
+                                            <MudText><strong>Convocante:</strong> @miembro.info_eclesiastica.convocante</MudText>
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudText><strong>Año desde el que asiste:</strong> @miembro.info_eclesiastica.fecha_desde_la_que_asiste</MudText>
+                                        </MudItem>
+
+                                        @if (miembro.info_eclesiastica.realizo_bautismo == true)
+                                        {
+                                            <MudItem xs="12" sm="6">
+                                                <MudText><strong>Fue bautizado:</strong> Sí</MudText>
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6">
+                                                <MudText><strong>Pastor que lo bautizó:</strong> @miembro.info_eclesiastica.pastor</MudText>
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6">
+                                                <MudText><strong>Fecha de Bautismo:</strong> @(miembro.info_eclesiastica.fecha_de_bautismo)</MudText>
+                                            </MudItem>
+                                            <MudItem xs="12" sm="6">
+                                                <MudText><strong>Lugar de Bautismo:</strong> @miembro.info_eclesiastica.lugar_bautismo</MudText>
+                                            </MudItem>
+                                        }
+                                        else
+                                        {
+                                            <MudItem xs="12">
+                                                <MudText><strong>Fue bautizado:</strong> No</MudText>
+                                            </MudItem>
+                                        }
+
+                                        <MudItem xs="12">
+                                            @if (miembro.info_eclesiastica.seminarios != null && miembro.info_eclesiastica.seminarios.Any())
+                                            {
+                                                <MudText><strong>Seminarios realizados:</strong></MudText>
+                                                <MudList T="string" Dense="true">
+                                                    @foreach (var seminario in miembro.info_eclesiastica.seminarios)
+                                                    {
+                                                        <MudListItem>
+                                                            <MudText>@($"{seminario.nombre} - {seminario.anio_comienzo} - Estado: {seminario.estado}")</MudText>
+                                                        </MudListItem>
+                                                    }
+                                                </MudList>
+                                            }
+                                            else
+                                            {
+                                                <MudText><strong>Seminarios:</strong> No hay seminarios registrados</MudText>
+                                            }
+                                        </MudItem>
+                                    </MudGrid>
+                                }
+                                else
+                                {
+                                    <MudAlert Severity="Severity.Info">No hay información eclesiástica disponible de este miembro.</MudAlert>
+                                }
+                            }
+                        </ChildContent>
+                    </MudExpansionPanel>
+                    <MudExpansionPanel @bind-Expanded='@expandedPanels["personal"]'>
+                        <TitleContent>
+                            <div class="d-flex align-center justify-space-between w-100">
+                                <div class="d-flex align-center">
+                                    <MudIcon Icon="@Icons.Material.Filled.PersonalInjury" class="mr-3" Color="Color.Primary" />
+                                    <MudText Typo="Typo.h6">Información Personal</MudText>
+                                </div>
+                                <div class="d-flex">
+                                    <EditSectionButton Section="personal"
+                                                        IsEditing="@editingSections.Contains("personal")"
+                                                        OnEdit="StartEditSection"
+                                                        OnEditRequested="OnEditSectionRequested" />
+                                </div>
+                            </div>
+                            <div class="d-flex">
+                                @if (editingSections.Contains("personal"))
+                                {
+                                    <MudChip T="string" Color="Color.Info" Size="Size.Small" Class="ml-2">Editando</MudChip>
+                                }
+                                @if (modifiedSections.Contains("personal"))
+                                {
+                                    <MudChip T="string" Color="Color.Warning" Size="Size.Small" Class="ml-2">Cambios pendientes</MudChip>
+                                }
+                            </div>
+                        </TitleContent>
+                        <ChildContent>
+                            @if (editingSections.Contains("personal"))
+                            {
+                                <!-- Modo Edición Personal -->
+                                <EditForm Context="InformacionPersonal" Model="miembroEditable.info_personal" OnValidSubmit='() => SaveSection("personal")'>
+                                <DataAnnotationsValidator />
+                                <ValidationSummary />
+
+                                <MudGrid>
+                                    <MudItem xs="12" sm="6">
+                                        <MudTextField T="string" @bind-Value="miembroEditable.info_personal.estado_civil"
+                                                      Label="Estado Civil"
+                                                      For="@(() => miembroEditable.info_personal.estado_civil)"
+                                                      Variant="Variant.Outlined"
+                                                      @bind-Value:after="@(() => MarkSectionAsModified("personal"))" />
+
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        <MudTextField @bind-Value="miembroEditable.info_personal.pareja"
+                                                      Label="Pareja"
+                                                      For="@(() => miembroEditable.info_personal.pareja)"
+                                                      Variant="Variant.Outlined"
+                                                      Placeholder="Nombre de la pareja"
+                                                      @bind-Value:after="@(() => MarkSectionAsModified("personal"))" />
+                                    </MudItem>
+                                    <MudItem xs="12" sm="6">
+                                        <MudTextField @bind-Value="miembroEditable.info_personal.telefono_alternativo"
+                                                      Label="Teléfono Alternativo"
+                                                      Variant="Variant.Outlined"
+                                                      @bind-Value:after="@(() => MarkSectionAsModified("personal"))"
+                                                      For="@(() => miembroEditable.info_personal.telefono_alternativo)"/>
+                                    </MudItem>
+                
+                                    <!-- Editor de Hijos -->
+                                    <MudItem xs="12">
+                                        <MudText Typo="Typo.subtitle1" Class="mb-3">Hijos</MudText>
+                    
+                                        @if (miembroEditable.info_personal.hijos != null && miembroEditable.info_personal.hijos.Any())
+                                        {
+                                            @for (int i = 0; i < miembroEditable.info_personal.hijos.Count; i++)
+                                            {
+                                                var index = i;
+                                                <MudCard Class="mb-3" Elevation="1">
+                                                    <MudCardContent>
+                                                        <div class="d-flex justify-space-between align-center mb-2">
+                                                            <MudText Typo="Typo.subtitle2">Hijo/a #@(index + 1)</MudText>
+                                                            <MudButton Size="Size.Small"
+                                                                       Variant="Variant.Text"
+                                                                       Color="Color.Error"
+                                                                       StartIcon="@Icons.Material.Filled.Delete"
+                                                                       OnClick="() => RemoveHijo(index)">
+                                                                Eliminar
+                                                            </MudButton>
+                                                        </div>
+                                                        <MudGrid>
+                                                            <MudItem xs="12" sm="6">
+                                                                <MudTextField @bind-Value="miembroEditable.info_personal.hijos[index].nombre"
+                                                                              Label="Nombre"
+                                                                              Variant="Variant.Outlined"
+                                                                              Required="true"
+                                                                              For="@(() => miembroEditable.info_personal.hijos[index].nombre)" />
+                                                            </MudItem>
+                                                            <MudItem xs="12" sm="6">
+                                                                <MudTextField @bind-Value="miembroEditable.info_personal.hijos[index].apellido"
+                                                                              Label="Apellido"
+                                                                              Variant="Variant.Outlined"
+                                                                              Required="true"
+                                                                              For="@(() => miembroEditable.info_personal.hijos[index].apellido)" />
+                                                            </MudItem>
+                                                        </MudGrid>
+                                                    </MudCardContent>
+                                                </MudCard>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <MudAlert Severity="Severity.Info" Class="mb-3">
+                                                No hay hijos registrados
+                                            </MudAlert>
+                                        }
+                    
+                                        <MudButton Variant="Variant.Outlined"
+                                                   Color="Color.Primary"
+                                                   StartIcon="@Icons.Material.Filled.Add"
+                                                   OnClick="AddHijo"
+                                                   FullWidth="true">
+                                            Agregar Hijo/a
+                                        </MudButton>
+                                    </MudItem>
+                                    <MudItem xs="12">
+                                        <div class="d-flex">
+                                            <MudButton Size="Size.Small"
+                                                       Variant="Variant.Filled"
+                                                       Color="Color.Success"
+                                                       StartIcon="@Icons.Material.Filled.Check"
+                                                       ButtonType="ButtonType.Submit"
+                                                       Disabled="isSaving">
+                                                Guardar
+                                            </MudButton>
+                                            <MudButton Size="Size.Small"
+                                                       Variant="Variant.Text"
+                                                       Color="Color.Error"
+                                                       StartIcon="@Icons.Material.Filled.Close"
+                                                       ButtonType="ButtonType.Button"
+                                                       OnClick='@(() => CancelSectionEdit("personal"))'
+                                                       Class="ml-1">
+                                                Cancelar
+                                            </MudButton>
+                                        </div>
+                                    </MudItem>
+                                </MudGrid>
+                                </EditForm>
+                            }
+                            else
+                            {
+                                <!-- Modo Vista Personal (código original) -->
+                                @if (miembro.info_personal.tiene_informacion_personal)
+                                {
+                                    <MudGrid>
+                                        <MudItem xs="12" sm="6">
+                                            <MudText><strong>Estado Civil:</strong> @miembro.info_personal.estado_civil</MudText>
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudText><strong>Pareja:</strong> @miembro.info_personal.pareja</MudText>
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            @if (miembro.info_personal.hijos != null && miembro.info_personal.hijos.Any())
+                                            {
+                                                <MudText><strong>Hijos:</strong></MudText>
+                                                <MudList T="string" Dense="true">
+                                                    @foreach (var hijo in miembro.info_personal.hijos)
+                                                    {
+                                                        <MudListItem>
+                                                            <MudText>@($"{hijo.nombre} {hijo.apellido}")</MudText>
+                                                        </MudListItem>
+                                                    }
+                                                </MudList>
+                                            }
+                                            else
+                                            {
+                                                <MudText><strong>Hijos:</strong> No hay hijos registrados</MudText>
+                                            }
+                                        </MudItem>
+                                        <MudItem xs="12" sm="6">
+                                            <MudText><strong>Teléfono Alternativo:</strong> @miembro.info_personal.telefono_alternativo</MudText>
+                                        </MudItem>
+                                    </MudGrid>
+                                }
+                                else
+                                {
+                                    <MudAlert Severity="Severity.Info">No hay información personal disponible de este miembro.</MudAlert>
+                                }
+                            }
+                        </ChildContent>
+                    </MudExpansionPanel>
+                </MudExpansionPanels>
+            </MudCardContent>
+            </MudCard>
+
+            </MudStack>
+        </MudContainer>
+    </Authorized>
+</AuthorizeView>
+
+@code {
+
+    string? FotoUrl;
+    string? FotoPreviewUrl;
+    IBrowserFile? fotoSeleccionada;
+    bool subiendoFoto = false;
+
+    // Diccionario para controlar el estado de expansión de los paneles
+    private Dictionary<string, bool> expandedPanels = new Dictionary<string, bool>
+    {
+        { "basica", false },
+        { "salud", false },
+        { "academica", false },
+        { "laboral", false },
+        { "direccion", false },
+        { "eclesiastica", false },
+        { "personal", false }
+    };
+
+    private List<string> nacionalidades = new();
+
+    private async Task VolverAtras()
+    {
+        await JS.InvokeVoidAsync("history.back");
+    }
+
+    async Task OnFotoSelected(IBrowserFile? file)
+    {
+        try
+        {
+            if (file == null)
+            {
+                await EliminarFotoPreview();
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(miembroEditable.info_basica_miembro.dni))
+            {
+                Snackbar.Add("Primero ingresa el DNI para nombrar la foto.", Severity.Warning);
+                return;
+            }
+
+            if (!string.Equals(file.ContentType, "image/jpeg", StringComparison.OrdinalIgnoreCase))
+            {
+                Snackbar.Add("La foto debe ser JPG (image/jpeg).", Severity.Error);
+                return;
+            }
+
+            // Validar tamaño (máximo 5MB)
+            if (file.Size > 5 * 1024 * 1024)
+            {
+                Snackbar.Add("La foto no puede superar los 5MB.", Severity.Error);
+                return;
+            }
+
+            // Guardar el archivo en memoria para subirlo después
+            fotoSeleccionada = file;
+
+            // Crear preview local
+            var buffer = new byte[file.Size];
+            await file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024).ReadAsync(buffer);
+            var base64 = Convert.ToBase64String(buffer);
+            FotoPreviewUrl = $"data:image/jpeg;base64,{base64}";
+
+            MarkSectionAsModified("basica");
+            Snackbar.Add("Foto seleccionada. Presiona 'Guardar' para confirmar.", Severity.Info);
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al seleccionar foto: {ex.Message}", Severity.Error);
+        }
+    }
+
+    async Task EliminarFotoPreview()
+    {
+        fotoSeleccionada = null;
+        FotoPreviewUrl = null;
+        // No marcar como modificado si solo se limpia el preview
+        StateHasChanged();
+    }
+
+
+    // En tu @code block
+    private long FotoTimestamp; // Timestamp para forzar re-render de la imagen
+    private bool isLoadingFoto = true;
+    private async Task RefreshFoto()
+    {
+        // Solo actualizamos isLoadingFoto si es la primera carga
+        if (string.IsNullOrWhiteSpace(FotoUrl))
+        {
+            isLoadingFoto = true;
+            StateHasChanged(); // 👈 Solo la primera vez para mostrar skeleton
+        }
+
+        var id = miembro?.id;
+        if (id == null || id <= 0)
+        {
+            FotoUrl = null;
+            isLoadingFoto = false;
+            return; // 👈 Sin StateHasChanged() aquí
+        }
+
+        try
+        {
+            var response = await Http.GetAsync($"api/miembros/{id}/foto");
+            if (response.IsSuccessStatusCode)
+            {
+                var bytes = await response.Content.ReadAsByteArrayAsync();
+                var contentType = response.Content.Headers.ContentType?.MediaType ?? "image/jpeg";
+                var newFotoUrl = $"data:{contentType};base64,{Convert.ToBase64String(bytes)}";
+
+                // 👇 Solo actualizamos si la foto cambió realmente
+                if (newFotoUrl != FotoUrl)
+                {
+                    FotoUrl = newFotoUrl;
+                    FotoTimestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                    // 👈 NO llamamos a StateHasChanged() aquí: @key + @bind-Expanded se encargan
+                }
+            }
+            else
+            {
+                if (FotoUrl != null) // Solo si había foto y ahora no hay
+                {
+                    FotoUrl = null;
+                    // 👈 Tampoco StateHasChanged() aquí
+                }
+            }
+        }
+        catch
+        {
+            if (FotoUrl != null)
+            {
+                FotoUrl = null;
+            }
+        }
+        finally
+        {
+            // Solo actualizamos isLoadingFoto si estaba en true
+            if (isLoadingFoto)
+            {
+                isLoadingFoto = false;
+                StateHasChanged(); // 👈 Único StateHasChanged() necesario al finalizar carga inicial
+            }
+        }
+    }
+
+    private string GetPlaceholder()
+        => miembro.info_basica_miembro.sexo == 'F'
+           ? "/images/placeholder_femenino.png"
+           : miembro.info_basica_miembro.sexo == 'M'
+             ? "/images/placeholder_masculino.png"
+             : "/images/avatar-placeholder.png";
+
+    private string GetSrc() => string.IsNullOrWhiteSpace(FotoUrl) ? GetPlaceholder() : FotoUrl;
+
+    private string? GetOnErrorJs()
+        => string.IsNullOrWhiteSpace(FotoUrl)
+           ? null
+           : $"this.onerror=null;this.src='{GetPlaceholder()}';";
+
+    [Parameter]
+    public int id { get; set; }
+
+    // Estados originales
+    private MiembroDTO miembro = new MiembroDTO();
+    private bool isLoading = true;
+    private string errorMessage = string.Empty;
+
+    // Estados para edición
+    private MiembroDTO miembroOriginal = new MiembroDTO(); // Backup para cancelar
+    private MiembroDTO miembroEditable = new MiembroDTO(); // Copia editable
+    private HashSet<string> editingSections = new HashSet<string>();
+    private HashSet<string> modifiedSections = new HashSet<string>();
+    private bool hasUnsavedChanges = false;
+    private bool isSaving = false;
+
+    // Estados para campos dinámicos
+    private HashSet<object> selectedAlergias = new HashSet<object>();
+    private string nuevaAlergia = "";
+    private string nuevaCondicionMedica = "";
+    private string nuevoMedicamento = "";
+
+    private string? mensajePeticion;
+    private bool vieneDePeticion = false;
+    private bool mostrarMensajePeticion = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        nacionalidades = (await NacionalidadesService.GetAsync()).ToList(); //carga select de paises
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var authState = await auth.GetAuthenticationStateAsync();
+            await CargarDatosPeticion();
+            await LoadMiembro();
+        }
+    }
+
+    private async Task CargarDatosPeticion()
+    {
+        var uri = new Uri(Nav.Uri);
+        var query = QueryHelpers.ParseQuery(uri.Query);
+
+        if (query.TryGetValue("idPeticion", out var idStr) && int.TryParse(idStr, out var idPeticion))
+        {
+            try
+            {
+                var response = await Http.GetFromJsonAsync<JsonElement>($"api/peticion/GetPeticionDetalle/{idPeticion}");
+                var tipo = response.GetProperty("tipo").GetString();
+                var estado = response.GetProperty("estado").GetString();
+
+                if (tipo == "Actualizacion" && estado == "Aceptada" && response.TryGetProperty("mensaje", out var msg) && msg.ValueKind != JsonValueKind.Null)
+                {
+                    mensajePeticion = msg.GetString();
+                    vieneDePeticion = true;
+                    Snackbar.Add("Esta petición contiene actualizaciones solicitadas por el líder", Severity.Info);
+                }
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error al cargar datos de la petición: {ex.Message}", Severity.Warning);
+            }
+        }
+    }
+
+
+    private async Task LoadMiembro()
+    {
+        try
+        {
+            isLoading = true;
+            isLoadingFoto = true; // 👈 Reiniciar estado de carga de foto
+            StateHasChanged();
+
+            var response = await Http.GetAsync($"api/miembros/GetInfoMiembro/{id}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                miembro = await response.Content.ReadFromJsonAsync<MiembroDTO>();
+                if (miembro == null)
+                {
+                    errorMessage = "Error al deserializar los datos del miembro";
+                    Snackbar.Add(errorMessage, Severity.Error);
+                    isLoadingFoto = false; // 👈 No hay foto si no hay miembro
+                }
+                else
+                {
+                    miembroOriginal = DeepCopy(miembro);
+                    miembroEditable = DeepCopy(miembro);
+                    await RefreshFoto(); // 👈 RefreshFoto maneja isLoadingFoto internamente
+                }
+            }
+            else
+            {
+                await HandleHttpError(response);
+                isLoadingFoto = false;
+            }
+        }
+        catch (HttpRequestException httpEx)
+        {
+            errorMessage = "Error de conexión con el servidor";
+            Snackbar.Add($"{errorMessage}: {httpEx.Message}", Severity.Error);
+            isLoadingFoto = false;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Error inesperado al cargar el miembro";
+            Snackbar.Add($"{errorMessage}: {ex.Message}", Severity.Error);
+            isLoadingFoto = false;
+        }
+        finally
+        {
+            isLoading = false;
+            // 👇 NO pongas StateHasChanged() aquí si RefreshFoto ya lo hizo en su finally
+            if (!isLoadingFoto) StateHasChanged();
+        }
+    }
+
+     // Métodos de control de edición
+    private void StartEditSection(string section)
+    {
+        editingSections.Add(section);
+        StateHasChanged();
+    }
+
+    private void OnEditSectionRequested(string section)
+    {
+        // Expandir el panel si no está expandido
+        if (!expandedPanels[section])
+        {
+            expandedPanels[section] = true;
+            StateHasChanged();
+        }
+    }
+
+    private void CancelSectionEdit(string section)
+    {
+        editingSections.Remove(section);
+        modifiedSections.Remove(section);
+
+        // Si es la sección básica, limpiar la foto seleccionada
+        if (section == "basica")
+        {
+            fotoSeleccionada = null;
+            FotoPreviewUrl = null;
+        }
+
+        // Restaurar datos originales para esta sección
+        RestoreSectionData(section);
+
+        UpdateGlobalState();
+        StateHasChanged();
+    }
+
+    private async Task SaveSection(string section)
+    {
+        try
+        {
+            isSaving = true;
+
+            if (!ValidateSection(section))
+            {
+                Snackbar.Add("Por favor corrige los errores antes de guardar", Severity.Error);
+                return;
+            }
+
+            // Si es la sección básica y hay foto seleccionada, subirla primero
+            if (section == "basica" && fotoSeleccionada != null)
+            {
+                subiendoFoto = true;
+                StateHasChanged();
+
+                try
+                {
+                    using var form = new MultipartFormDataContent();
+
+                    var stream = fotoSeleccionada.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+                    var fileContent = new StreamContent(stream);
+
+                    fileContent.Headers.ContentType =
+                        new System.Net.Http.Headers.MediaTypeHeaderValue(fotoSeleccionada.ContentType);
+
+                    // IMPORTANTE: nombre del campo = "foto"
+                    form.Add(fileContent, "foto", fotoSeleccionada.Name);
+
+                    var resp = await Http.PostAsync(
+                        $"api/miembros/{miembroEditable.id}/foto",
+                        form);
+
+                    if (!resp.IsSuccessStatusCode)
+                    {
+                        var errorContent = await resp.Content.ReadAsStringAsync();
+                        Snackbar.Add($"Error subiendo foto: {errorContent}", Severity.Error);
+                        return;
+                    }
+
+                    fotoSeleccionada = null;
+                    FotoPreviewUrl = null;
+                    await RefreshFoto();
+                }
+                catch (Exception ex)
+                {
+                    Snackbar.Add($"Error al subir foto: {ex.Message}", Severity.Error);
+                }
+                finally
+                {
+                    subiendoFoto = false;
+                }
+            }
+
+            // Guardar la sección como antes
+            var sectionData = GetSectionData(section);
+            var response = await Http.PatchAsJsonAsync(
+                $"api/miembros/actualizarmiembro/{id}/seccion/{section}",
+                sectionData);
+
+            if (response.IsSuccessStatusCode)
+            {
+                UpdateOriginalSectionData(section);
+                editingSections.Remove(section);
+                modifiedSections.Remove(section);
+
+                // Si se guardó la sección básica, refrescar la foto
+                if (section == "basica")
+                {
+                    FotoPreviewUrl = null;
+                    await RefreshFoto();
+                }
+
+                Snackbar.Add($"Sección '{GetSectionDisplayName(section)}' guardada exitosamente", Severity.Success);
+                UpdateGlobalState();
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Error al guardar: {errorContent}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error inesperado: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSaving = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task SaveAllChanges()
+    {
+        try
+        {
+            if (modifiedSections.Count == 0)
+            {
+                Snackbar.Add("No hay cambios para guardar", Severity.Info);
+                return;
+            }
+
+            isSaving = true;
+            StateHasChanged();
+
+            // Guardar cada sección que fue modificada usando su endpoint específico
+            var seccionesGuardadas = new List<string>();
+            var erroresGuardar = new List<string>();
+
+            foreach (var section in modifiedSections.ToList())
+            {
+                if (!SectionHasRealChanges(section))
+                    continue;
+
+                if (!ValidateSection(section))
+                {
+                    erroresGuardar.Add($"{GetSectionDisplayName(section)}: Por favor corrige los errores");
+                    continue;
+                }
+
+                try
+                {
+                    // Si es la sección básica y hay foto seleccionada, subirla primero
+                    if (section == "basica" && fotoSeleccionada != null)
+                    {
+                        subiendoFoto = true;
+                        StateHasChanged();
+
+                        try
+                        {
+                            using var form = new MultipartFormDataContent();
+
+                            var stream = fotoSeleccionada.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+                            var fileContent = new StreamContent(stream);
+
+                            fileContent.Headers.ContentType =
+                                new System.Net.Http.Headers.MediaTypeHeaderValue(fotoSeleccionada.ContentType);
+
+                            form.Add(fileContent, "foto", fotoSeleccionada.Name);
+
+                            var resp = await Http.PostAsync(
+                                $"api/miembros/{miembroEditable.id}/foto",
+                                form);
+
+                            if (!resp.IsSuccessStatusCode)
+                            {
+                                var errorContent = await resp.Content.ReadAsStringAsync();
+                                erroresGuardar.Add($"Error subiendo foto: {errorContent}");
+                                continue;
+                            }
+
+                            fotoSeleccionada = null;
+                            FotoPreviewUrl = null;
+                            await RefreshFoto();
+                        }
+                        catch (Exception ex)
+                        {
+                            erroresGuardar.Add($"Error al subir foto: {ex.Message}");
+                            continue;
+                        }
+                        finally
+                        {
+                            subiendoFoto = false;
+                        }
+                    }
+
+                    // Guardar la sección usando su endpoint específico
+                    var sectionData = GetSectionData(section);
+                    var response = await Http.PatchAsJsonAsync(
+                        $"api/miembros/actualizarmiembro/{id}/seccion/{section}",
+                        sectionData);
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        UpdateOriginalSectionData(section);
+                        editingSections.Remove(section);
+                        modifiedSections.Remove(section);
+
+                        // Si se guardó la sección básica, refrescar la foto
+                        if (section == "basica")
+                        {
+                            FotoPreviewUrl = null;
+                            await RefreshFoto();
+                        }
+
+                        seccionesGuardadas.Add(GetSectionDisplayName(section));
+                    }
+                    else
+                    {
+                        var errorContent = await response.Content.ReadAsStringAsync();
+                        erroresGuardar.Add($"{GetSectionDisplayName(section)}: {errorContent}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    erroresGuardar.Add($"{GetSectionDisplayName(section)}: {ex.Message}");
+                }
+            }
+
+            // Mostrar resultados
+            if (seccionesGuardadas.Any())
+            {
+                Snackbar.Add($"✓ Guardadas: {string.Join(", ", seccionesGuardadas)}", Severity.Success);
+            }
+
+            if (erroresGuardar.Any())
+            {
+                foreach (var error in erroresGuardar)
+                {
+                    Snackbar.Add($"✗ {error}", Severity.Error);
+                }
+            }
+
+            UpdateGlobalState();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error inesperado: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            isSaving = false;
+            StateHasChanged();
+        }
+    }
+
+    private void CancelAllChanges()
+    {
+        miembroEditable = DeepCopy(miembroOriginal);
+        editingSections.Clear();
+        modifiedSections.Clear();
+        hasUnsavedChanges = false;
+        StateHasChanged();
+    }
+
+    // Métodos de validación
+    private string ValidarFechaNacimiento(DateTime? fecha)
+    {
+        if (fecha == null) return null;
+        if (fecha > DateTime.Today.AddYears(-16))
+            return "El miembro debe tener al menos 16 años";
+        if (fecha < DateTime.Today.AddYears(-120))
+            return "Fecha de nacimiento inválida";
+        return null;
+    }
+
+    private bool SectionHasRealChanges(string section)
+    {
+        try
+        {
+            var originalJson = System.Text.Json.JsonSerializer.Serialize(GetSectionData(section));
+            var editableJson = System.Text.Json.JsonSerializer.Serialize(GetSectionDataFromOriginal(section));
+            return originalJson != editableJson;
+        }
+        catch
+        {
+            // Si hay error en la comparación, asumir que hay cambios
+            return true;
+        }
+    }
+
+    private object GetSectionDataFromOriginal(string section)
+    {
+        return section switch
+        {
+            "basica" => miembroOriginal.info_basica_miembro,
+            "salud" => miembroOriginal.info_salud,
+            "academica" => miembroOriginal.info_academica,
+            "laboral" => miembroOriginal.info_laboral,
+            "direccion" => miembroOriginal.direccion,
+            "eclesiastica" => miembroOriginal.info_eclesiastica,
+            "personal" => miembroOriginal.info_personal,
+            _ => null
+        };
+    }
+
+    private bool ValidateSection(string section)
+    {
+        switch (section)
+        {
+            case "basica":
+                return !string.IsNullOrEmpty(miembroEditable.info_basica_miembro.nombre) &&
+                       !string.IsNullOrEmpty(miembroEditable.info_basica_miembro.apellido);
+
+            case "direccion":
+                return !string.IsNullOrEmpty(miembroEditable.direccion.calle) &&
+                       miembroEditable.direccion.altura != null;
+
+            case "personal":
+                // Validar que los hijos tengan nombre y apellido si existen
+                if (miembroEditable.info_personal.hijos != null)
+                {
+                    return miembroEditable.info_personal.hijos.All(h => 
+                        !string.IsNullOrEmpty(h.nombre) && !string.IsNullOrEmpty(h.apellido));
+                }
+                return true;
+
+            case "eclesiastica":
+                // Validar coherencia de fechas de bautismo
+                if (miembroEditable.info_eclesiastica.realizo_bautismo == true &&
+                    miembroEditable.info_eclesiastica.fecha_de_bautismo != null &&
+                    miembroEditable.info_basica_miembro.fecha_nacimiento != null)
+                {
+                    return miembroEditable.info_eclesiastica.fecha_de_bautismo >= 
+                           miembroEditable.info_basica_miembro.fecha_nacimiento.Value.Year;
+                }
+                return true;
+
+            default:
+                return true;
+        }
+    }
+
+    private void MarkSectionAsModified(string section)
+    {
+        modifiedSections.Add(section);
+        UpdateGlobalState();
+    }
+
+    private string GetSectionDisplayName(string section)
+    {
+        return section switch
+        {
+            "basica" => "Información Básica",
+            "salud" => "Información de Salud",
+            "academica" => "Información Académica",
+            "laboral" => "Información Laboral",
+            "direccion" => "Información de Dirección",
+            "eclesiastica" => "Información Eclesiástica",
+            "personal" => "Información Personal",
+            _ => section
+        };
+    }
+
+    private void UpdateGlobalState()
+    {
+        hasUnsavedChanges = editingSections.Any() || modifiedSections.Any();
+    }
+
+
+    private MiembroDTO DeepCopy(MiembroDTO original)
+    {
+        // Implementar deep copy (puede usar JSON serialization o librería)
+        var json = System.Text.Json.JsonSerializer.Serialize(original);
+        return System.Text.Json.JsonSerializer.Deserialize<MiembroDTO>(json);
+    }
+
+    // Métodos de validación adicionales
+    private string ValidarFechaBautismo(int? fechaBautismo)
+    {
+        if (fechaBautismo == null) return null;
+
+        if (miembroEditable.info_basica_miembro.fecha_nacimiento != null &&
+            fechaBautismo < miembroEditable.info_basica_miembro.fecha_nacimiento.Value.Year)
+        {
+            return "La fecha de bautismo no puede ser anterior a la fecha de nacimiento";
+        }
+
+        if (fechaBautismo > DateTime.Now.Year)
+        {
+            return "La fecha de bautismo no puede ser futura";
+        }
+
+        return null;
+    }
+
+    private string ValidarDNIOptional(string dni)
+    {
+        if (string.IsNullOrWhiteSpace(dni)) return null; // Es opcional
+
+        if (!dni.All(char.IsDigit)) return "El DNI debe contener solo números";
+        if (dni.Length < 7 || dni.Length > 8) return "El DNI debe tener entre 7 y 8 dígitos";
+
+        return null;
+    }
+
+    // Métodos para manejo de seminarios
+    private void AddSeminario()
+    {
+        miembroEditable.info_eclesiastica.seminarios ??= new List<SeminarioDTO>();
+        miembroEditable.info_eclesiastica.seminarios.Add(new SeminarioDTO
+        {
+            nombre = "",
+            anio_comienzo = null,
+            anio_cursado = null,
+            estado = "En curso"
+        });
+        modifiedSections.Add("eclesiastica");
+        UpdateGlobalState();
+        StateHasChanged();
+    }
+
+    private void RemoveSeminario(int index)
+    {
+        if (miembroEditable.info_eclesiastica.seminarios != null && 
+            index >= 0 && index < miembroEditable.info_eclesiastica.seminarios.Count)
+        {
+            miembroEditable.info_eclesiastica.seminarios.RemoveAt(index);
+            modifiedSections.Add("eclesiastica");
+            UpdateGlobalState();
+            StateHasChanged();
+        }
+    }
+
+    // Métodos para manejo de hijos
+    private void AddHijo()
+    {
+        miembroEditable.info_personal.hijos ??= new List<HijoDTO>();
+        miembroEditable.info_personal.hijos.Add(new HijoDTO
+        {
+            nombre = "",
+            apellido = "",
+        });
+        modifiedSections.Add("personal");
+        UpdateGlobalState();
+        StateHasChanged();
+    }
+
+    private void RemoveHijo(int index)
+    {
+        if (miembroEditable.info_personal.hijos != null && 
+            index >= 0 && index < miembroEditable.info_personal.hijos.Count)
+        {
+            miembroEditable.info_personal.hijos.RemoveAt(index);
+            modifiedSections.Add("personal");
+            UpdateGlobalState();
+            StateHasChanged();
+        }
+    }
+
+    // Método extendido para restaurar datos de sección
+    private void RestoreSectionData(string section)
+    {
+        switch (section)
+        {
+            case "basica":
+                miembroEditable.info_basica_miembro = DeepCopy(miembroOriginal).info_basica_miembro;
+                break;
+            case "salud":
+                miembroEditable.info_salud =DeepCopy(miembroOriginal).info_salud;
+                break;
+            case "academica":
+                miembroEditable.info_academica = DeepCopy(miembroOriginal).info_academica;
+                break;
+            case "laboral":
+                miembroEditable.info_laboral = DeepCopy(miembroOriginal).info_laboral;
+                break;
+            case "direccion":
+                miembroEditable.direccion = DeepCopy(miembroOriginal).direccion;
+                break;
+            case "eclesiastica":
+                miembroEditable.info_eclesiastica = DeepCopy(miembroOriginal).info_eclesiastica;
+                break;
+            case "personal":
+                miembroEditable.info_personal = DeepCopy(miembroOriginal).info_personal;
+                break;
+        }
+    }
+
+    // Método extendido para obtener datos de sección
+    private object GetSectionData(string section)
+    {
+        return section switch
+        {
+            "basica" => miembroEditable.info_basica_miembro,
+            "salud" => miembroEditable.info_salud,
+            "academica" => miembroEditable.info_academica,
+            "laboral" => miembroEditable.info_laboral,
+            "direccion" => miembroEditable.direccion,
+            "eclesiastica" => miembroEditable.info_eclesiastica,
+            "personal" => miembroEditable.info_personal,
+            _ => null
+        };
+    }
+
+    // Método extendido para actualizar datos originales
+    private void UpdateOriginalSectionData(string section)
+    {
+        switch (section)
+        {
+            case "basica":
+                miembroOriginal.info_basica_miembro = DeepCopy(miembroEditable).info_basica_miembro;
+                miembro.info_basica_miembro = miembroEditable.info_basica_miembro;
+                break;
+            case "salud":
+                miembroOriginal.info_salud = DeepCopy(miembroEditable).info_salud;
+                miembro.info_salud = miembroEditable.info_salud;
+                miembro.info_salud.tiene_informacion_salud = true;
+                break;
+            case "academica":
+                miembroOriginal.info_academica = DeepCopy(miembroEditable).info_academica;
+                miembro.info_academica = miembroEditable.info_academica;
+                miembro.info_academica.tiene_informacion_academica = true;
+                break;
+            case "laboral":
+                miembroOriginal.info_laboral = DeepCopy(miembroEditable).info_laboral;
+                miembro.info_laboral = miembroEditable.info_laboral;
+                miembro.info_laboral.tiene_informacion_laboral = true;
+                break;
+            case "direccion":
+                miembroOriginal.direccion = DeepCopy(miembroEditable).direccion;
+                miembro.direccion = miembroEditable.direccion;
+                miembro.direccion.tiene_direccion = true;
+                break;
+            case "eclesiastica":
+                miembroOriginal.info_eclesiastica = DeepCopy(miembroEditable).info_eclesiastica;
+                miembro.info_eclesiastica = miembroEditable.info_eclesiastica;
+                miembro.info_eclesiastica.tiene_informacion_eclesiastica = true;
+                break;
+            case "personal":
+                miembroOriginal.info_personal = DeepCopy(miembroEditable).info_personal;
+                miembro.info_personal = miembroEditable.info_personal;
+                miembro.info_personal.tiene_informacion_personal = true;
+                break;
+        }
+    }
+
+    private void AddAlergia()
+    {
+        if (!string.IsNullOrWhiteSpace(nuevaAlergia))
+        {
+            if (!Regex.IsMatch(nuevaAlergia, @"^(?=.*[A-Za-z])(?=.*\d|.*[A-Za-z]).*\S.*$"))
+            {
+                Snackbar.Add("El nombre de la alergia debe contener al menos una letra y no puede estar vacío o solo con espacios.", Severity.Error);
+                return;
+            }
+
+            miembroEditable.info_salud.alergias ??= new List<string>();
+            if (!miembroEditable.info_salud.alergias.Contains(nuevaAlergia))
+            {
+                miembroEditable.info_salud.alergias.Add(nuevaAlergia.Trim());
+                modifiedSections.Add("salud");
+                UpdateGlobalState();
+            }
+            nuevaAlergia = "";
+            StateHasChanged();
+        }
+    }
+
+    private void RemoveAlergia(string alergia)
+    {
+        if (miembroEditable.info_salud.alergias != null)
+        {
+            miembroEditable.info_salud.alergias.Remove(alergia);
+            modifiedSections.Add("salud");
+            UpdateGlobalState();
+            StateHasChanged();
+        }
+    }
+
+    private void AddCondicionMedica()
+    {
+        miembro.info_salud.condiciones_medicas ??= new List<string>();
+        if (!string.IsNullOrEmpty(nuevaCondicionMedica))
+        {
+            if (!Regex.IsMatch(nuevaCondicionMedica, @"^(?=.*[A-Za-z])(?=.*\d|.*[A-Za-z]).*\S.*$"))
+            {
+                Snackbar.Add("El nombre del medicamento debe contener al menos una letra y no puede estar vacío o solo con espacios.", Severity.Error);
+                return;
+            }
+
+            miembroEditable.info_salud.condiciones_medicas.Add(nuevaCondicionMedica.Trim());
+            modifiedSections.Add("salud");
+            UpdateGlobalState();
+        }
+        nuevaCondicionMedica = "";
+        StateHasChanged();
+    }
+
+    private void RemoveCondicionMedica(string condicion)
+    {
+        if(miembroEditable.info_salud.condiciones_medicas != null)
+        {
+            miembroEditable.info_salud.condiciones_medicas.Remove(condicion);
+            modifiedSections.Add("salud");
+            UpdateGlobalState();
+            StateHasChanged();
+        }
+    }
+
+    private void AddMedicamento()
+    {
+        miembroEditable.info_salud.medicamentos ??= new List<string>();
+        if (!string.IsNullOrEmpty(nuevoMedicamento))
+        {
+            if (!Regex.IsMatch(nuevoMedicamento, @"^(?=.*[A-Za-z])(?=.*\d|.*[A-Za-z]).*\S.*$"))
+            {
+                Snackbar.Add("El nombre del medicamento debe contener al menos una letra y no puede estar vacío o solo con espacios.", Severity.Error);
+                return;
+            }
+
+            miembroEditable.info_salud.medicamentos.Add(nuevoMedicamento.Trim());
+            modifiedSections.Add("salud");
+            UpdateGlobalState();
+        }
+        nuevoMedicamento = "";
+        StateHasChanged();
+    }
+
+    private void RemoveMedicamento(string medicamento)
+    {
+        if(miembroEditable.info_salud.medicamentos != null){
+            miembroEditable.info_salud.medicamentos.Remove(medicamento);
+            modifiedSections.Add("salud");
+            UpdateGlobalState();
+            StateHasChanged();
+        }
+    }
+
+    private void AddTelefonoEmergencia()
+    {
+        miembroEditable.info_salud.telefonosEmergencias ??= new List<TelefonoEmergenciaDTO>();
+
+        miembroEditable.info_salud.telefonosEmergencias.Add(new TelefonoEmergenciaDTO
+        {
+            propietario_telefono = "",
+            nro_telefono = ""
+        });
+
+        modifiedSections.Add("salud");
+        UpdateGlobalState();
+        StateHasChanged();
+    }
+
+    private void RemoveTelefonoEmergencia(int index)
+    {
+        if (miembroEditable.info_salud.telefonosEmergencias != null &&
+            index >= 0 && index < miembroEditable.info_salud.telefonosEmergencias.Count)
+        {
+            miembroEditable.info_salud.telefonosEmergencias.RemoveAt(index);
+            modifiedSections.Add("salud");
+            UpdateGlobalState();
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleHttpError(HttpResponseMessage response)
+    {
+        switch (response.StatusCode)
+        {
+            case HttpStatusCode.NotFound:
+                errorMessage = $"No se encontró el miembro con ID {id}";
+                Snackbar.Add(errorMessage, Severity.Warning);
+                Nav.NavigateTo("/miembros/listadoMiembros");
+                break;
+            default:
+                errorMessage = $"Error del servidor: {response.StatusCode}";
+                var defaultContent = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"{errorMessage}: {defaultContent}", Severity.Error);
+                break;
+        }
+    }
+ }

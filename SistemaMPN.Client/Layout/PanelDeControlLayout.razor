@@ -1,0 +1,14 @@
+﻿@using Blazored.LocalStorage
+@inherits MainLayout
+
+<MainLayout>
+    <NavigationContent>
+        <MudNavMenu>
+            <MudNavLink Href="/paneldecontrol" Icon="@Icons.Material.Filled.ArrowBack">Volver a Panel</MudNavLink>
+            <MudNavLink Href="/home" Icon="@Icons.Material.Filled.Home">Inicio</MudNavLink>
+        </MudNavMenu>
+    </NavigationContent>
+    <Body>
+        @Body
+    </Body>
+</MainLayout>

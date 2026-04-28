@@ -1,0 +1,31 @@
+﻿@page "/miembros/parametros"
+
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using SistemaMPN.Client.Pages
+
+@layout SistemaMPN.Client.Layout.MiembrosLayout
+
+@inject AuthenticationStateProvider AuthStateProv
+@inject NavigationManager Navigation
+
+<PageTitle>Seminarios</PageTitle>
+
+<AuthorizeView Roles="admin, gestor de miembros" Context="parametros">
+    <Authorized>
+        <h3>Parametros</h3>
+        <main>
+            <div class="button-group">
+                <MudButton class="btn btn-primary" @onclick='()=> Navigation.NavigateTo("/miembros/parametros/listaSeminarios")'>Seminarios</MudButton>
+                <MudButton class="btn btn-primary" @onclick='() => Navigation.NavigateTo("/miembros/parametros")'>Parametro 2</MudButton>
+                <MudButton class="btn btn-primary" @onclick='() => Navigation.NavigateTo("/miembros/parametros")'>Parametro 3</MudButton>
+            </div>
+        </main>
+    </Authorized>
+    <NotAuthorized>
+        <ReDirectToLogin />
+    </NotAuthorized>
+</AuthorizeView>
+@code {
+
+}

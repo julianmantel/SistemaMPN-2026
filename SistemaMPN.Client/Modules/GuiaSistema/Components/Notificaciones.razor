@@ -1,0 +1,179 @@
+@inject NavigationManager Navigation
+
+<MudCard Class="mt-4">
+    <MudCardContent>
+        <MudStack Spacing="4">
+            <MudText Typo="Typo.h5">
+                <MudIcon Icon="@Icons.Material.Filled.Notifications" Class="mr-2" Style="color: var(--color-primario);" />
+                Sistema de Notificaciones
+            </MudText>
+            <MudText Typo="Typo.body1">
+                El sistema de notificaciones te mantiene informado sobre las actividades importantes, 
+                incluyendo propuestas, asignaciones y peticiones de otros usuarios.
+            </MudText>
+
+            <MudDivider />
+
+            <MudExpansionPanels MultiExpansion="true">
+                <MudExpansionPanel Text="Ver tus Notificaciones" Icon="@Icons.Material.Filled.NotificationsActive">
+                    <MudList ReadOnly="true" T="string" Clickable="true">
+                        <MudListItem Icon="@Icons.Material.Filled.Numbers">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 1:</strong> Busca el icono de campana en la barra superior del sistema</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.TouchApp">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 2:</strong> Haz clic en la campana para abrir el menú de notificaciones</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Badge">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 3:</strong> Verás un indicador con el número de notificaciones no leídas</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.ViewList">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 4:</strong> Desplázate por la lista de notificaciones con tiempo relativo ("Hace X minutos")</MudText>
+                            </MudStack>
+                        </MudListItem>
+                    </MudList>
+                </MudExpansionPanel>
+
+                <MudExpansionPanel Text="Tipos de Notificaciones" Icon="@Icons.Material.Filled.Category">
+                    <MudList ReadOnly="true" T="string" Clickable="true">
+                        <MudListItem Icon="@Icons.Material.Filled.SwapHoriz">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Propuestas:</strong> Solicitudes de cambio de otros tesoreros (Calendario de Tesorería)</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Assignment">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Asignaciones:</strong> Nuevas tareas o responsabilidades asignadas</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.RequestPage">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Peticiones:</strong> Solicitudes de agregar, actualizar o cambiar miembros</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Event">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Reuniones:</strong> Solucitudes para asignar reuniones en Consultoría</MudText>
+                            </MudStack>
+                        </MudListItem>
+                    </MudList>
+                </MudExpansionPanel>
+
+                <MudExpansionPanel Text="Gestionar Peticiones" Icon="@Icons.Material.Filled.RequestPage">
+                    <MudList ReadOnly="true" T="string" Clickable="true">
+                        <MudListItem Icon="@Icons.Material.Filled.Numbers">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 1:</strong> Ve a Notificaciones > Peticiones o haz clic en "Ver todas" en el dropdown</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Tab">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 2:</strong> Explora las 4 pestañas: Pendientes, Aceptadas, Rechazadas y Historial Completo</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Check">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 3:</strong> Para peticiones pendientes, puedes Aceptar o Rechazar</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Info">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 4:</strong> Haz clic en "Ver" para ver los detalles completos de cada petición</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Refresh">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 5:</strong> Usa el botón "Actualizar" para recargar la lista</MudText>
+                            </MudStack>
+                        </MudListItem>
+                    </MudList>
+                </MudExpansionPanel>
+
+                <MudExpansionPanel Text="Tipos de Peticiones" Icon="@Icons.Material.Filled.ListAlt">
+                    <MudList ReadOnly="true" T="string" Clickable="true">
+                        <MudListItem Icon="@Icons.Material.Filled.PersonAdd">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Agregar:</strong> Solicitud para agregar un nuevo miembro a un grupo</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Update">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Actualización:</strong> Solicitud para actualizar datos de un miembro existente</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.SwapHoriz">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Cambio:</strong> Solicitud para mover un miembro de un grupo a otro</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Event">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Reunión:</strong> Solicitud de reunión desde Consultoría</MudText>
+                            </MudStack>
+                        </MudListItem>
+                    </MudList>
+                </MudExpansionPanel>
+
+                <MudExpansionPanel Text="Marcar como Leídas" Icon="@Icons.Material.Filled.DoneAll">
+                    <MudList ReadOnly="true" T="string" Clickable="true">
+                        <MudListItem Icon="@Icons.Material.Filled.Numbers">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 1:</strong> Abre el dropdown de notificaciones</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.CheckCircle">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 2:</strong> Haz clic en "Marcar todas como leídas" para limpiar el contador</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.TouchApp">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 3:</strong> Al hacer clic en una notificación, se marca automáticamente como leída</MudText>
+                            </MudStack>
+                        </MudListItem>
+                    </MudList>
+                </MudExpansionPanel>
+
+                <MudExpansionPanel Text="Acceder desde Notificaciones" Icon="@Icons.Material.Filled.NavigateNext">
+                    <MudList ReadOnly="true" T="string" Clickable="true">
+                        <MudListItem Icon="@Icons.Material.Filled.Numbers">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 1:</strong> Haz clic en cualquier notificación del dropdown</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.CalendarMonth">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 2:</strong> Las propuestas te llevan al Calendario de Tesorería</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.People">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 3:</strong> Las peticiones de miembros te llevan a la página de Peticiones</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.ViewList">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 4:</strong> "Ver todas" te lleva al listado completo de peticiones</MudText>
+                            </MudStack>
+                        </MudListItem>
+                    </MudList>
+                </MudExpansionPanel>
+            </MudExpansionPanels>
+
+            <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-4">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.ArrowForward"
+                           OnClick="@(() => Navigation.NavigateTo("/peticiones"))">
+                    Ir a Peticiones
+                </MudButton>
+            </MudStack>
+        </MudStack>
+    </MudCardContent>
+</MudCard>

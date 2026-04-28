@@ -1,0 +1,259 @@
+@inject NavigationManager Navigation
+
+<MudCard Class="mt-4">
+    <MudCardContent>
+        <MudStack Spacing="4">
+            <MudText Typo="Typo.h5">
+                <MudIcon Icon="@Icons.Material.Filled.AccountBalance" Class="mr-2" Style="color: var(--color-primario);" />
+                Módulo de Tesorería
+            </MudText>
+            <MudText Typo="Typo.body1">
+                Este módulo permite gestionar todos los documentos contables de la organización, 
+                incluyendo diezmos, ofrendas, recibos y el control de turnos de tesoreros.
+            </MudText>
+
+            <MudDivider />
+
+            <MudExpansionPanels MultiExpansion="true">
+                <MudExpansionPanel Text="Agregar un Nuevo Documento" Icon="@Icons.Material.Filled.AddToDrive">
+                    <MudList ReadOnly="true" T="string" Clickable="false">
+                        <MudListItem Icon="@Icons.Material.Filled.Numbers">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 1:</strong> Desde el Dashboard de Tesorería, haz clic en "Agregar Documento"</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.DocumentScanner">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 2:</strong> Selecciona el tipo de documento (Planilla de Diezmo, Detalle de Caja, Recibo General, Recibo OV)</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Edit">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 3:</strong> Completa los datos del formulario y genera la vista previa del PDF</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Draw">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 4:</strong> Añade la firma electronica o sube un documento firmado físicamente</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Save">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 5:</strong> Guarda el documento para que quede registrado en el sistema</MudText>
+                            </MudStack>
+                        </MudListItem>
+                    </MudList>
+                </MudExpansionPanel>
+
+                <MudExpansionPanel Text="Registrar Planilla de Diezmos" Icon="@Icons.Material.Filled.AttachMoney">
+                    <MudList ReadOnly="true"T="string" Clickable="false">
+                        <MudListItem Icon="@Icons.Material.Filled.Numbers">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 1:</strong> Ve a Tesorería > Agregar Documento > Planilla de Diezmo</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.CalendarToday">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 2:</strong> Selecciona la fecha y asigna un número de documento</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Person">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 3:</strong> Busca y selecciona al Tesorero y Supervisor responsables</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.People">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 4:</strong> Registra los nombres de las personas y observaciones en la planilla</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.TextFields">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 5:</strong> Agrega un texto de entrega si es necesario</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.PictureAsPdf">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 6:</strong> Genera la vista previa del PDF, firmalo y guárdalo</MudText>
+                            </MudStack>
+                        </MudListItem>
+                    </MudList>
+                </MudExpansionPanel>
+
+                <MudExpansionPanel Text="Registrar Detalle de Caja" Icon="@Icons.Material.Filled.PointOfSale">
+                    <MudList ReadOnly="true"T="string" Clickable="false">
+                        <MudListItem Icon="@Icons.Material.Filled.Numbers">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 1:</strong> Ve a Tesorería > Agregar Documento > Detalle de Caja</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.CalendarToday">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 2:</strong> Selecciona la fecha y el tipo de reunión (Mañana, Tarde, Jueves, Especial)</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Numbers">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 3:</strong> Ingresa el código alfanumérico de identificación</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Money">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 4:</strong> Registra la cantidad de cada denominación de dinero (el sistema calcula el total automáticamente)</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Add">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 5:</strong> Si necesitas, añade nuevas denominaciones personalizadas</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.AttachMoney">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 6:</strong> Registra el total en USD si aplica y agrega observaciones</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Save">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 7:</strong> Genera el PDF, firmalo y guárdalo</MudText>
+                            </MudStack>
+                        </MudListItem>
+                    </MudList>
+                </MudExpansionPanel>
+
+                <MudExpansionPanel Text="Generar Recibo General" Icon="@Icons.Material.Filled.Receipt">
+                    <MudList ReadOnly="true"T="string" Clickable="false">
+                        <MudListItem Icon="@Icons.Material.Filled.Numbers">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 1:</strong> Ve a Tesorería > Agregar Documento > Recibo General</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.CalendarToday">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 2:</strong> Selecciona la fecha y asigna un número de recibo</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.AttachMoney">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 3:</strong> Ingresa el monto en números (el sistema puede convertirlo a letras automáticamente)</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Description">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 4:</strong> Describe el concepto del pago en el campo correspondiente</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Save">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 5:</strong> Genera el PDF, firmalo y guárdalo</MudText>
+                            </MudStack>
+                        </MudListItem>
+                    </MudList>
+                </MudExpansionPanel>
+
+                <MudExpansionPanel Text="Generar Recibo OV" Icon="@Icons.Material.Filled.Receipt">
+                    <MudList ReadOnly="true"T="string" Clickable="false">
+                        <MudListItem Icon="@Icons.Material.Filled.Numbers">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 1:</strong> Ve a Tesorería > Agregar Documento > Recibo OV</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.CalendarToday">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 2:</strong> Selecciona la fecha y asigna un número de recibo</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Person">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 3:</strong> Busca y selecciona al miembro que recibe la ofrenda variable</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.AttachMoney">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 4:</strong> Ingresa el monto de la ofrenda variable</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Save">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 5:</strong> Genera el PDF, firmalo y guárdalo</MudText>
+                            </MudStack>
+                        </MudListItem>
+                    </MudList>
+                </MudExpansionPanel>
+
+                <MudExpansionPanel Text="Consultar y Gestionar Documentos" Icon="@Icons.Material.Filled.DocumentScanner">
+                    <MudList ReadOnly="true"T="string" Clickable="false">
+                        <MudListItem Icon="@Icons.Material.Filled.Numbers">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 1:</strong> Ve a Tesorería > Consultar Documentos</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.FilterList">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 2:</strong> Usa los filtros por tipo (Planilla de Diezmo, Detalle de Caja, etc.) y estado (Firmados, Pendientes)</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.RemoveRedEye">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 3:</strong> Haz clic en el menú de acciones para Ver o Descargar un documento</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.UploadFile">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 4:</strong> Para documentos pendientes, puedes Subir el documento firmado físicamente (formato PDF)</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Delete">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 5:</strong> También puedes Eliminar documentos no firmados si es necesario</MudText>
+                            </MudStack>
+                        </MudListItem>
+                    </MudList>
+                </MudExpansionPanel>
+
+                <MudExpansionPanel Text="Gestionar Calendario de Turnos" Icon="@Icons.Material.Filled.EditCalendar">
+                    <MudList ReadOnly="true"T="string" Clickable="false">
+                        <MudListItem Icon="@Icons.Material.Filled.Numbers">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 1:</strong> Ve a Tesorería > Gestionar Calendario</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.CalendarMonth">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 2:</strong> Visualiza el calendario con los turnos asignados a cada tesorero</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Event">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 3:</strong> En la pestaña "Turnos" puedes ver todos los turnos programados</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.SwapHoriz">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 4:</strong> Si necesitas cambiar un turno, usa "Pedir cambio" para proponer un intercambio con otro tesorero</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Schedule">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 5:</strong> En "Propuestas de cambio" puedes Aceptar o Rechazar las solicitudes pendientes</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.PersonAdd">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Nota:</strong> Solo Admin y ProTesorero pueden Asignar nuevos turnos</MudText>
+                            </MudStack>
+                        </MudListItem>
+                    </MudList>
+                </MudExpansionPanel>
+            </MudExpansionPanels>
+
+            <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-4">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.ArrowForward"
+                           OnClick="@(() => Navigation.NavigateTo("/tesoreria/"))">
+                    Ir al Módulo Tesorería
+                </MudButton>
+            </MudStack>
+        </MudStack>
+    </MudCardContent>
+</MudCard>

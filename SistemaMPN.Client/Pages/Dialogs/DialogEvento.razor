@@ -1,0 +1,396 @@
+﻿@using MudBlazor.Utilities
+@using SistemaMPN.Client.Pages.ViewModels
+@using SistemaMPN.Shared.DTO
+
+@inject HttpClient Http
+
+<EditForm Model="Evento" OnValidSubmit="Guardar">
+    <MudDialog MaxWidth="MaxWidth.Medium" FullWidth="true">
+        <TitleContent>
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudIcon Icon="@Icons.Material.Filled.Event" Color="Color.Primary" />
+                <MudText Typo="Typo.h6">@(Evento?.IdEvento > 0 ? "Editar" : "Agregar") Evento</MudText>
+            </MudStack>
+        </TitleContent>
+        <DialogContent>
+            <DataAnnotationsValidator />
+
+            <MudStack Spacing="4">
+                <!-- Información básica -->
+                <MudTextField T="string"
+                              Label="Título del evento *"
+                              @bind-Value="Evento.Titulo"
+                              For="@(() => Evento.Titulo)"
+                              Variant="Variant.Outlined"
+                              Required="true"
+                              Immediate="true" />
+
+                <MudGrid Spacing="3">
+                    <MudItem xs="12" sm="4">
+                        <MudTextField T="string"
+                                      Label="Lugar del evento *"
+                                      @bind-Value="Evento.Lugar"
+                                      For="@(() => Evento.Lugar)"
+                                      Variant="Variant.Outlined"
+                                      Required="true" />
+                    </MudItem>
+
+                    <MudItem xs="12" sm="4">
+                        <MudTextField T="string"
+                                      Label="Calle"
+                                      @bind-Value="Evento.Calle"
+                                      For="@(() => Evento.Calle)"
+                                      Variant="Variant.Outlined" />
+                    </MudItem>
+
+                    <MudItem xs="12" sm="4">
+                        <MudTextField T="int?"
+                                      Label="Altura"
+                                      @bind-Value="Evento.Altura"
+                                      For="@(() => Evento.Altura)"
+                                      Variant="Variant.Outlined" />
+                    </MudItem>
+                </MudGrid>
+
+                <!-- Fecha y hora -->
+                <MudGrid Spacing="3">
+                    <MudItem xs="12" sm="8">
+                        <MudDatePicker Editable="true"
+                                       @bind-Date="Evento.Fecha"
+                                       Mask="@(new DateMask("dd/MM/yyyy"))"
+                                       MinDate="@DateTime.Today"
+                                       DateFormat="dd/MM/yyyy"
+                                       Label="Fecha del evento *"
+                                       ShowToolbar="false"
+                                       Color="Color.Primary"
+                                       Variant="Variant.Outlined"
+                                       Required="true"
+                                       For="@(() => Evento.Fecha)" />
+                    </MudItem>
+
+                    <MudItem xs="12" sm="4" Class="d-flex align-end">
+                        <MudCheckBox @bind-Value="Evento.AllDay" 
+                                     Label="Todo el día" 
+                                     Color="Color.Primary" />
+                    </MudItem>
+                </MudGrid>
+
+                @if (!Evento.AllDay)
+                {
+                    <MudGrid Spacing="3">
+                        <MudItem xs="12" sm="6">
+                            <MudTimePicker Label="Hora de inicio *"
+                                           ShowToolbar="false"
+                                           Color="Color.Primary"
+                                           @bind-Time="Evento.HoraInicio"
+                                           Editable="true"
+                                           Variant="Variant.Outlined"
+                                           Required="true"
+                                           For="@(() => Evento.HoraInicio)" />
+                        </MudItem>
+
+                        <MudItem xs="12" sm="6">
+                            <MudTimePicker Label="Hora de fin *"
+                                           ShowToolbar="false"
+                                           Color="Color.Primary"
+                                           @bind-Time="Evento.HoraFin"
+                                           Editable="true"
+                                           Variant="Variant.Outlined"
+                                           Required="true"
+                                           For="@(() => Evento.HoraFin)" />
+                        </MudItem>
+                    </MudGrid>
+                }
+
+                <!-- Color del evento -->
+                <MudPaper Elevation="0" Class="pa-4 rounded-lg" Style="border: 1px solid var(--mud-palette-divider);">
+                    <MudText Typo="Typo.subtitle2" Class="mb-3" Color="Color.Primary">
+                        <MudIcon Icon="@Icons.Material.Filled.Palette" Size="Size.Small" Class="mr-1" />
+                        Color del evento
+                    </MudText>
+                    <MudStack Row="true" Spacing="3" AlignItems="AlignItems.Center">
+                        <MudIcon Icon="@Icons.Material.Filled.Circle"
+                                 Style="@($"color: {Evento.Color};")"
+                                 Size="Size.Large" />
+                        <MudColorPicker ColorPickerView="ColorPickerView.GridCompact"
+                                        PickerVariant="PickerVariant.Dialog"
+                                        @bind-Value="Evento.Color"
+                                        Label="Seleccionar color" />
+                    </MudStack>
+                </MudPaper>
+
+                <!-- Roles -->
+                <MudPaper Elevation="0" Class="pa-4 rounded-lg" Style="border: 1px solid var(--mud-palette-divider);">
+                    <MudStack Spacing="3">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                            <MudText Typo="Typo.subtitle2" Color="Color.Primary">
+                                <MudIcon Icon="@Icons.Material.Filled.Groups" Size="Size.Small" Class="mr-1" />
+                                Visibilidad por roles
+                            </MudText>
+                            @if (roles != null && roles.Any())
+                            {
+                                <MudStack Row="true" Spacing="2">
+                                    <MudButton Variant="Variant.Text" 
+                                               Size="Size.Small"
+                                               OnClick="SeleccionarTodosRoles">
+                                        Seleccionar todos
+                                    </MudButton>
+                                    <MudButton Variant="Variant.Text" 
+                                               Size="Size.Small"
+                                               OnClick="LimpiarRoles">
+                                        Limpiar
+                                    </MudButton>
+                                </MudStack>
+                            }
+                        </MudStack>
+
+                        @if (roles != null)
+                        {
+                            <MudGrid Spacing="2">
+                                @foreach (var rol in roles.Keys.ToList())
+                                {
+                                    <MudItem xs="6" sm="4" md="3">
+                                        <MudCheckBox T="bool"
+                                                     @bind-Value="@roles[rol]"
+                                                     Label="@rol.nombre"
+                                                     Color="Color.Primary"
+                                                     Size="Size.Small" />
+                                    </MudItem>
+                                }
+                            </MudGrid>
+
+                            <!-- Resumen de roles seleccionados -->
+                            @if (RolesSeleccionadosCount() > 0)
+                            {
+                                <MudAlert Severity="Severity.Success" Dense="true">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                        <MudText Typo="Typo.body2">
+                                            <strong>@RolesSeleccionadosCount() rol(es) seleccionado(s):</strong> @GetRolesSeleccionadosTexto()
+                                        </MudText>
+                                    </MudStack>
+                                </MudAlert>
+                            }
+                            else
+                            {
+                                <MudAlert Severity="Severity.Warning" Dense="true">
+                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                        <MudText Typo="Typo.body2">
+                                            <strong>Advertencia:</strong> No se ha seleccionado ningún rol. El evento será visible para todos.
+                                        </MudText>
+                                    </MudStack>
+                                </MudAlert>
+                            }
+                        }
+                        else
+                        {
+                            <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="py-4">
+                                <MudProgressCircular Size="Size.Small" Color="Color.Info" Indeterminate="true" />
+                                <MudText Typo="Typo.body2" Class="mt-2" Color="Color.Secondary">Cargando roles...</MudText>
+                            </MudStack>
+                        }
+                    </MudStack>
+                </MudPaper>
+            </MudStack>
+        </DialogContent>
+
+        <DialogActions>
+            <MudButton OnClick="Cancelar" 
+                       Color="Color.Default" 
+                       Variant="Variant.Outlined">
+                Cancelar
+            </MudButton>
+            <MudButton ButtonType="ButtonType.Submit"
+                       Color="Color.Primary"
+                       Variant="Variant.Filled"
+                       Disabled="@(!IsFormularioValido())"
+                       StartIcon="@Icons.Material.Filled.Save">
+                Guardar
+            </MudButton>
+        </DialogActions>
+    </MudDialog>
+</EditForm>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public EventoViewModel Evento { get; set; }
+
+    private Dictionary<RolDTO, bool>? roles = null;
+    private bool RolesCargados = false;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !RolesCargados)
+        {
+            await CargarRoles();
+        }
+    }
+
+    private async Task CargarRoles()
+    {
+        try
+        {
+            var resultRoles = await Http.GetFromJsonAsync<List<RolDTO>>("api/usuario/GetRoles");
+            if (resultRoles?.Any() == true)
+            {
+                if (Evento?.Roles != null && Evento.Roles.Any())
+                {
+                    roles = resultRoles.ToDictionary(
+                        rol => rol,
+                        rol => Evento.Roles.Any(er => er.id == rol.id)
+                    );
+                }
+                else
+                {
+                    roles = resultRoles.ToDictionary(rol => rol, _ => false);
+                }
+
+                RolesCargados = true;
+                StateHasChanged();
+            }
+            else
+            {
+                roles = new Dictionary<RolDTO, bool>();
+                RolesCargados = true;
+                StateHasChanged();
+            }
+        }
+        catch (HttpRequestException httpEx)
+        {
+            Console.WriteLine($"Error de conexión al cargar roles: {httpEx.Message}");
+            roles = new Dictionary<RolDTO, bool>();
+            RolesCargados = true;
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar roles: {ex.Message}");
+            roles = new Dictionary<RolDTO, bool>();
+            RolesCargados = true;
+            StateHasChanged();
+        }
+    }
+
+    private int RolesSeleccionadosCount()
+    {
+        return roles?.Count(r => r.Value) ?? 0;
+    }
+
+    private string GetRolesSeleccionadosTexto()
+    {
+        if (roles == null) return string.Empty;
+
+        var rolesSeleccionados = roles
+            .Where(r => r.Value)
+            .Select(r => r.Key.nombre)
+            .ToList();
+
+        return string.Join(", ", rolesSeleccionados);
+    }
+
+    private bool IsFormularioValido()
+    {
+        var validacionBasica = !string.IsNullOrWhiteSpace(Evento?.Titulo) &&
+                              !string.IsNullOrWhiteSpace(Evento?.Lugar) &&
+                              Evento?.Fecha.HasValue == true;
+
+        if (!Evento.AllDay)
+        {
+            validacionBasica = validacionBasica &&
+                              Evento.HoraInicio.HasValue &&
+                              Evento.HoraFin.HasValue &&
+                              Evento.HoraInicio < Evento.HoraFin;
+        }
+
+        return validacionBasica;
+    }
+
+    private async void Guardar()
+    {
+        try
+        {
+            if (!IsFormularioValido())
+            {
+                return;
+            }
+
+            if (roles != null && roles.Count > 0)
+            {
+                Evento.Roles = roles
+                                .Where(r => r.Value)
+                                .Select(r => r.Key)
+                                .ToList();
+            }
+            else
+            {
+                Evento.Roles = new List<RolDTO>();
+            }
+
+            if (Evento.AllDay)
+            {
+                Evento.HoraInicio = new TimeSpan(0, 0, 0);
+                Evento.HoraFin = new TimeSpan(23, 59, 59);
+            }
+
+            if (!Evento.AllDay)
+            {
+                if (!Evento.HoraInicio.HasValue || !Evento.HoraFin.HasValue)
+                {
+                    return;
+                }
+
+                if (Evento.HoraInicio >= Evento.HoraFin)
+                {
+                    return;
+                }
+            }
+
+            if (Evento.Fecha.HasValue && Evento.HoraInicio.HasValue && Evento.HoraFin.HasValue)
+            {
+                Evento.Start = Evento.Fecha.Value.Add(Evento.HoraInicio.Value);
+                Evento.End = Evento.Fecha.Value.Add(Evento.HoraFin.Value);
+            }
+
+            MudDialog.Close(DialogResult.Ok(Evento));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al guardar evento: {ex.Message}");
+        }
+    }
+
+    private void Cancelar()
+    {
+        MudDialog.Cancel();
+    }
+
+    private void LimpiarRoles()
+    {
+        if (roles != null)
+        {
+            var keys = roles.Keys.ToList();
+            roles.Clear();
+            foreach (var key in keys)
+            {
+                roles[key] = false;
+            }
+            StateHasChanged();
+        }
+    }
+
+    private void SeleccionarTodosRoles()
+    {
+        if (roles != null)
+        {
+            var keys = roles.Keys.ToList();
+            roles.Clear();
+            foreach (var key in keys)
+            {
+                roles[key] = true;
+            }
+            StateHasChanged();
+        }
+    }
+}

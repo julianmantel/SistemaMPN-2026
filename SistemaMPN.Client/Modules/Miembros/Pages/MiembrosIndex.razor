@@ -1,0 +1,317 @@
+@page "/miembros/"
+
+@using Microsoft.AspNetCore.Components.Authorization
+@using SistemaMPN.Client.Pages
+@using SistemaMPN.Shared.DTO
+
+@inject HttpClient Http
+@inject IJSRuntime JS
+
+@layout SistemaMPN.Client.Layout.MiembrosLayout
+
+<PageTitle>Miembros - Inicio</PageTitle>
+
+<AuthorizeView Roles="admin, gestor de miembros, auditor">
+    <Authorized>
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+            <MudStack Spacing="6">
+                <!-- Header -->
+                <MudPaper Elevation="0" Class="pa-6 rounded-lg" Style="background: linear-gradient(135deg, var(--color-primario) 0%, rgba(30, 58, 138, 0.8) 100%);">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                            <MudIcon Icon="@Icons.Material.Filled.Analytics"
+                                    Size="Size.Large"
+                                    Style="color: var(--color-texto-claro);" />
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.h4" Style="color: var(--color-texto-claro);">
+                                    Estadísticas de Miembros
+                                </MudText>
+                                <MudText Typo="Typo.body2" Style="color: var(--color-texto-claro);">
+                                    Visualización de datos del módulo
+                                </MudText>
+                            </MudStack>
+                        </MudStack> 
+                        <MudStack>
+                            <MudButton Variant="Variant.Filled"
+                                    Color="Color.Success"
+                                    StartIcon="@Icons.Material.Filled.Download"
+                                    OnClick="ExportarEstadisticas"
+                                    Disabled="_exportando">
+                                @if (_exportando)
+                                {
+                                    <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                                }
+                                Exportar a Excel
+                            </MudButton>
+                        </MudStack>
+                    </MudStack>
+                </MudPaper>
+
+                @if (_cargando)
+                {
+                    <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="py-8">
+                        <MudProgressCircular Color="Color.Primary" Size="Size.Large" Indeterminate="true" />
+                        <MudText Typo="Typo.body1" Class="mt-2" Color="Color.Secondary">Cargando estadísticas...</MudText>
+                    </MudStack>
+                }
+                else
+                {
+                    <MudCard Elevation="2" Class="rounded-lg">
+                        <MudTabs Color="Color.Primary" Elevation="0">
+                            <!-- Tab: Demografía -->
+                            <MudTabPanel Text="Demografía" Icon="@Icons.Material.Filled.PieChart">
+                                <MudGrid Spacing="3" Class="pa-3">
+                                    <MudItem xs="12" md="6">
+                                        <MudCard Elevation="0" Class="rounded-lg" Style="border: 1px solid var(--mud-palette-divider);">
+                                            <MudCardHeader>
+                                                <CardHeaderContent>
+                                                    <MudText Typo="Typo.h6">
+                                                        <MudIcon Icon="@Icons.Material.Filled.Wc" Size="Size.Small" Color="Color.Primary" Class="mr-1" />
+                                                        Distribución por Sexo
+                                                    </MudText>
+                                                </CardHeaderContent>
+                                            </MudCardHeader>
+                                            <MudCardContent>
+                                                <MudChart ChartType="ChartType.Donut"
+                                                          InputLabels="@_miembrosPorSexoLabels"
+                                                          InputData="@_miembrosPorSexoData"
+                                                          LegendPosition="Position.Bottom"
+                                                          Width="100%"
+                                                          Height="250px" />
+                                            </MudCardContent>
+                                        </MudCard>
+                                    </MudItem>
+
+                                    <MudItem xs="12" md="6">
+                                        <MudCard Elevation="0" Class="rounded-lg" Style="border: 1px solid var(--mud-palette-divider);">
+                                            <MudCardHeader>
+                                                <CardHeaderContent>
+                                                    <MudText Typo="Typo.h6">
+                                                        <MudIcon Icon="@Icons.Material.Filled.Cake" Size="Size.Small" Color="Color.Primary" Class="mr-1" />
+                                                        Rango de Edades
+                                                    </MudText>
+                                                </CardHeaderContent>
+                                            </MudCardHeader>
+                                            <MudCardContent>
+                                                <MudChart ChartType="ChartType.StackedBar"
+                                                          XAxisLabels="@_rangoEdadesLabels"
+                                                          ChartSeries="@_seriesEdad"
+                                                          ChartOptions="@_chartOptionsEdad"
+                                                          AxisChartOptions="@_axisChartOptions"
+                                                          Width="100%"
+                                                          Height="250px" />
+                                            </MudCardContent>
+                                        </MudCard>
+                                    </MudItem>
+                                </MudGrid>
+                            </MudTabPanel>
+
+                            <!-- Tab: Grupos y Sacramentos -->
+                            <MudTabPanel Text="Grupos y Sacramentos" Icon="@Icons.Material.Filled.Groups">
+                                <MudGrid Spacing="3" Class="pa-3">
+                                    <MudItem xs="12" md="6">
+                                        <MudCard Elevation="0" Class="rounded-lg" Style="border: 1px solid var(--mud-palette-divider);">
+                                            <MudCardHeader>
+                                                <CardHeaderContent>
+                                                    <MudText Typo="Typo.h6">
+                                                        <MudIcon Icon="@Icons.Material.Filled.Groups" Size="Size.Small" Color="Color.Primary" Class="mr-1" />
+                                                        Ocupación por Grupos (%)
+                                                    </MudText>
+                                                </CardHeaderContent>
+                                            </MudCardHeader>
+                                            <MudCardContent>
+                                                <MudChart ChartType="ChartType.StackedBar"
+                                                          XAxisLabels="@_ocupacionGruposLabels"
+                                                          ChartSeries="@_seriesOcupacion"
+                                                          ChartOptions="@_chartOptionsOcupacion"
+                                                          AxisChartOptions="@_axisChartOptions"
+                                                          Width="100%"
+                                                          Height="250px" />
+                                            </MudCardContent>
+                                        </MudCard>
+                                    </MudItem>
+
+                                    <MudItem xs="12" md="6">
+                                        <MudCard Elevation="0" Class="rounded-lg" Style="border: 1px solid var(--mud-palette-divider);">
+                                            <MudCardHeader>
+                                                <CardHeaderContent>
+                                                    <MudText Typo="Typo.h6">
+                                                        <MudIcon Icon="@Icons.Material.Filled.Water" Size="Size.Small" Color="Color.Primary" Class="mr-1" />
+                                                        Estado de Bautismo
+                                                    </MudText>
+                                                </CardHeaderContent>
+                                            </MudCardHeader>
+                                            <MudCardContent>
+                                                <MudChart ChartType="ChartType.Pie"
+                                                          InputLabels="@_bautismoEstadosLabels"
+                                                          InputData="@_bautismoEstadosData"
+                                                          LegendPosition="Position.Bottom"
+                                                          Width="100%"
+                                                          Height="250px" />
+                                            </MudCardContent>
+                                        </MudCard>
+                                    </MudItem>
+                                </MudGrid>
+                            </MudTabPanel>
+
+                            <!-- Tab: Tendencias -->
+                            <MudTabPanel Text="Tendencias" Icon="@Icons.Material.Filled.TrendingUp">
+                                <MudGrid Spacing="3" Class="pa-3">
+                                    <MudItem xs="12">
+                                        <MudCard Elevation="0" Class="rounded-lg" Style="border: 1px solid var(--mud-palette-divider);">
+                                            <MudCardHeader>
+                                                <CardHeaderContent>
+                                                    <MudText Typo="Typo.h6">
+                                                        <MudIcon Icon="@Icons.Material.Filled.CardMembership" Size="Size.Small" Color="Color.Primary" Class="mr-1" />
+                                                        Nuevos Miembros
+                                                    </MudText>
+                                                </CardHeaderContent>
+                                            </MudCardHeader>
+                                            <MudCardContent>
+                                                <MudChart ChartType="ChartType.Line"
+                                                          ChartSeries="@_seriesFechaCreacion"
+                                                          XAxisLabels="@_fechaCreacionLabels"
+                                                          ChartOptions="@_chartOptionsFechaCreacion"
+                                                          Width="100%"
+                                                          Height="300px" />
+                                            </MudCardContent>
+                                        </MudCard>
+                                    </MudItem>
+                                </MudGrid>
+                            </MudTabPanel>
+                        </MudTabs>
+                    </MudCard>
+                }
+            </MudStack>
+        </MudContainer>
+    </Authorized>
+    <NotAuthorized>
+        <ReDirectToLogin />
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private bool _cargando = false;
+    private bool _exportando = false;
+
+    private EstadisticasDTO? _estadisticas;
+    private string[] _miembrosPorSexoLabels = Array.Empty<string>();
+    private double[] _miembrosPorSexoData = Array.Empty<double>();
+
+    private AxisChartOptions _axisChartOptions = new() { StackedBarWidthRatio = 0.5 };
+
+    private string[] _rangoEdadesLabels = Array.Empty<string>();
+    private List<ChartSeries> _seriesEdad = new();
+    private ChartOptions _chartOptionsEdad = new()
+    {
+        YAxisTicks = 10,
+        InterpolationOption = InterpolationOption.Straight
+    };
+
+    private string[] _ocupacionGruposLabels = Array.Empty<string>();
+    private List<ChartSeries> _seriesOcupacion = new();
+    private ChartOptions _chartOptionsOcupacion = new()
+    {
+        YAxisTicks = 10,
+        MaxNumYAxisTicks = 100,
+        InterpolationOption = InterpolationOption.Straight
+    };
+
+    private string[] _bautismoEstadosLabels = Array.Empty<string>();
+    private double[] _bautismoEstadosData = Array.Empty<double>();
+
+    private string[] _fechaCreacionLabels = Array.Empty<string>();
+    private List<ChartSeries> _seriesFechaCreacion = new();
+    private ChartOptions _chartOptionsFechaCreacion = new()
+    {
+        YAxisTicks = 1,
+        InterpolationOption = InterpolationOption.Straight
+    };
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _cargando = true;
+
+            await CargarEstaditicas();
+            EstablecerRelaciones();
+
+            _cargando = false;
+
+            StateHasChanged();
+        }
+    }
+
+    private async Task CargarEstaditicas()
+    {
+        if (_estadisticas == null)
+        {
+            _estadisticas = await Http.GetFromJsonAsync<EstadisticasDTO>("api/estadisticas/GetEstadisticas");
+        }
+    }
+
+    private void EstablecerRelaciones()
+    {
+
+        if (_estadisticas == null)
+            return;
+
+        _miembrosPorSexoLabels = _estadisticas.MiembrosPorSexo.Select(ms => ms.Sexo).ToArray();
+        _miembrosPorSexoData = _estadisticas.MiembrosPorSexo.Select(ms => (double)ms.Cantidad).ToArray();
+
+        _rangoEdadesLabels = _estadisticas.RangoEdades.Select(re => re.Rango).ToArray();
+        _seriesEdad = new()
+        {
+            new ChartSeries
+            {
+                Name = "Miembros",
+                Data = _estadisticas.RangoEdades.Select(re => (double)re.Cantidad).ToArray()
+            }
+        };
+
+        _ocupacionGruposLabels = _estadisticas.OcupacionGrupos.Select(og => og.Grupo).ToArray();
+        _seriesOcupacion = new()
+        {
+            new ChartSeries
+            {
+                Name = "Ocupacion (%)",
+                Data = _estadisticas.OcupacionGrupos.Select(og => (double)og.Porcentaje).ToArray()
+            }
+        };
+
+        _bautismoEstadosLabels = _estadisticas.BautismoEstados.Select(be => be.Estado).ToArray();
+        _bautismoEstadosData = _estadisticas.BautismoEstados.Select(be => (double)be.Cantidad).ToArray();
+
+        _fechaCreacionLabels = _estadisticas.MiembrosPorFechaCreacion
+            .Select(fc => $"{fc.Dia}/{fc.Mes}/{fc.Año}")
+            .ToArray();
+        _seriesFechaCreacion = new()
+        {
+            new ChartSeries
+            {
+                Name = "Miembros",
+                Data = _estadisticas.MiembrosPorFechaCreacion.Select(fc => (double)fc.Cantidad).ToArray()
+            }
+        };
+    }
+
+    private async Task ExportarEstadisticas()
+    {
+        _exportando = true;
+        try
+        {
+            var response = await Http.GetAsync("api/estadisticas/ExportarEstadisticas");
+            if (response.IsSuccessStatusCode)
+            {
+                var bytes = await response.Content.ReadAsByteArrayAsync();
+                var base64 = Convert.ToBase64String(bytes);
+                await JS.InvokeVoidAsync("downloadFile", "EstadisticasMiembros.xlsx", base64);
+            }
+        }
+        finally
+        {
+            _exportando = false;
+        }
+    }
+}

@@ -1,0 +1,96 @@
+@page "/tesoreria/que-hacer-despues"
+@using SistemaMPN.Client.Modules.Tesoreria.Dialogs
+@layout SistemaMPN.Client.Layout.TesoreriaLayout
+@inject NavigationManager Nav
+@inject IDialogService DialogService
+
+<PageTitle>Documento guardado</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="py-8">
+    <MudPaper Elevation="0" Class="pa-6 rounded-lg" Style="background: linear-gradient(135deg, var(--color-primario) 0%, rgba(30, 58, 138, 0.8) 100%);">
+        <MudStack AlignItems="AlignItems.Center" Spacing="3">
+            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Large" Style="color: var(--color-texto-claro);" />
+            <MudText Typo="Typo.h4" Style="color: var(--color-texto-claro);">Documento guardado</MudText>
+            <MudText Typo="Typo.body1" Style="color: var(--color-texto-claro);">El documento se guardó correctamente. ¿Qué deseas hacer ahora?</MudText>
+        </MudStack>
+    </MudPaper>
+
+    <MudStack Spacing="3" Class="mt-6">
+        <MudButton FullWidth="true"
+                   Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   Size="Size.Large"
+                   StartIcon="@Icons.Material.Filled.Add"
+                   OnClick="@(() => CrearOtro())">
+            Crear otro del mismo tipo
+        </MudButton>
+
+        <MudButton FullWidth="true"
+                   Variant="Variant.Outlined"
+                   Color="Color.Info"
+                   Size="Size.Large"
+                   StartIcon="@Icons.Material.Filled.List"
+                   OnClick="@(() => Nav.NavigateTo("/tesoreria/listadoDocumentos"))">
+            Ver en el listado
+        </MudButton>
+
+        <MudButton FullWidth="true"
+                   Variant="Variant.Outlined"
+                   Color="Color.Secondary"
+                   Size="Size.Large"
+                   StartIcon="@Icons.Material.Filled.Visibility"
+                   OnClick="@VerDocumentoGuardado"
+                   Disabled="@(_documentoId <= 0)">
+            Vista previa del guardado
+        </MudButton>
+
+        <MudButton FullWidth="true"
+                   Variant="Variant.Text"
+                   Color="Color.Default"
+                   Size="Size.Large"
+                   StartIcon="@Icons.Material.Filled.Home"
+                   OnClick="@(() => Nav.NavigateTo("/tesoreria/"))">
+            Volver al inicio
+        </MudButton>
+    </MudStack>
+</MudContainer>
+
+@code {
+    [SupplyParameterFromQuery(Name = "docId")]
+    public int _documentoId { get; set; }
+
+    [SupplyParameterFromQuery(Name = "tipo")]
+    public string _tipoDocumento { get; set; } = "";
+
+    private void CrearOtro()
+    {
+        var ruta = _tipoDocumento switch
+        {
+            "DetalleCaja" => "/tesoreria/detalle-caja",
+            "Recibo General" => "/tesoreria/recibo-general",
+            "Recibo_OV" => "/tesoreria/recibo-ov",
+            "Planilla de Diezmo" => "/tesoreria/planilla-diezmo",
+            _ => "/tesoreria/"
+        };
+        Nav.NavigateTo(ruta);
+    }
+
+    private async Task VerDocumentoGuardado()
+    {
+        if (_documentoId <= 0) return;
+
+        var parameters = new DialogParameters<DialogVisorPdf>
+        {
+            { x => x.DocumentoId, _documentoId }
+        };
+
+        var options = new DialogOptions
+        {
+            MaxWidth = MaxWidth.Large,
+            FullWidth = true,
+            CloseButton = true
+        };
+
+        await DialogService.ShowAsync<DialogVisorPdf>("Documento guardado", parameters, options);
+    }
+}

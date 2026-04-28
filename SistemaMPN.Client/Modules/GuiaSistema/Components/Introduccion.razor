@@ -1,0 +1,194 @@
+@inject NavigationManager Navigation
+
+<MudCard Class="mt-4">
+    <MudCardContent>
+        <MudStack Spacing="4">
+            <MudText Typo="Typo.h5">
+                <MudIcon Icon="@Icons.Material.Filled.Home" Class="mr-2" Style="color: var(--color-primario);" />
+                Introducción al home
+            </MudText>
+            <MudText Typo="Typo.body1">
+                El home es tu punto de entrada principal al sistema. Aquí encontrarás un resumen 
+                de todo lo que ocurre en la organización y acceder rápidamente a cada módulo.
+            </MudText>
+
+            <MudDivider />
+
+            <MudExpansionPanels MultiExpansion="true">
+                <MudExpansionPanel Text="Bienvenida y Roles" Icon="@Icons.Material.Filled.AccountCircle">
+                    <MudList ReadOnly="true" T="string" Clickable="true">
+                        <MudListItem Icon="@Icons.Material.Filled.Login">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText>Al iniciar sesión, serás recibido con tu nombre de usuario y tu rol dentro del sistema (Admin, Gestor de Miembros, Líder, Tesorero, etc.)</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Badge">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Admin:</strong> Acceso total al sistema, gestión de usuarios y configuraciones</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.ManageAccounts">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Gestor de Miembros:</strong> Administración de los datos pertenecientes a miembros, incluido grupos</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.SupervisorAccount">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Líder/ líder de Célula:</strong> Gestión de su grupo o célula específica</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.AccountBalance">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Tesorero/Pro-Tesorero:</strong> Gestión de documentos financieros y turnos</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.BusinessCenter">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Consultor:</strong> Gestión de reuniones de consultoría pastoral</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Visibility">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Auditor:</strong> Acceso de solo lectura a informes y estadísticas</MudText>
+                            </MudStack>
+                        </MudListItem>
+                    </MudList>
+                </MudExpansionPanel>
+
+                <MudExpansionPanel Text="Selección de Módulos" Icon="@Icons.Material.Filled.Dashboard">
+                    <MudList ReadOnly="true" T="string" Clickable="true">
+                        <MudListItem Icon="@Icons.Material.Filled.Group">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Miembros:</strong> Gestionar miembros, grupos, células y casas de oración</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.AccountBalance">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Tesorería:</strong> Administración de documentos financieros (recibos, detalle de caja, planillas)</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.BusinessCenter">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Consultoría:</strong> Agendar y gestionar reuniones con el pastor/consultor</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.MenuBook">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Guía del Sistema:</strong> Esta misma guía de uso</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.AdminPanelSettings">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Panel de Control:</strong> (Solo Admin) Gestionar usuarios, roles y configuraciones del sistema</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Lightbulb">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText>Los módulos visibles dependen de tu rol. Solo verás aquellos para los que tengas permiso.</MudText>
+                            </MudStack>
+                        </MudListItem>
+                    </MudList>
+                </MudExpansionPanel>
+
+                <MudExpansionPanel Text="Eventos del Calendario" Icon="@Icons.Material.Filled.CalendarMonth">
+                    <MudList ReadOnly="true" T="string" Clickable="true">
+                        <MudListItem Icon="@Icons.Material.Filled.Event">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Calendario:</strong> Muestra una vista mensual/semanal de los eventos programados (cultos, seminarios, reuniones, etc.)</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.NavigateNext">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Ver Evento:</strong> Haz clic en cualquier evento del calendario para filtrarlo y ver sus detalles</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Clear">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Limpiar Filtro:</strong> Usa este botón para mostrar todos los eventos nuevamente</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Add">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Agregar Evento:</strong> (Solo Admin) Crea nuevos eventos con título, fecha, hora, ubicación y color</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Edit">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Modificar/Eliminar:</strong> Gestiona los eventos existentes</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Schedule">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText>Cada evento muestra el tiempo restante hasta su realización (Hoy, Mañana, En X días)</MudText>
+                            </MudStack>
+                        </MudListItem>
+                    </MudList>
+                </MudExpansionPanel>
+
+                <MudExpansionPanel Text="Código QR para Asistencia" Icon="@Icons.Material.Filled.QrCode">
+                    <MudList ReadOnly="true" T="string" Clickable="true">
+                        <MudListItem Icon="@Icons.Material.Filled.QrCode2">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText>El sistema genera códigos QR únicos para cada evento que permiten registrar la asistencia de los miembros de forma rápida</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Numbers">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 1:</strong> Ve al módulo de Miembros y luego a "Asistencia"</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.EventNote">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 2:</strong> Selecciona el evento para el cual deseas generar el QR de asistencia</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.QrCodeScanner">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 3:</strong> Los miembros pueden escanear el QR con la cámara de su dispositivo para registrar su asistencia</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.HowToReg">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Check-in:</strong> Los miembros también pueden acceder directamente a /checkin para registrar su asistencia</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.History">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Historial:</strong> Accede al historial de asistencia para ver quién asistió a cada evento</MudText>
+                            </MudStack>
+                        </MudListItem>
+                    </MudList>
+                </MudExpansionPanel>
+
+                <MudExpansionPanel Text="Próximos Eventos" Icon="@Icons.Material.Filled.ListAlt">
+                    <MudList ReadOnly="true" T="string" Clickable="true">
+                        <MudListItem Icon="@Icons.Material.Filled.FormatListBulleted">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText>Debajo del calendario verás un listado de los próximos eventos con su información detallada</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.LocationOn">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText>Cada evento muestra: Título, ubicación (lugar, calle y altura), fecha y horario</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Pages">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText>Si hay muchos eventos, usa la paginación para navegar entre las páginas</MudText>
+                            </MudStack>
+                        </MudListItem>
+                    </MudList>
+                </MudExpansionPanel>
+            </MudExpansionPanels>
+
+            <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-4">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.ArrowForward"
+                           OnClick="@(() => Navigation.NavigateTo("/home"))">
+                    Ir al Home
+                </MudButton>
+            </MudStack>
+        </MudStack>
+    </MudCardContent>
+</MudCard>

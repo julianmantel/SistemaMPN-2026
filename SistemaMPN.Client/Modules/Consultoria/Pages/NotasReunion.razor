@@ -1,0 +1,304 @@
+﻿@page "/consultoria/notasReunion/{ReunionId:int}"
+@using Microsoft.AspNetCore.Components.Authorization
+@using SistemaMPN.Client.Modules.Consultoria.Dialogs
+@using SistemaMPN.Client.Pages
+@using SistemaMPN.Shared.DTO
+@using MudBlazor
+
+@layout SistemaMPN.Client.Layout.ConsultoriaLayout
+
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<PageTitle>Notas de Reunión</PageTitle>
+
+<AuthorizeView Roles="admin, consultor, auditor" Context="authCtx">
+    <Authorized>
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+            <!-- Header de la reunión -->
+            @if (reunion != null)
+            {
+                <MudPaper Elevation="0" Class="pa-6 rounded-lg" Style="background: linear-gradient(135deg, var(--color-primario) 0%, rgba(30, 58, 138, 0.8) 100%);">
+                    <MudStack Row="true" Justify="Justify.SpaceBetween" Class="flex-wrap" Spacing="2">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIconButton Icon="@Icons.Material.Filled.ArrowBack"
+                                           Color="Color.Inherit"
+                                           Size="Size.Large"
+                                           OnClick="@Volver"
+                                           Style="color: var(--color-texto-claro);" />
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.h4" Style="color: var(--color-texto-claro);">
+                                    Notas de Reunión
+                                </MudText>
+                                <MudText Typo="Typo.body2" Style="color: var(--color-texto-claro);">
+                                    @reunion.Fecha?.ToString("dd/MM/yyyy HH:mm") - @(string.IsNullOrEmpty(reunion.Motivo) ? "Sin especificar" : reunion.Motivo)
+                                </MudText>
+                            </MudStack>
+                        </MudStack>
+                        <MudChip T="string" Size="Size.Small" Color="@ObtenerColorEstado(reunion.Estado)" Variant="Variant.Filled" Style="width: fit-content;">
+                            <MudText Style="font-weight: 600;">@reunion.Estado</MudText>
+                        </MudChip>
+                    </MudStack>
+                </MudPaper>
+
+                @if (EsReunionCompletadaOSuspendida())
+                {
+                    <MudAlert Severity="Severity.Info" Class="mt-6">
+                        No se pueden agregar más notas a una reunión @(reunion.Estado?.ToLower()).
+                    </MudAlert>
+                }
+            }
+
+            <!-- Toolbar -->
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mt-6 flex-wrap" Spacing="2">
+                <MudText Typo="Typo.h5">
+                    <MudIcon Icon="@Icons.Material.Filled.Notes" Class="mr-2" />
+                    Notas
+                </MudText>
+                <AuthorizeView Roles="consultor">
+                    <MudButton Variant="Variant.Filled"
+                               Color="Color.Success"
+                               OnClick="@AgregarNota"
+                               Disabled="@EsReunionCompletadaOSuspendida()">
+                        <MudIcon Icon="@Icons.Material.Filled.Add" Class="mr-1" />
+                        Nueva Nota
+                    </MudButton>
+                </AuthorizeView>
+            </MudStack>
+
+            <!-- Contenido de notas -->
+            @if (cargando)
+            {
+                <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mt-4" />
+            }
+            else if (!string.IsNullOrEmpty(mensajeError))
+            {
+                <MudAlert Severity="Severity.Error" Class="mt-4">@mensajeError</MudAlert>
+            }
+            else if (!notas.Any())
+            {
+                <MudPaper Elevation="2" Class="pa-6 mt-4 text-center">
+                    <MudIcon Icon="@Icons.Material.Filled.NoteAlt" Size="Size.Large" Color="Color.Info" />
+                    <MudText Typo="Typo.h6" Class="mt-2">No hay notas registradas</MudText>
+                    @if (!EsReunionCompletadaOSuspendida())
+                    {
+                        <MudText Typo="Typo.body2" Color="Color.Info">Utiliza el botón "Nueva Nota" para agregar una.</MudText>
+                    }
+                </MudPaper>
+            }
+            else
+            {
+                <MudGrid Class="mt-4">
+                    @foreach (var nota in notas.OrderByDescending(n => n.IdNota))
+                    {
+                        <MudItem xs="12" sm="6" md="4">
+                            <MudCard Elevation="2">
+                                <MudCardHeader>
+                                    <CardHeaderContent>
+                                        <MudText Typo="Typo.h6">
+                                            <MudIcon Icon="@Icons.Material.Filled.StickyNote2" Size="Size.Small" Class="mr-1" />
+                                            Nota #@nota.IdNota
+                                        </MudText>
+                                    </CardHeaderContent>
+                                    <CardHeaderActions>
+                                        @if (IsConsultor)
+                                        {
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                           Color="Color.Error"
+                                                           Size="Size.Small"
+                                                           Disabled="@EsReunionCompletadaOSuspendida()"
+                                                           OnClick="@(() => EliminarNota(nota.IdNota))" />
+                                        }
+                                    </CardHeaderActions>
+                                </MudCardHeader>
+                                <MudCardContent>
+                                    <MudTextField @bind-Value="nota.Comentarios"
+                                                  Lines="15"
+                                                  ReadOnly="true"
+                                                  Variant="Variant.Filled" />
+                                </MudCardContent>
+                            </MudCard>
+                        </MudItem>
+                    }
+                </MudGrid>
+            }
+        </MudContainer>
+    </Authorized>
+    <NotAuthorized>
+        <MudContainer Class="py-8">
+            <ReDirectToLogin />
+        </MudContainer>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    [Parameter]
+    public int ReunionId { get; set; }
+
+    private ReunionDTO? reunion;
+    private List<NotaDTO> notas = new();
+    private bool cargando = true;
+    private string? mensajeError;
+    private bool IsConsultor { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarDatos();
+        await CheckUserRole();
+    }
+
+    private async Task CheckUserRole()
+    {
+        var authState = await AuthenticationStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        IsConsultor = user.IsInRole("consultor");
+    }
+
+    private bool EsReunionCompletadaOSuspendida()
+    {
+        return reunion?.Estado == "Completada" || reunion?.Estado == "Suspendida";
+    }
+
+    private async Task CargarDatos()
+    {
+        cargando = true;
+        mensajeError = null;
+
+        try
+        {
+            // Cargar información de la reunión
+            var reunionResponse = await Http.GetAsync($"api/reunion/GetReunion/{ReunionId}");
+            if (reunionResponse.IsSuccessStatusCode)
+            {
+                reunion = await reunionResponse.Content.ReadFromJsonAsync<ReunionDTO>();
+            }
+            else
+            {
+                mensajeError = "Error al cargar la reunión";
+                return;
+            }
+
+            // Cargar notas de la reunión
+            var notasResponse = await Http.GetAsync($"api/nota/GetNotasReunion/{ReunionId}");
+            if (notasResponse.IsSuccessStatusCode)
+            {
+                notas = await notasResponse.Content.ReadFromJsonAsync<List<NotaDTO>>() ?? new();
+            }
+            else
+            {
+                var errorContent = await notasResponse.Content.ReadAsStringAsync();
+                mensajeError = $"Error al cargar notas: {notasResponse.StatusCode} - {errorContent}";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar los datos: {ex.Message}";
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task AgregarNota()
+    {
+        if (EsReunionCompletadaOSuspendida())
+        {
+            Snackbar.Add("No se pueden agregar notas a una reunión completada o suspendida", Severity.Warning);
+            return;
+        }
+
+        var parameters = new DialogParameters
+        {
+            ["ReunionId"] = ReunionId
+        };
+
+        var dialog = DialogService.Show<DialogAgregarNota>("Nueva Nota", parameters, new DialogOptions
+        {
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true
+        });
+
+        var result = await dialog.Result;
+
+        if (!result.Canceled && result.Data is NotaDTO nuevaNota)
+        {
+            try
+            {
+                var response = await Http.PostAsJsonAsync("api/nota/AgregarNota", nuevaNota);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    Snackbar.Add("Nota agregada exitosamente", Severity.Success);
+                    await CargarDatos();
+                }
+                else
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    Snackbar.Add($"Error al agregar la nota: {errorContent}", Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task EliminarNota(int notaId)
+    {
+        if (EsReunionCompletadaOSuspendida())
+        {
+            Snackbar.Add("No se pueden eliminar notas de una reunión completada o suspendida", Severity.Warning);
+            return;
+        }
+
+        var result = await DialogService.ShowMessageBox(
+            "Confirmar",
+            "¿Estás seguro de que deseas eliminar esta nota?",
+            yesText: "Sí", noText: "No");
+
+        if (result == true)
+        {
+            try
+            {
+                var response = await Http.DeleteAsync($"api/nota/EliminarNota/{notaId}");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    Snackbar.Add("Nota eliminada exitosamente", Severity.Success);
+                    await CargarDatos();
+                }
+                else
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    Snackbar.Add($"Error al eliminar la nota: {errorContent}", Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private void Volver()
+    {
+        Nav.NavigateTo("/consultoria/listadoReuniones");
+    }
+
+    private Color ObtenerColorEstado(string estado)
+    {
+        return estado switch
+        {
+            "Programada" => Color.Info,
+            "Completada" => Color.Success,
+            "Suspendida" => Color.Error,
+            "En Proceso" => Color.Warning,
+            _ => Color.Default
+        };
+    }
+}

@@ -1,0 +1,184 @@
+@inject NavigationManager Navigation
+
+<MudCard Class="mt-4">
+    <MudCardContent>
+        <MudStack Spacing="4">
+            <MudText Typo="Typo.h5">
+                <MudIcon Icon="@Icons.Material.Filled.Group" Class="mr-2" Style="color: var(--color-primario);" />
+                Módulo de Miembros
+            </MudText>
+            <MudText Typo="Typo.body1">
+                Este módulo permite gestionar todos los miembros de la organización, 
+                incluyendo su información personal, grupos, ubicaciones y estadísticas.
+            </MudText>
+
+            <MudDivider />
+
+            <MudExpansionPanels MultiExpansion="true">
+                <MudExpansionPanel Text="Ver Estadísticas y Exportar a Excel" Icon="@Icons.Material.Filled.Analytics">
+                    <MudList ReadOnly="true" T="string" Clickable="true">
+                        <MudListItem Icon="@Icons.Material.Filled.Numbers">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 1:</strong> Accede al Dashboard del módulo de Miembros</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.PieChart">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 2:</strong> Explora las 3 pestañas: Demografía (sexo, edades), Grupos y Sacramentos (ocupación, bautismo), y Tendencias (nuevos miembros)</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Download">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 3:</strong> Haz clic en "Exportar a Excel" para descargar el reporte completo</MudText>
+                            </MudStack>
+                        </MudListItem>
+                    </MudList>
+                </MudExpansionPanel>
+
+                <MudExpansionPanel Text="Ver el Listado de Miembros" Icon="@Icons.Material.Filled.People">
+                    <MudList ReadOnly="true" T="string" Clickable="true">
+                        <MudListItem Icon="@Icons.Material.Filled.Numbers">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 1:</strong> Ve a Miembros > Miembros en el menú lateral</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.ViewList">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 2:</strong> Verás el listado completo con Nombre, DNI, Teléfono y más</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.RemoveRedEye">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 3:</strong> Haz clic en "Ver" para ver los detalles completos del miembro o "Eliminar" en caso de querer borrar algun miembro</MudText>
+                            </MudStack>
+                        </MudListItem>
+                    </MudList>
+                </MudExpansionPanel>
+
+                <MudExpansionPanel Text="Agregar un Nuevo Miembro" Icon="@Icons.Material.Filled.PersonAdd">
+                    <MudList ReadOnly="true" T="string" Clickable="true">
+                        <MudListItem Icon="@Icons.Material.Filled.Numbers">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 1:</strong> Ve a Miembros > Agregar Miembro</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.FactCheck">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 2:</strong> Completa las 8 pestañas con la informacion solicitada: Básica, Salud, Académica, Laboral, Eclesiástica, Dirección, Personal</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Image">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 3:</strong> Opcionalmente sube una foto de perfil (JPG, máx 5MB)</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Save">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 4:</strong> Haz clic en "Crear Miembro" para registrar</MudText>
+                            </MudStack>
+                        </MudListItem>
+                    </MudList>
+                </MudExpansionPanel>
+
+                <MudExpansionPanel Text="Editar Información de un Miembro" Icon="@Icons.Material.Filled.Edit">
+                    <MudList ReadOnly="true" T="string" Clickable="true">
+                        <MudListItem Icon="@Icons.Material.Filled.Numbers">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 1:</strong> Ve a Miembros > Miembros y haz clic en "Ver" en el miembro</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Visibility">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 2:</strong> Verás todos los paneles expandibles con la información</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Edit">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 3:</strong> Haz clic en el botón de editar de cada sección para modificar</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.FormatListBulleted">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 4:</strong> Opcionalmente puedes editar y guardar por seccion o editar varias secciones y realizar un guardado general</MudText>
+                            </MudStack>
+                        </MudListItem>
+                    </MudList>
+                </MudExpansionPanel>
+
+                <MudExpansionPanel Text="Gestionar Grupos" Icon="@Icons.Material.Filled.Groups">
+                    <MudList ReadOnly="true" T="string" Clickable="true">
+                        <MudListItem Icon="@Icons.Material.Filled.Numbers">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 1:</strong> Ve a Miembros > Grupos</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.ViewList">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 2:</strong> Verás la lista de grupos con su líder y cantidad de miembros</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Visibility">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 3:</strong> Haz clic en "Ver" para ver los miembros del grupo</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.PersonAdd">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 4:</strong> En la vista del grupo puedes Agregar miembros, Editar ocupación, Transferir liderazgo o Quitar miembros</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Add">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Nota:</strong> Solo Admin y Gestor pueden crear nuevos grupos</MudText>
+                            </MudStack>
+                        </MudListItem>
+                    </MudList>
+                </MudExpansionPanel>
+
+                <MudExpansionPanel Text="Gestionar Ubicaciones y Mapa" Icon="@Icons.Material.Filled.Map">
+                    <MudList ReadOnly="true" T="string" Clickable="true">
+                        <MudListItem Icon="@Icons.Material.Filled.Numbers">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 1:</strong> Ve a Miembros > Celdas y C.O (Casas de Oración)</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Map">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 2:</strong> Visualiza el mapa interactivo con todas las ubicaciones</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Search">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 3:</strong> Usa la barra de búsqueda para buscar una ubicación específica</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.MyLocation">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 4:</strong> Haz clic en "Mi ubicación" para ver tu posición en el mapa</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.AddLocation">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Paso 5:</strong> Admin/Gestor pueden Agregar, Editar o Eliminar ubicaciones haciendo clic en el mapa</MudText>
+                            </MudStack>
+                        </MudListItem>
+                        <MudListItem Icon="@Icons.Material.Filled.Church">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudText><strong>Tipos:</strong> Células y Casas de Oración (asociadas a grupos)</MudText>
+                            </MudStack>
+                        </MudListItem>
+                    </MudList>
+                </MudExpansionPanel>
+            </MudExpansionPanels>
+
+            <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-4">
+                <MudButton Variant="Variant.Filled"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.ArrowForward"
+                           OnClick="@(() => Navigation.NavigateTo("/miembros/"))">
+                    Ir al Módulo Miembros
+                </MudButton>
+            </MudStack>
+        </MudStack>
+    </MudCardContent>
+</MudCard>

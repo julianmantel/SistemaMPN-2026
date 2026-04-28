@@ -1,0 +1,83 @@
+@page "/guia/"
+
+@layout SistemaMPN.Client.Layout.GuiaSistemaLayout
+
+@using Microsoft.AspNetCore.Components.Authorization
+@using SistemaMPN.Client.Modules.GuiaSistema.Components
+
+@inject NavigationManager Navigation
+
+<PageTitle>Guía del Sistema - Sistema Modular MPN</PageTitle>
+
+<AuthorizeView>
+    <Authorized>
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+            <MudStack Spacing="6">
+                <MudPaper Elevation="0" Class="pa-6 rounded-lg" Style="background: linear-gradient(135deg, var(--color-primario) 0%, rgba(30, 58, 138, 0.8) 100%);">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                        <MudIcon Icon="@Icons.Material.Filled.MenuBook"
+                                 Size="Size.Large"
+                                 Style="color: var(--color-texto-claro);" />
+                        <MudStack Spacing="0">
+                            <MudText Typo="Typo.h4">
+                                Guía del Sistema
+                            </MudText>
+                            <MudText Typo="Typo.body2">
+                                Aprende a utilizar cada módulo paso a paso
+                            </MudText>
+                        </MudStack>
+                    </MudStack>
+                </MudPaper>
+
+                <MudTabs Color="Color.Primary" Elevation="0" Rounded="true" ApplyEffectsToContainer="true" CenterTabs="true">
+                    <MudTabPanel Icon="@Icons.Material.Filled.Home" Text="Introducción">
+                        <Introduccion />
+                    </MudTabPanel>
+
+                    <MudTabPanel Icon="@Icons.Material.Filled.Group" Text="Miembros">
+                        <Miembros />
+                    </MudTabPanel>
+
+                    <MudTabPanel Icon="@Icons.Material.Filled.AccountBalance" Text="Tesorería">
+                        <Tesoreria />
+                    </MudTabPanel>
+
+                    <MudTabPanel Icon="@Icons.Material.Filled.BusinessCenter" Text="Consultoría">
+                        <Consultoria />
+                    </MudTabPanel>
+
+                    <MudTabPanel Icon="@Icons.Material.Filled.Notifications" Text="Notificaciones">
+                        <Notificaciones />
+                    </MudTabPanel>
+                </MudTabs>
+
+                <MudCard>
+                    <MudCardContent>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                            <MudIcon Icon="@Icons.Material.Filled.Lightbulb" Style="color: var(--color-advertencia);" />
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.subtitle1"><strong>¿Necesitas más ayuda?</strong></MudText>
+                                <MudText Typo="Typo.body2">
+                                    Contacta al administrador del sistema si tienes alguna duda adicional.
+                                </MudText>
+                            </MudStack>
+                        </MudStack>
+                        <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-4">
+                            <MudButton Variant="Variant.Outlined"
+                                       Color="Color.Primary"
+                                       StartIcon="@Icons.Material.Filled.Home"
+                                       OnClick="@(() => Navigation.NavigateTo("/home"))">
+                                Volver al Home
+                            </MudButton>
+                        </MudStack>
+                    </MudCardContent>
+                </MudCard>
+            </MudStack>
+        </MudContainer>
+    </Authorized>
+    <NotAuthorized>
+        <MudContainer Class="py-8">
+            <ReDirectToLogin />
+        </MudContainer>
+    </NotAuthorized>
+</AuthorizeView>

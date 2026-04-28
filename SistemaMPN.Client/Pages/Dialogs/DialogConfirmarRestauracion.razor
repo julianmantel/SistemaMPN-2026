@@ -1,0 +1,62 @@
+﻿@using MudBlazor.Utilities
+
+<MudDialog MaxWidth="MaxWidth.Medium" FullWidth="true">
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.Restore" Color="Color.Warning" />
+            <MudText Typo="Typo.h6">Restaurar Información</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudPaper Elevation="0" Class="pa-4 rounded-lg" Style="border: 1px solid var(--mud-palette-divider);">
+                <MudText Typo="Typo.body1" Class="mb-2">
+                    ¿Estás seguro de que deseas restaurar la base de datos con el archivo
+                    <b>@NombreArchivo</b>?
+                </MudText>
+            </MudPaper>
+
+            <MudAlert Severity="Severity.Warning">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.Warning" Size="Size.Small" />
+                    <MudText Typo="Typo.body2">
+                        Esta acción reemplazará todos los datos actuales y no se puede deshacer.
+                    </MudText>
+                </MudStack>
+            </MudAlert>
+        </MudStack>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancelar"
+                   Color="Color.Default"
+                   Variant="Variant.Outlined">
+            Cancelar
+        </MudButton>
+
+        <MudButton OnClick="Confirmar"
+                   Color="Color.Error"
+                   Variant="Variant.Filled"
+                   StartIcon="@Icons.Material.Filled.Restore">
+            Sí, Restaurar
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; }
+
+    [Parameter]
+    public string NombreArchivo { get; set; }
+
+    private void Confirmar()
+    {
+        MudDialog.Close(DialogResult.Ok(true));
+    }
+
+    private void Cancelar()
+    {
+        MudDialog.Cancel();
+    }
+}

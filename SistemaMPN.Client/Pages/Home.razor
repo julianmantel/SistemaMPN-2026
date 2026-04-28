@@ -1,0 +1,718 @@
+﻿@page "/home"
+
+@using System.Net.Http.Headers
+@using System.Security.Claims
+@using Blazored.LocalStorage
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using SistemaMPN.Client.Pages.ViewModels
+@using SistemaMPN.Client.Pages.Dialogs
+@using SistemaMPN.Shared.DTO
+
+@layout SistemaMPN.Client.Layout.HomeLayout
+
+@inject HttpClient Http
+@inject AuthenticationStateProvider auth
+@inject ILocalStorageService LocalStorage
+@inject NavigationManager Navigation
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Inicio</PageTitle>
+
+<AuthorizeView>
+    <Authorized>
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+            <!-- Sección: Bienvenida -->
+            <MudStack Spacing="6">
+                <!-- Header Bienvenida -->
+                <MudPaper Elevation="0" Class="pa-6 rounded-lg" Style="background: linear-gradient(135deg, var(--color-primario) 0%, rgba(30, 58, 138, 0.8) 100%);">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="flex-wrap" Spacing="2">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                            <MudIcon Icon="@Icons.Material.Filled.AccountCircle"
+                                    Size="Size.Large"
+                                     Style="color: var(--color-texto-claro);" />
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.h4" >
+                                    Bienvenido, @userName
+                                </MudText>
+                                <MudText Typo="Typo.body2" >
+                                    Sistema Modular MPN
+                                </MudText>
+                            </MudStack>
+                        </MudStack>
+                        <MudChip T="string"
+                                Color="Color.Tertiary"
+                                Variant="Variant.Filled"
+                                Icon="@GetRoleIcon()"
+                                Style="width: fit-content;">
+                            <MudText Style="font-weight: 600;">@userRole</MudText>
+                        </MudChip>
+                    </MudStack>
+                </MudPaper>
+
+                <!-- Sección: Módulos de Acceso -->
+                <MudStack Spacing="3">
+                    <MudText Typo="Typo.h5">
+                        <MudIcon Icon="@Icons.Material.Filled.Dashboard" Class="mr-2" />
+                        Módulos disponibles
+                    </MudText>
+
+                    <MudGrid Justify="Justify.Center" Spacing="3">
+                        <!-- Tarjeta Miembros -->
+                        @if (PuedeVerMiembros)
+                        {
+                            <MudItem xs="12" sm="6" md="4" lg="3">
+                                <MudCard  
+                                        onclick="@(() => IrMiembros())"
+                                        Style="cursor: pointer; height: 100%; transition: all 0.3s ease;">
+                                    <MudCardContent Class="pa-4">
+                                        <MudStack Spacing="2" Justify="Justify.Center" AlignItems="AlignItems.Center">
+                                            <MudIcon Icon="@Icons.Material.Filled.Group"
+                                                     Size="Size.Large"
+                                                     Style="color: var(--color-primario);" />
+                                            <MudText Typo="Typo.h6">Miembros</MudText>
+                                            <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Info">
+                                                Gestionar miembros y grupos
+                                            </MudText>
+                                        </MudStack>
+                                    </MudCardContent>
+                                </MudCard>
+                            </MudItem>
+                        }
+
+                        <!-- Tarjeta Tesorería -->
+                        @if (PuedeVerTesoreria)
+                        {
+                            <MudItem xs="12" sm="6" md="4" lg="3">
+                                <MudCard 
+                                        onclick="@(() => Navigation.NavigateTo("/tesoreria/"))"
+                                        Style="cursor: pointer; height: 100%; transition: all 0.3s ease;">
+                                    <MudCardContent Class="pa-4 ">
+                                        <MudStack Spacing="2" Justify="Justify.Center" AlignItems="AlignItems.Center">
+                                            <MudIcon Icon="@Icons.Material.Filled.AccountBalance" 
+                                                    Size="Size.Large" 
+                                                    Style="color: var(--color-primario);" />
+                                            <MudText Typo="Typo.h6">Tesorería</MudText>
+                                            <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Info">
+                                                Gestionar los documentos
+                                            </MudText>
+                                        </MudStack>
+                                    </MudCardContent>
+                                </MudCard>
+                            </MudItem>
+                        }
+
+                        <!-- Tarjeta Consultoría -->
+                        @if (PuedeVerConsultoria)
+                        {
+                            <MudItem xs="12" sm="6" md="4" lg="3">
+                                <MudCard 
+                                        onclick="@(() => Navigation.NavigateTo("/consultoria/"))"
+                                        Style="cursor: pointer; height: 100%; transition: all 0.3s ease;">
+                                    <MudCardContent Class="pa-4">
+                                        <MudStack Spacing="2" Justify="Justify.Center" AlignItems="AlignItems.Center">
+                                            <MudIcon Icon="@Icons.Material.Filled.BusinessCenter" 
+                                                    Size="Size.Large" 
+                                                    Style="color: var(--color-primario);" />
+                                            <MudText Typo="Typo.h6">Consultoría</MudText>
+                                            <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Info">
+                                                Gestionar reuniones
+                                            </MudText>
+                                        </MudStack>
+                                    </MudCardContent>
+                                </MudCard>
+                            </MudItem>
+                        }
+
+                        <!-- Tarjeta Guía del Sistema -->
+                        <MudItem xs="12" sm="6" md="4" lg="3">
+                            <MudCard 
+                                    onclick="@(() => Navigation.NavigateTo("/guia/"))"
+                                    Style="cursor: pointer; height: 100%; transition: all 0.3s ease;">
+                                <MudCardContent Class="pa-4">
+                                    <MudStack Spacing="2" Justify="Justify.Center" AlignItems="AlignItems.Center">
+                                        <MudIcon Icon="@Icons.Material.Filled.MenuBook" 
+                                                 Size="Size.Large" 
+                                                 Style="color: var(--color-primario);" />
+                                        <MudText Typo="Typo.h6">Guía del Sistema</MudText>
+                                        <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Info">
+                                            Aprende a usar el sistema
+                                        </MudText>
+                                    </MudStack>
+                                </MudCardContent>
+                            </MudCard>
+                        </MudItem>
+
+                        <!-- Tarjeta Panel de Control -->
+                        @if (IsAdminOrManager)
+                        {
+                            <MudItem xs="12" sm="6" md="4" lg="3">
+                                <MudCard 
+                                        onclick="@(() => Navigation.NavigateTo("/paneldecontrol/"))"
+                                        Style="cursor: pointer; height: 100%; transition: all 0.3s ease;">
+                                    <MudCardContent Class="pa-4">
+                                        <MudStack Spacing="2" Justify="Justify.Center" AlignItems="AlignItems.Center">
+                                            <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings" 
+                                                     Size="Size.Large" 
+                                                     Style="color: var(--color-primario);" />
+                                            <MudText Typo="Typo.h6">Panel de Control</MudText>
+                                            <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Info">
+                                                Gestionar usuarios y sistema.
+                                            </MudText>
+                                        </MudStack>
+                                    </MudCardContent>
+                                </MudCard>
+                            </MudItem>
+                        }
+                    </MudGrid>
+                </MudStack>
+
+                <!-- Sección: Calendario -->
+                <MudStack Spacing="3">
+                    <MudText Typo="Typo.h5" Class="home-section-title">
+                        <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Class="mr-2" />
+                        Calendario de eventos
+                    </MudText>
+
+                    <MudCard Elevation="2" Class="rounded-lg" Style="overflow: visible;">
+                        <MudCalendar T="EventoViewModel"
+                                    Context="eventosCal"
+                                    Height="600"
+                                    HighlightToday="true"
+                                    Square="false"
+                                    ShowTodayButton="true"
+                                    ShowDropdownViewSelector="true"
+                                    ShowPrevNextButtons="false"
+                                    Outlined="true"
+                                    ToolbarPadding="4"
+                                    Items="_events"
+                                    IsDateTimeDisabledFunc="IsDateTimeDisabled"
+                                    AdditionalDateTimeClassesFunc="AdditionalDateTimeClasses"
+                                    ViewChanged="OnViewChanged"
+                                    ItemClicked="OnEventoSeleccionado">
+                            <CellTemplate>
+                                @if (_vistaActual == CalendarView.Month || _vistaActual == CalendarView.Week)
+                                {
+                                    var textColor = GetTextColor(eventosCal.Color);
+                                    <MudHidden Breakpoint="Breakpoint.SmAndDown">
+                                        <MudPaper Class="d-flex flex-column h-100 w-100 border border-2 overflow-hidden p-1"
+                                              Style=@($"background-color: {eventosCal.Color}")>
+                                        <MudText Typo="Typo.body1" Align="Align.Center" Style=@($"color: {textColor}")>@eventosCal.Titulo</MudText>
+                                        </MudPaper>
+                                    </MudHidden>
+
+                                    <MudHidden Breakpoint="Breakpoint.MdAndUp">
+                                        <div class="d-flex justify-content-center align-items-center h-100 w-100">
+                                            <MudIcon Icon="@Icons.Material.Filled.Circle"
+                                                 Style="@($"color: {eventosCal.Color}")"
+                                                     Size="Size.Small" />
+                                        </div>
+                                    </MudHidden>
+                                }
+                                else
+                                {
+                                    var textColorList = GetTextColor(eventosCal.Color);
+                                    <MudPaper Class="d-flex flex-column h-100 w-100 border border-2 overflow-hidden p-1">
+                                        <MudText Typo="Typo.body1"
+                                                Align="Align.Center"
+                                            Style=@($"background-color: {eventosCal.Color}; color: {textColorList}")>@eventosCal.Titulo</MudText>
+                                    </MudPaper>
+                                }
+                            </CellTemplate>
+                        </MudCalendar>
+                    </MudCard>
+                </MudStack>
+
+               
+
+                <!-- Sección: Listado de Eventos -->
+                <MudStack Spacing="3">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="flex-wrap" Spacing="2">
+                        <MudStack Spacing="0">
+                            <MudText Typo="Typo.h5" Class="home-section-title m-0">
+                                <MudIcon Icon="@Icons.Material.Filled.ListAlt" Class="mr-2" />
+                                @(_eventoFiltradoId > 0 ? "Evento filtrado" : "Próximos eventos")
+                            </MudText>
+                            @if (_eventoFiltradoId > 0)
+                            {
+                                <MudText Typo="Typo.body2" Color="Color.Default">
+                                    Mostrando un solo evento. Haz clic en "Limpiar filtro" para ver todos.
+                                </MudText>
+                            }
+                        </MudStack>
+                        <MudStack Row="true" Spacing="2" Class="flex-wrap">
+                            @if (_eventoFiltradoId > 0)
+                            {
+                                <MudButton Variant="Variant.Outlined"
+                                          StartIcon="@Icons.Material.Filled.Clear"
+                                          OnClick="LimpiarFiltro"
+                                          Color="Color.Info">
+                                    Limpiar filtro
+                                </MudButton>
+                            }
+                            @if (IsAdminOrManager)
+                            {
+                                <MudButton StartIcon="@Icons.Material.Filled.Event"
+                                            OnClick="CrearEvento"
+                                            Variant="Variant.Filled"
+                                            Color="Color.Success">
+                                    Agregar evento
+                                </MudButton>
+
+                            }
+                            <MudButton Variant="Variant.Outlined"
+                                      StartIcon="@Icons.Material.Filled.Refresh"
+                                      OnClick="CargarEventos"
+                                      Disabled="@cargando">
+                                Actualizar
+                            </MudButton>
+                        </MudStack>
+                    </MudStack>
+
+                    @RenderEventos()
+
+                    @if (_eventoFiltradoId == 0)
+                    {
+                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mt-4 flex-wrap" Spacing="2">
+                            <MudText Typo="Typo.subtitle2">
+                                Mostrando @((paginaActual - 1) * itemsPorPagina + 1) a
+                                @Math.Min(paginaActual * itemsPorPagina, _events.Count)
+                                de @_events.Count
+                            </MudText>
+                            <MudPagination Color="Color.Info"
+                                           Count="@totalPaginas"
+                                           Selected="@paginaActual"
+                                           SelectedChanged="CambiarPagina" />
+                        </MudStack>
+                    }
+                </MudStack>
+            </MudStack>
+        </MudContainer>
+    </Authorized>
+    <NotAuthorized>
+        <MudContainer Class="py-8">
+            <ReDirectToLogin />
+        </MudContainer>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private string userRole = "";
+    private string userName = "";
+
+    // Propiedades de autorización por módulo
+    private bool IsAdminOrManager => userRole.Contains("admin");
+
+    private bool PuedeVerMiembros => userRole.Contains("lider") ||
+                                     userRole.Contains("gestor de miembros") ||
+                                     userRole.Contains("admin") ||
+                                        userRole.Contains("auditor");
+
+    private bool PuedeVerTesoreria => userRole.Contains("admin") ||
+                                      userRole.Contains("tesorero") ||
+                                      userRole.Contains("protesorero") ||
+                                        userRole.Contains("auditor");
+
+    private bool PuedeVerConsultoria => userRole.Contains("lider") ||
+                                        userRole.Contains("admin") ||
+                                        userRole.Contains("consultor") ||
+                                        userRole.Contains("auditor");
+
+    private CalendarView _vistaActual = CalendarView.Month;
+    private List<EventoViewModel> _events = new();
+    private List<EventoDTO> eventoDTOs = new();
+
+    // Filtro de evento desde el calendario
+    private int _eventoFiltradoId = 0;
+
+    private DialogOptions opcionesDialog = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true };
+    private DialogParameters parametrosDialog;
+
+    private int paginaActual = 1;
+    private int itemsPorPagina = 3;
+    private int totalPaginas = 1;
+    private List<EventoViewModel> eventosPaginados = new();
+    private bool cargando = false;
+
+    private string GetRoleIcon()
+    {
+        if (userRole.Contains("admin")) return Icons.Material.Filled.Security;
+        if (userRole.Contains("gestor")) return Icons.Material.Filled.ManageAccounts;
+        return Icons.Material.Filled.Person;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await auth.GetAuthenticationStateAsync();
+        var user = authState.User;
+        userRole = string.Join(", ", user.FindAll(ClaimTypes.Role)?.Select(r => r.Value).ToArray()) ?? "No definido";
+        userName = user.Identity.Name;
+    }
+
+    private void IrMiembros()
+    {
+        if (userRole.Contains("lider") && (!userRole.Contains("gestor") || 
+            (!userRole.Contains("admin")) || (!userRole.Contains("auditor"))))
+        {
+            Navigation.NavigateTo("/miembros/listadoMiembros");
+        }
+        else
+        {
+            Navigation.NavigateTo("/miembros/");
+        }
+    }
+
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await CargarEventos();
+        }
+    }
+
+    private async Task CargarEventos()
+    {
+        try
+        {
+            cargando = true;
+            eventoDTOs = await Http.GetFromJsonAsync<List<EventoDTO>>("api/evento/GetEventos");
+
+            if (eventoDTOs.Any())
+            {
+                _events = eventoDTOs.Select(e => EventoViewModel.ToEventoCustom(e)).ToList();
+                Ordenar();
+            }
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private async Task CrearEvento()
+    {
+        EventoViewModel nuevoEvento = new();
+        var parametrosDialog = new DialogParameters<DialogEvento> { { x => x.Evento, nuevoEvento } };
+        var dialog = await DialogService.ShowAsync<DialogEvento>("Agregar evento",
+                                                    parametrosDialog,
+                                                    opcionesDialog);
+        var result = await dialog.Result;
+        if (!result.Canceled && result.Data is EventoViewModel eventoCustom)
+        {
+
+            var eventoDTO = eventoCustom.ToDTO();
+
+            var resultEvento = await Http.PostAsJsonAsync("api/evento/CrearEvento", eventoDTO);
+            if (resultEvento.IsSuccessStatusCode)
+            {
+                eventoCustom.IdEvento = await resultEvento.Content.ReadFromJsonAsync<int>();
+                Snackbar.Add("Evento añadido correctamente", Severity.Success);
+
+                await CargarEventos();
+            }
+            else
+            {
+                Snackbar.Add("Error al añadir el evento", Severity.Error);
+            }
+        }
+    }
+
+    private async Task ModificarEvento(EventoViewModel _evento)
+    {
+        var eventoSeleccionado = EventoViewModel.ToEventoCustom(eventoDTOs.Find(e => e.IdEvento == _evento.IdEvento));
+
+        var parametrosDialog = new DialogParameters<DialogEvento>
+        {
+            { x => x.Evento,
+            eventoSeleccionado }
+        };
+        var dialog = await DialogService.ShowAsync<DialogEvento>("Modificar evento",
+                                                    parametrosDialog,
+                                                    opcionesDialog);
+        var result = await dialog.Result;
+        if (!result.Canceled && result.Data is EventoViewModel eventoCustom)
+        {
+            var eventoDTO = eventoCustom.ToDTO();
+
+            var resultEvento = await Http.PutAsJsonAsync("api/evento/ModificarEvento", eventoDTO);
+            if (resultEvento.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Evento modificado correctamente", Severity.Success);
+                eventoDTOs.RemoveAll(e => e.IdEvento == eventoDTO.IdEvento);
+                eventoDTOs.Add(eventoCustom.ToDTO());
+
+                await CargarEventos();
+            }
+            else
+            {
+                Snackbar.Add("Error al modificar el evento", Severity.Error);
+            }
+        }
+    }
+
+    private async Task RemoverEvento(EventoViewModel _evento)
+    {
+        bool? confirmarEliminacion = await DialogService.ShowMessageBox("Eliminar evento",
+                                                        $"Esta seguro que desea eliminar el evento: ''{_evento.Titulo}'' ?",
+                                                        yesText: "Eliminar",
+                                                        cancelText: "Cancelar");
+
+        if (confirmarEliminacion.HasValue && confirmarEliminacion.Value)
+        {
+            int idEvento = _evento.IdEvento;
+
+            var resultEvento = await Http.DeleteAsync($"api/evento/EliminarEvento/{idEvento}");
+            if (resultEvento.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Evento eliminado correctamente", Severity.Success);
+
+                await CargarEventos();
+            }
+            else
+            {
+                Snackbar.Add("Error al eliminar el evento", Severity.Error);
+            }
+        }
+    }
+
+    private void Ordenar()
+    {
+        _events = _events.OrderBy(e1 => e1.Fecha).ThenBy(e => e.HoraInicio).ToList();
+        ActualizarPaginacion();
+    }
+
+    private bool IsDateTimeDisabled(DateTime dateTime, CalendarView view)
+    {
+        return dateTime < DateTime.Today || view != CalendarView.Month;
+    }
+
+    private string AdditionalDateTimeClasses(DateTime dateTime, CalendarView view)
+    {
+        if (dateTime < DateTime.Today || view != CalendarView.Month)
+        {
+            return "gray-background";
+        }
+
+        return string.Empty;
+    }
+
+    private void OnViewChanged(CalendarView nuevaVista) => _vistaActual = nuevaVista;
+
+    private void OnEventoSeleccionado(EventoViewModel evento)
+    {
+        _eventoFiltradoId = evento.IdEvento;
+        AplicarFiltroEvento();
+        StateHasChanged();
+    }
+
+    private void LimpiarFiltro()
+    {
+        _eventoFiltradoId = 0;
+        Ordenar();
+        StateHasChanged();
+    }
+
+    private void AplicarFiltroEvento()
+    {
+        if (_eventoFiltradoId > 0)
+        {
+            var eventoFiltrado = _events.FirstOrDefault(e => e.IdEvento == _eventoFiltradoId);
+            if (eventoFiltrado != null)
+            {
+                eventosPaginados = new List<EventoViewModel> { eventoFiltrado };
+                totalPaginas = 1;
+                paginaActual = 1;
+            }
+        }
+    }
+
+    private void ActualizarPaginacion()
+    {
+        totalPaginas = (int)Math.Ceiling((decimal)_events.Count / itemsPorPagina);
+        if (totalPaginas == 0) totalPaginas = 1;
+        paginaActual = 1;
+        ActualizarEventosPaginados();
+    }
+
+    private void ActualizarEventosPaginados()
+    {
+        var skip = (paginaActual - 1) * itemsPorPagina;
+        eventosPaginados = _events.Skip(skip).Take(itemsPorPagina).ToList();
+    }
+
+    private void CambiarPagina(int pagina)
+    {
+        if (pagina >= 1 && pagina <= totalPaginas)
+        {
+            paginaActual = pagina;
+            ActualizarEventosPaginados();
+        }
+    }
+
+    private string GetTextColor(MudBlazor.Utilities.MudColor backgroundColor)
+    {
+        if (backgroundColor == null)
+            return "white";
+
+        // Extract RGB components from MudColor
+        var r = backgroundColor.R;
+        var g = backgroundColor.G;
+        var b = backgroundColor.B;
+
+        // Calculate luminance using WCAG formula
+        var luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        
+        // Use white text for dark backgrounds, black for light backgrounds
+        return luminance > 0.5 ? "black" : "white";
+    }
+
+    private RenderFragment RenderEventos() => __builder =>
+    {
+        <MudContainer MaxWidth="MaxWidth.Large" Class="mt-6">
+            @if (_events.Any())
+            {
+                <MudStack Spacing="3">
+                    @foreach (var evento in eventosPaginados)
+                    {
+                        var textColor = GetTextColor(evento.Color);
+                        <MudCard Elevation="3">
+                            <MudCardHeader>
+                                <CardHeaderContent>
+                                    <MudPaper Outlined Elevation="1" Class="pa-3 rounded" Style="@($"background-color: {evento.Color};")">
+                                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                                <MudIcon Icon="@Icons.Material.Filled.Event" Size="Size.Medium" Style="@($"color: {textColor};")" />
+                                                <MudText Typo="Typo.h5" Style="@($"color: {textColor};")">
+                                                    @evento.Titulo
+                                                </MudText>
+                                            </MudStack>
+                                            @if (IsAdminOrManager)
+                                            {
+                                                <MudStack Row="true" Spacing="2">
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                                                   Color="Color.Success"
+                                                                   Size="Size.Medium"
+                                                                   Variant="Variant.Filled"
+                                                                   OnClick="@(() => ModificarEvento(evento))" />
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                                   Color="Color.Error"
+                                                                   Size="Size.Medium"
+                                                                   Variant="Variant.Filled"
+                                                                   OnClick="@(() => RemoverEvento(evento))" />
+                                                </MudStack>
+                                            }
+                                        </MudStack>
+                                    </MudPaper>
+                                </CardHeaderContent>
+                            </MudCardHeader>
+
+                            <MudCardContent>
+                                <MudGrid Spacing="3">
+                                    <MudItem xs="12" sm="6">
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                            <MudIcon Icon="@Icons.Material.Filled.LocationOn"
+                                                     Style="color: var(--color-primario) !important"
+                                                     Size="Size.Medium" />
+                                            <MudStack Spacing="0">
+                                                <MudText Typo="Typo.subtitle2" >Ubicación</MudText>
+                                                <MudText Typo="Typo.body1">
+                                                    @evento.Lugar
+                                                </MudText>
+                                                <MudText Typo="Typo.body2" Color="Color.Default">
+                                                    @evento.Calle @evento.Altura
+                                                </MudText>
+                                            </MudStack>
+                                        </MudStack>
+                                    </MudItem>
+
+                                    <MudItem xs="12" sm="6">
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                            <MudIcon Icon="@Icons.Material.Filled.CalendarToday"
+                                                     Style="color: var(--color-primario) !important"
+                                                     Size="Size.Medium" />
+                                            <MudStack Spacing="0">
+                                                <MudText Typo="Typo.subtitle2">Fecha</MudText>
+                                                <MudText Typo="Typo.body1">
+                                                    @evento.Fecha?.ToString("dddd, dd MMMM yyyy")
+                                                </MudText>
+                                            </MudStack>
+                                        </MudStack>
+                                    </MudItem>
+
+                                    <MudItem xs="12" sm="6">
+                                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                            <MudIcon Icon="@Icons.Material.Filled.AccessTime"
+                                                     Style="color: var(--color-primario) !important"
+                                                     Size="Size.Medium" />
+                                            <MudStack Spacing="0">
+                                                <MudText Typo="Typo.subtitle2">Horario</MudText>
+                                                <MudText Typo="Typo.body1">
+                                                    @evento.HoraInicio?.ToString(@"hh\:mm") - @evento.HoraFin?.ToString(@"hh\:mm") hs
+                                                </MudText>
+                                            </MudStack>
+                                        </MudStack>
+                                    </MudItem>
+
+                                    <MudItem xs="12" sm="6">
+                                        <MudChip T="string"
+                                                 Icon="@Icons.Material.Filled.Schedule"
+                                                 Color="Color.Info"
+                                                 Size="Size.Medium"
+                                                 Variant="Variant.Filled">
+                                            @GetTiempoRestante(evento.Fecha)
+                                        </MudChip>
+                                    </MudItem>
+                                </MudGrid>
+                            </MudCardContent>
+                        </MudCard>
+                    }
+                </MudStack>
+            }
+            else
+            {
+                <MudPaper Elevation="0" Class="pa-8">
+                    <MudStack AlignItems="AlignItems.Center" Spacing="4">
+                        <MudIcon Icon="@Icons.Material.Filled.EventBusy"
+                                 Size="Size.Large"
+                                 Color="Color.Info" />
+                        <MudStack AlignItems="AlignItems.Center" Spacing="1">
+                            <MudText Typo="Typo.h5" Color="Color.Info">
+                                No hay eventos próximos
+                            </MudText>
+                            <MudText Typo="Typo.body1" Color="Color.Info">
+                                Los eventos aparecerán aquí cuando sean agregados
+                            </MudText>
+                        </MudStack>
+                    </MudStack>
+                </MudPaper>
+            }
+        </MudContainer>
+    };
+
+
+    // Agrega este método al @code para mostrar el tiempo restante
+    private string GetTiempoRestante(DateTime? fecha)
+    {
+        if (!fecha.HasValue) return "Sin fecha";
+
+        TimeSpan diferencia = fecha.Value.Date - DateTime.Now.Date;
+        int dias = diferencia.Days;
+
+        if (dias < 0) return "Evento pasado";
+        if (dias == 0) return "¡Hoy!";
+        if (dias == 1) return "Mañana";
+        if (dias <= 7) return $"En {dias} día/s";
+        if (dias <= 30) return $"En {dias / 7} semana/s";
+
+        return $"En {dias / 30} mes/es";
+    }
+}

@@ -1,0 +1,214 @@
+﻿@page "/paneldecontrol/eliminar"
+
+@using SistemaMPN.Shared.DTO
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+
+@layout SistemaMPN.Client.Layout.PanelDeControlLayout
+
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageTitle>Eliminar usuario</PageTitle>
+
+<AuthorizeView Roles="admin">
+    <Authorized>
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+            <!-- Header -->
+            <MudPaper Elevation="0" Class="pa-6 rounded-lg" Style="background: linear-gradient(135deg, var(--color-error) 0%, rgba(183, 28, 28, 0.8) 100%);">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                    <MudIcon Icon="@Icons.Material.Filled.PersonRemove"
+                            Size="Size.Large"
+                            Style="color: var(--color-texto-claro);" />
+                    <MudStack Spacing="0">
+                        <MudText Typo="Typo.h4" Style="color: var(--color-texto-claro);">
+                            Eliminar Usuario
+                        </MudText>
+                        <MudText Typo="Typo.body2" Style="color: var(--color-texto-claro);">
+                            Gestionar la eliminación de cuentas
+                        </MudText>
+                    </MudStack>
+                </MudStack>
+            </MudPaper>
+
+            <!-- Tabla de Usuarios -->
+            <MudPaper Elevation="2" Class="pa-6 mt-6">
+                <MudTable Items="usuarios"
+                          Context="contexto"
+                          RowsPerPage="5"
+                          Hover="true"
+                          Bordered="true"
+                          Loading="@cargando"
+                          LoadingProgressColor="Color.Info"
+                          @bind-SelectedItem="usuarioSeleccionado"
+                          @ref="table"
+                          ServerData="RecargarLista"
+                          SortLabel="Ordenar por">
+
+                    <ToolBarContent>
+                        <MudText Typo="Typo.h6">
+                            <MudIcon Icon="@Icons.Material.Filled.People" Class="mr-2" />
+                            Listado de Usuarios
+                        </MudText>
+                        <MudSpacer />
+                        <MudTextField T="string"
+                                      ValueChanged="@(s=>Buscar(s))"
+                                      Placeholder="Buscar"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Search"
+                                      IconSize="Size.Medium"
+                                      Immediate="true" />
+                    </ToolBarContent>
+
+                    <HeaderContent>
+                        <MudTh><MudTableSortLabel SortLabel="col_nombre" T="UsuarioDTO">Usuario</MudTableSortLabel></MudTh>
+                        <MudTh><MudTableSortLabel SortLabel="col_correo" T="UsuarioDTO">Correo</MudTableSortLabel></MudTh>
+                        <MudTh>Acciones</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Usuario">@contexto.user_name</MudTd>
+                        <MudTd DataLabel="Correo">@contexto.correo</MudTd>
+                        <MudTd DataLabel="Acciones">
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                           Color="Color.Error"
+                                           Variant="Variant.Outlined"
+                                           OnClick="@(() => EliminarUsuarioConfirmado(contexto))" />
+                        </MudTd>
+                    </RowTemplate>
+
+                    <NoRecordsContent>
+                        <MudText>No se encontraron coincidencias</MudText>
+                    </NoRecordsContent>
+                    <LoadingContent>
+                        <MudText>Cargando...</MudText>
+                    </LoadingContent>
+                    <PagerContent>
+                        <MudTablePager HideRowsPerPage="true"
+                                       HidePageNumber="true" />
+                    </PagerContent>
+                </MudTable>
+            </MudPaper>
+        </MudContainer>
+    </Authorized>
+    <NotAuthorized>
+        <ReDirectToLogin />
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private List<UsuarioDTO> usuarios;
+    private UsuarioDTO usuarioSeleccionado;
+    private bool cargando = true;
+    private string usuarioBuscado = "";
+    private MudTable<UsuarioDTO> table;
+    private string Respuesta = "Procesando...";
+    private int totalUsuarios;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            usuarios = await Http.GetFromJsonAsync<List<UsuarioDTO>>("api/usuario/GetUsuarios");
+            cargando = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task<TableData<UsuarioDTO>> RecargarLista(TableState state, CancellationToken token)
+    {
+        var usuariosAux = await Http.GetFromJsonAsync<List<UsuarioDTO>>("api/usuario/GetUsuarios", token);
+        await Task.Delay(100, token);
+
+        usuariosAux = usuariosAux.Where(x =>
+        {
+            if (string.IsNullOrWhiteSpace(usuarioBuscado))
+                return true;
+            if (x.user_name.Contains(usuarioBuscado, StringComparison.OrdinalIgnoreCase))
+                return true;
+            if (x.correo.Contains(usuarioBuscado, StringComparison.OrdinalIgnoreCase))
+                return true;
+            return false;
+        }).ToList();
+
+        totalUsuarios = usuariosAux.Count();
+
+        switch (state.SortLabel)
+        {
+            case "col_nombre":
+                usuariosAux = usuariosAux.OrderByDirection(state.SortDirection, u => u.user_name).ToList();
+                break;
+            case "col_correo":
+                usuariosAux = usuariosAux.OrderByDirection(state.SortDirection, u => u.correo).ToList();
+                break;
+        }
+
+        usuarios = usuariosAux.Skip(state.Page * state.PageSize).Take(state.PageSize).ToList();
+        return new TableData<UsuarioDTO>() { TotalItems = totalUsuarios, Items = usuarios };
+    }
+
+    private async Task EliminarUsuarioConfirmado(UsuarioDTO usuario)
+    {
+        // Primero verificar si el usuario tiene un grupo asignado
+        try
+        {
+            var tieneGrupoResponse = await Http.GetAsync($"api/usuario/TieneGrupoAsignado/{usuario.user_name}");
+
+            if (tieneGrupoResponse.IsSuccessStatusCode)
+            {
+                var tieneGrupo = await tieneGrupoResponse.Content.ReadFromJsonAsync<bool>();
+
+                if (tieneGrupo)
+                {
+                    await DialogService.ShowMessageBox(
+                        "No se puede eliminar",
+                        "Este usuario es líder de un grupo. Primero debe transferir el liderazgo del grupo antes de eliminar el usuario.",
+                        yesText: "Entendido");
+                    return;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al verificar el estado del usuario: {ex.Message}", Severity.Error);
+            return;
+        }
+
+        // Si no tiene grupo, proceder con la confirmación
+        bool? confirmarEliminacion = await DialogService.ShowMessageBox(
+            "Eliminar usuario",
+            $"¿Está seguro que desea eliminar al usuario '{usuario.user_name}'?",
+            yesText: "Eliminar",
+            cancelText: "Cancelar");
+
+        if (confirmarEliminacion == true)
+        {
+            try
+            {
+                var result = await Http.DeleteAsync($"api/usuario/Eliminar/{usuario.user_name}");
+
+                if (result.IsSuccessStatusCode)
+                {
+                    Snackbar.Add($"Usuario {usuario.user_name} eliminado correctamente", Severity.Success);
+                    await table.ReloadServerData();
+                }
+                else
+                {
+                    Respuesta = await result.Content.ReadAsStringAsync();
+                    Snackbar.Add("Error al eliminar el usuario: " + Respuesta, Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error al eliminar el usuario: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private void Buscar(string arg)
+    {
+        usuarioBuscado = arg;
+        table.ReloadServerData();
+    }
+}

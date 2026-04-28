@@ -1,0 +1,37 @@
+﻿@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Routing
+@using SistemaMPN.Client.Layout
+<Router AppAssembly="typeof(Program).Assembly">
+    <Found Context="routeData">
+        @{
+            var isPublic = false;
+            var template = routeData.PageType?.GetCustomAttributes(typeof(RouteAttribute), false) as RouteAttribute[];
+            if (template != null)
+            {
+                foreach (var attr in template)
+                {
+                    var t = attr.Template?.ToLowerInvariant().TrimStart('/');
+                    if (t == "checkin")
+                    {
+                        isPublic = true;
+                        break;
+                    }
+                }
+            }
+        }
+        @if (isPublic)
+        {
+            <RouteView RouteData="@routeData" />
+        }
+        else
+        {
+            <CascadingAuthenticationState>
+                <AuthorizeRouteView RouteData="@routeData">
+                    <NotAuthorized>
+                        <SistemaMPN.Client.Pages.ReDirectToLogin/>
+                    </NotAuthorized>
+                </AuthorizeRouteView>
+            </CascadingAuthenticationState>
+        }
+    </Found>
+</Router>

@@ -1,0 +1,75 @@
+﻿@using SistemaMPN.Shared.DTO
+@using System.Text.RegularExpressions
+
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.WarningAmber" Color="Color.Warning" />
+            <MudText Typo="Typo.h6">Agregar Alergia</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudTextField @bind-Value="nombreAlergia"
+                      Label="Nombre de la Alergia"
+                      Variant="Variant.Outlined"
+                      Required="true"
+                      Immediate="true"
+                      Clearable="true"
+                      Placeholder="Ingrese el nombre de la alergia..." />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancelar" 
+                   Color="Color.Default" 
+                   Variant="Variant.Text">
+            Cancelar
+        </MudButton>
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   OnClick="Guardar"
+                   Disabled="@(!EsValido())"
+                   StartIcon="@Icons.Material.Filled.Check">
+            Guardar
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; }
+
+    string nombreAlergia;
+
+    private void Guardar()
+    {
+        if (string.IsNullOrWhiteSpace(nombreAlergia))
+        {
+            MudDialog.Cancel();
+            return;
+        }
+
+        if (!Regex.IsMatch(nombreAlergia, @"^(?=.*[A-Za-z])(?=.*\d|.*[A-Za-z]).*\S.*$"))
+        {
+			Snackbar.Add("El nombre de la alergia debe contener al menos una letra y no puede estar vacío o solo con espacios.", Severity.Error);
+			return;
+        }
+
+        if (nombreAlergia.Length > 50)
+        {
+            Snackbar.Add("El nombre de la alergia no puede superar los 50 caracteres.", Severity.Error);
+            return;
+        }
+
+        MudDialog.Close(DialogResult.Ok(nombreAlergia));
+    }
+
+    private bool EsValido()
+    {
+        return !string.IsNullOrWhiteSpace(nombreAlergia);
+    }
+
+    private void Cancelar()
+    {
+        MudDialog.Cancel();
+    }
+}

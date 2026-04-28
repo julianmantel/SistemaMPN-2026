@@ -1,0 +1,112 @@
+﻿@page "/miembros/parametros/listaSeminarios"
+@using Blazored.LocalStorage
+@using SistemaMPN.Shared.DTO
+@using SistemaMPN.Shared.Models
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using MudBlazor
+@using SistemaMPN.Client.Pages
+@using System.Net.Http.Json
+@layout SistemaMPN.Client.Layout.MiembrosLayout
+@inject HttpClient Http
+@inject AuthenticationStateProvider AuthStateProv
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+<PageTitle>Mostrar seminarios</PageTitle>
+
+<AuthorizeView Roles="admin" Context="ListaSeminario">
+	<Authorized>
+		<MudPaper Class="pa-4">
+			<MudButton class="btn btn-primary btn-add" @onclick='()=> Navigation.NavigateTo("/miembros/parametros/CrearSeminario")'>
+				Agregar Seminario
+			</MudButton>
+
+			<MudTable Items="@seminarios" Dense="true" Hover="true" Bordered="true" Striped="true">
+				<HeaderContent>
+					<MudTh>Nombre</MudTh>
+					<MudTh>Año</MudTh>
+					<MudTh>Activo</MudTh>
+					<MudTh>Acciones</MudTh>
+				</HeaderContent>
+				<RowTemplate Context="seminario">
+					<MudTd DataLabel="Nombre">@seminario.nombre</MudTd>
+					<MudTd DataLabel="Año">@seminario.anio_comienzo</MudTd>
+					<MudTd DataLabel="Activo">
+						<MudSwitch T="bool"
+								   Value="@seminario.activo"
+								   ValueChanged="@(valor => CambiarEstadoActivo(valor, seminario))"
+								   Color="Color.Primary"
+								   Disabled="false"/>
+							@(seminario.activo ? "Activo" : "Inactivo")
+					</MudTd>
+
+					<MudTd DataLabel="Acciones">
+						<MudButton Variant="Variant.Filled" Color="Color.Info" Size="Size.Small"
+								   @onclick="@(() => Navigation.NavigateTo($"/miembros/parametros/editarSeminario/{seminario.id}"))">
+							Editar
+						</MudButton>
+						@*<MudButton Variant="Variant.Filled" Color="Color.Error" Size="Size.Small" Class="ml-2">
+							Eliminar
+						</MudButton>*@
+					</MudTd>
+				</RowTemplate>
+			</MudTable>
+		</MudPaper>
+	</Authorized>
+	<NotAuthorized>
+		<ReDirectToLogin/>
+	</NotAuthorized>
+</AuthorizeView>
+@code {
+	private List<SeminarioDTO> seminarios = new();
+
+	private async Task CambiarEstadoActivo(bool nuevoValor, SeminarioDTO seminario)
+	{
+		try
+		{
+			// Guardamos el valor anterior para restaurarlo si hay error
+			bool valorAnterior = seminario.activo;
+			// Actualizamos el valor localmente primero para mejor UX
+			seminario.activo = nuevoValor;
+
+			// Llamamos a la API
+			var response = await Http.PutAsJsonAsync($"api/Seminarios/{seminario.id}/estado", nuevoValor);
+
+			if (!response.IsSuccessStatusCode)
+			{
+				// Si hay error, restauramos el valor anterior
+				seminario.activo = valorAnterior;
+				Snackbar.Add("Error al actualizar estado del seminario", Severity.Error);
+				Console.WriteLine($"Error al actualizar estado del seminario {seminario.nombre}: {response.StatusCode}");
+			}
+			else
+			{
+				var estado = nuevoValor ? "Activado" : "Desactivado";
+				Snackbar.Add($"Seminario {estado} correctamente", Severity.Success);
+			}
+		}
+		catch (Exception ex)
+		{
+			// Si hay excepción, también restauramos
+			seminario.activo = !nuevoValor;
+			Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+			Console.WriteLine($"Excepción al actualizar seminario: {ex.Message}");
+		}
+	}
+
+	protected override async Task OnInitializedAsync()
+	{
+		try
+		{
+			var result = await Http.GetFromJsonAsync<List<SeminarioDTO>>("api/seminarios/GetSeminarios");
+			seminarios = result ?? new List<SeminarioDTO>();
+			seminarios = seminarios.OrderBy(s => s.id).ToList();
+	}
+		catch (Exception ex)
+		{
+			Console.WriteLine($"Error cargando seminarios: {ex.Message}");
+			seminarios = new List<SeminarioDTO>();
+		}
+	}
+    }

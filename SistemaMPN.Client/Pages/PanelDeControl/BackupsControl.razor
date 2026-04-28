@@ -1,0 +1,263 @@
+﻿@page "/paneldecontrol/backups/"
+@using SistemaMPN.Shared.DTO
+@using SistemaMPN.Client.Pages.Dialogs
+
+@layout SistemaMPN.Client.Layout.PanelDeControlLayout
+
+@inject IJSRuntime JS
+@inject IDialogService DialogService
+@inject NavigationManager Navigation
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+
+<PageTitle>Gestión de Backups</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+    <!-- Header -->
+    <MudPaper Elevation="0" Class="pa-6 rounded-lg" Style="background: linear-gradient(135deg, var(--color-info) 0%, rgba(25, 118, 210, 0.8) 100%);">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+            <MudIcon Icon="@Icons.Material.Filled.CloudDownload"
+                    Size="Size.Large"
+                    Style="color: var(--color-texto-claro);" />
+            <MudStack Spacing="0">
+                <MudText Typo="Typo.h4" Style="color: var(--color-texto-claro);">
+                    Copias de Seguridad
+                </MudText>
+                <MudText Typo="Typo.body2" Style="color: var(--color-texto-claro);">
+                    Gestionar backups de la base de datos
+                </MudText>
+            </MudStack>
+        </MudStack>
+    </MudPaper>
+
+    <!-- Contenido principal -->
+    <MudPaper Elevation="2" Class="pa-6 mt-6">
+        <MudStack Spacing="4">
+
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="flex-wrap" Spacing="2">
+                <MudText Typo="Typo.h5">
+                    <MudIcon Icon="@Icons.Material.Filled.Backup" Class="mr-2" />
+                    Backups disponibles
+                </MudText>
+                <MudButton Color="Color.Info"
+                           Variant="Variant.Filled"
+                           StartIcon="@Icons.Material.Filled.CloudUpload"
+                           OnClick="CrearBackupAsync"
+                           Disabled="@_operacionEnCurso">
+                    Crear Backup
+                </MudButton>
+            </MudStack>
+
+            <MudAlert Severity="Severity.Warning" Variant="Variant.Filled">
+                <MudText><b>Advertencia:</b> Restaurar un backup reemplazará toda la base de datos actual. Esta acción no se puede deshacer.</MudText>
+            </MudAlert>
+
+            @if (_operacionEnCurso)
+            {
+                <MudAlert Severity="Severity.Info" Class="mb-4">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Color="Color.Info" />
+                        <MudText>@_mensajeOperacion</MudText>
+                    </MudStack>
+                </MudAlert>
+            }
+
+            <!-- Lista de Backups -->
+            @if (_backups == null)
+            {
+                <MudStack Spacing="2" Justify="Justify.Center" AlignItems="AlignItems.Center" Class="py-6">
+                    <MudProgressCircular Indeterminate Color="Color.Info" />
+                    <MudText Typo="Typo.body2">Cargando backups...</MudText>
+                </MudStack>
+            }
+            else if (!_backups.Any())
+            {
+                <MudText Typo="Typo.h6" Align="Align.Center" Class="py-6">No hay copias de seguridad disponibles.</MudText>
+            }
+            else
+            {
+                <MudTable Items="_backups" Hover="true" Striped="true" Dense="true">
+                    <HeaderContent>
+                        <MudTh>Nombre del Archivo</MudTh>
+                        <MudTh>Tamaño</MudTh>
+                        <MudTh>Fecha</MudTh>
+                        <MudTh>Acciones</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Nombre">@context.Nombre</MudTd>
+                        <MudTd DataLabel="Tamaño">@context.Tamano</MudTd>
+                        <MudTd DataLabel="Fecha">@context.FechaCreacion.ToString("dd/MM/yyyy HH:mm")</MudTd>
+                        <MudTd DataLabel="Acciones">
+                            <MudStack Row="true" Spacing="1">
+                                <MudButton Size="Size.Small"
+                                           Color="Color.Error"
+                                           Variant="Variant.Outlined"
+                                           StartIcon="@Icons.Material.Filled.Restore"
+                                           Disabled="@_operacionEnCurso"
+                                           OnClick="@(() => ConfirmarRestauracion(context))">
+                                    Restaurar
+                                </MudButton>
+                                <MudButton Size="Size.Small"
+                                           Color="Color.Info"
+                                           Variant="Variant.Text"
+                                           StartIcon="@Icons.Material.Filled.Download"
+                                           OnClick="@(() => Descargar(context.Nombre))">
+                                    Descargar
+                                </MudButton>
+                            </MudStack>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+        </MudStack>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private bool _operacionEnCurso = false;
+    private string _tipoOperacion = "";
+    private string _mensajeOperacion = "";
+
+    private List<BackupDTO> _backups = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarBackups();
+    }
+
+    private async Task CargarBackups()
+    {
+        try
+        {
+            _backups = await Http.GetFromJsonAsync<List<BackupDTO>>("api/backup/listar") ?? new List<BackupDTO>();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error al cargar la lista de backups: " + ex.Message, Severity.Error);
+        }
+    }
+
+    private async Task CrearBackupAsync()
+    {
+        _operacionEnCurso = true;
+        _tipoOperacion = "backup";
+        _mensajeOperacion = "Creando copia de seguridad... esto puede tardar unos minutos. NO SALGA DE LA PAGINA";
+        StateHasChanged();
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(5));
+            var response = await Http.PostAsync("api/backup/crear", null, cts.Token);
+            
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Backup creado exitosamente", Severity.Success);
+                await CargarBackups();
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Error: {error}", Severity.Error);
+            }
+        }
+        catch (TaskCanceledException)
+        {
+            Snackbar.Add("El backup está tardando más de lo esperado. Revisa la consola del servidor.", Severity.Warning);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Excepción: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _operacionEnCurso = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ConfirmarRestauracion(BackupDTO backup)
+    {
+        var parameters = new DialogParameters
+    {
+        { "NombreArchivo", backup.Nombre }
+    };
+
+        var options = new DialogOptions
+        {
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Small,
+            FullWidth = true
+        };
+
+        var dialog = await DialogService.ShowAsync<DialogConfirmarRestauracion>(
+            "Confirmar restauración", parameters, options);
+
+        var result = await dialog.Result;
+
+        if (!result.Canceled)
+        {
+            await RestaurarBackup(backup.Nombre);
+        }
+    }
+
+    private async Task RestaurarBackup(string nombreArchivo)
+    {
+        _operacionEnCurso = true;
+        _tipoOperacion = "restaurar";
+        _mensajeOperacion = $"Restaurando base de datos... Esto puede tardar varios minutos. NO SALGA DE LA PAGINA";
+        StateHasChanged();
+
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(30));
+        
+            var response = await Http.PostAsync($"api/backup/restaurar?archivo={nombreArchivo}", null, cts.Token);
+        
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Base de datos restaurada correctamente", Severity.Success);
+                await Task.Delay(1000);
+                Navigation.NavigateTo(Navigation.Uri, forceLoad: true);
+            }
+            else
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Error: {error}", Severity.Error);
+            }
+        }
+        catch (TaskCanceledException)
+        {
+            Snackbar.Add("La operación está tardando más de lo esperado. Verificando estado...", Severity.Warning);
+            StateHasChanged();
+            await Task.Delay(3000);
+            await CargarBackups();
+            _operacionEnCurso = false;
+            StateHasChanged();
+            Snackbar.Add("La base de datos puede haber sido restaurada. Recarga la página para verificar.", Severity.Info);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _operacionEnCurso = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task Descargar(string nombreArchivo)
+    {
+        var response = await Http.GetAsync($"api/backup/descargar/{nombreArchivo}");
+
+        if (!response.IsSuccessStatusCode)
+        {
+            Snackbar.Add("Error al descargar archivo", Severity.Error);
+            return;
+        }
+
+        var bytes = await response.Content.ReadAsByteArrayAsync();
+        var base64 = Convert.ToBase64String(bytes);
+
+        await JS.InvokeVoidAsync("downloadFile", nombreArchivo, base64);
+    }
+}

@@ -1,0 +1,120 @@
+﻿@page "/paneldecontrol/"
+@layout SistemaMPN.Client.Layout.PanelDeControlLayout
+
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+
+@inject NavigationManager Navigation
+
+<PageTitle>Panel de Control</PageTitle>
+
+<AuthorizeView Roles="admin">
+    <Authorized>
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+            <!-- Header de Bienvenida -->
+            <MudPaper Elevation="0" Class="pa-6 rounded-lg" Style="background: linear-gradient(135deg, var(--color-primario) 0%, rgba(30, 58, 138, 0.8) 100%);">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                    <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings"
+                            Size="Size.Large"
+                            Style="color: var(--color-texto-claro);" />
+                    <MudStack Spacing="0">
+                        <MudText Typo="Typo.h4" Style="color: var(--color-texto-claro);">
+                            Panel de Control
+                        </MudText>
+                        <MudText Typo="Typo.body2" Style="color: var(--color-texto-claro);">
+                            Gestión de usuarios y sistema
+                        </MudText>
+                    </MudStack>
+                </MudStack>
+            </MudPaper>
+
+            <!-- Opciones del Panel -->
+            <MudStack Spacing="3" Class="mt-6">
+                <MudText Typo="Typo.h5">
+                    <MudIcon Icon="@Icons.Material.Filled.ManageAccounts" Class="mr-2" />
+                    Opciones disponibles
+                </MudText>
+
+                <MudGrid Justify="Justify.Center" Spacing="3">
+                    <!-- Registrar -->
+                    <MudItem xs="12" sm="6" md="4" lg="3">
+                        <MudCard onclick="@(() => Navigation.NavigateTo("/paneldecontrol/registro/"))"
+                                Style="cursor: pointer; height: 100%; transition: all 0.3s ease;">
+                            <MudCardContent Class="pa-4">
+                                <MudStack Spacing="2" Justify="Justify.Center" AlignItems="AlignItems.Center">
+                                    <MudIcon Icon="@Icons.Material.Filled.PersonAddAlt1"
+                                            Size="Size.Large"
+                                            Style="color: var(--color-exito);" />
+                                    <MudText Typo="Typo.h6">Registrar Usuario</MudText>
+                                    <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Info">
+                                        Crear nueva cuenta
+                                    </MudText>
+                                </MudStack>
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+
+                    <!-- Modificar -->
+                    <MudItem xs="12" sm="6" md="4" lg="3">
+                        <MudCard onclick="@(() => Navigation.NavigateTo("/paneldecontrol/modificar/"))"
+                                Style="cursor: pointer; height: 100%; transition: all 0.3s ease;">
+                            <MudCardContent Class="pa-4">
+                                <MudStack Spacing="2" Justify="Justify.Center" AlignItems="AlignItems.Center">
+                                    <MudIcon Icon="@Icons.Material.Filled.Edit"
+                                            Size="Size.Large"
+                                            Style="color: var(--color-advertencia);" />
+                                    <MudText Typo="Typo.h6">Modificar Usuario</MudText>
+                                    <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Info">
+                                        Editar datos y roles
+                                    </MudText>
+                                </MudStack>
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+
+                    <!-- Eliminar -->
+                    <MudItem xs="12" sm="6" md="4" lg="3">
+                        <MudCard onclick="@(() => Navigation.NavigateTo("/paneldecontrol/eliminar/"))"
+                                Style="cursor: pointer; height: 100%; transition: all 0.3s ease;">
+                            <MudCardContent Class="pa-4">
+                                <MudStack Spacing="2" Justify="Justify.Center" AlignItems="AlignItems.Center">
+                                    <MudIcon Icon="@Icons.Material.Filled.PersonRemove"
+                                            Size="Size.Large"
+                                            Style="color: var(--color-error);" />
+                                    <MudText Typo="Typo.h6">Eliminar Usuario</MudText>
+                                    <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Info">
+                                        Eliminar cuentas
+                                    </MudText>
+                                </MudStack>
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+
+                    <!-- Backups -->
+                    <MudItem xs="12" sm="6" md="4" lg="3">
+                        <MudCard onclick="@(() => Navigation.NavigateTo("/paneldecontrol/backups/"))"
+                                Style="cursor: pointer; height: 100%; transition: all 0.3s ease;">
+                            <MudCardContent Class="pa-4">
+                                <MudStack Spacing="2" Justify="Justify.Center" AlignItems="AlignItems.Center">
+                                    <MudIcon Icon="@Icons.Material.Filled.CloudDownload"
+                                            Size="Size.Large"
+                                            Style="color: var(--color-info);" />
+                                    <MudText Typo="Typo.h6">Copias de Seguridad</MudText>
+                                    <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Info">
+                                        Gestionar backups
+                                    </MudText>
+                                </MudStack>
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+                </MudGrid>
+            </MudStack>
+        </MudContainer>
+    </Authorized>
+
+    <NotAuthorized>
+        <MudContainer Class="py-8">
+            <ReDirectToLogin />
+        </MudContainer>
+    </NotAuthorized>
+</AuthorizeView>

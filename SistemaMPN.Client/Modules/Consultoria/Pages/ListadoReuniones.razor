@@ -1,0 +1,308 @@
+﻿@page "/consultoria/listadoReuniones"
+@using Microsoft.AspNetCore.Components.Authorization
+@using SistemaMPN.Client.Pages
+@using SistemaMPN.Shared.DTO
+@using SistemaMPN.Shared.Models
+@using MudBlazor
+
+@layout SistemaMPN.Client.Layout.ConsultoriaLayout
+
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject AuthenticationStateProvider AuthStateProvider
+
+<PageTitle>Reuniones</PageTitle>
+
+<AuthorizeView Roles="admin, consultor, auditor" Context="authCtx">
+    <Authorized>
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+            <!-- Header -->
+            <MudPaper Elevation="0" Class="pa-6 rounded-lg" Style="background: linear-gradient(135deg, var(--color-primario) 0%, rgba(30, 58, 138, 0.8) 100%);">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                    <MudIcon Icon="@Icons.Material.Filled.Event"
+                            Size="Size.Large"
+                            Style="color: var(--color-texto-claro);" />
+                    <MudStack Spacing="0">
+                        <MudText Typo="Typo.h4" Style="color: var(--color-texto-claro);">
+                            Reuniones
+                        </MudText>
+                        <MudText Typo="Typo.body2" Style="color: var(--color-texto-claro);">
+                            Gestión y seguimiento de reuniones
+                        </MudText>
+                    </MudStack>
+                </MudStack>
+            </MudPaper>
+
+            <!-- Tabla de Reuniones -->
+            <MudPaper Elevation="2" Class="pa-6 mt-6">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4 flex-wrap" Spacing="2">
+                    <MudText Typo="Typo.h5">
+                        <MudIcon Icon="@Icons.Material.Filled.ListAlt" Class="mr-2" />
+                        Listado de Reuniones
+                    </MudText>
+                    @if (IsConsultor)
+                    {
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Success"
+                                   OnClick="@AgendarReunion">
+                            <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Class="mr-1" />
+                            Agendar Reunión
+                        </MudButton>
+                    }
+                </MudStack>
+
+                @if (cargando)
+                {
+                    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+                }
+                else if (!string.IsNullOrEmpty(mensajeError))
+                {
+                    <MudAlert Severity="Severity.Error">@mensajeError</MudAlert>
+                }
+                else if (!reuniones.Any())
+                {
+                    <MudAlert Severity="Severity.Info">No hay reuniones registradas</MudAlert>
+                }
+                else
+                {
+                    <MudTable Items="@reuniones" Hover="true" Bordered="true" RowsPerPage="10">
+                        <HeaderContent>
+                            <MudTh>Fecha</MudTh>
+                            <MudTh>Miembro</MudTh>
+                            <MudTh>Consultor</MudTh>
+                            <MudTh>Estado</MudTh>
+                            <MudTh>Acciones</MudTh>
+                        </HeaderContent>
+                        <RowTemplate Context="reunion">
+                            <MudTd DataLabel="Fecha">
+                                @reunion.Fecha?.ToString("dd/MM/yyyy HH:mm")
+                            </MudTd>
+                            <MudTd DataLabel="Miembro">
+                                @(string.IsNullOrEmpty(reunion.NombreMiembro) ? "-" : reunion.NombreMiembro)
+                            </MudTd>
+                            <MudTd DataLabel="Consultor">
+                                @(string.IsNullOrEmpty(reunion.NombreConsultor) ? "-" : reunion.NombreConsultor)
+                            </MudTd>
+                            <MudTd DataLabel="Estado">
+                                <MudChip T="string"
+                                         Size="Size.Small"
+                                         Color="@ObtenerColorEstado(reunion.Estado)">
+                                    @reunion.Estado
+                                </MudChip>
+                            </MudTd>
+
+                            <MudTd DataLabel="Acciones">
+                                <MudStack Row="true" Spacing="1">
+                                    <MudButton Variant="Variant.Outlined"
+                                               Color="Color.Info"
+                                               Size="Size.Small"
+                                               OnClick="@(() => VerNotas(reunion.IdReunion))">
+                                        <MudIcon Icon="@Icons.Material.Filled.Notes" Size="Size.Small" Class="mr-1" />
+                                        Notas
+                                    </MudButton>
+
+                                    @if (reunion.Estado != "Suspendida" && reunion.Estado != "Completada" && IsConsultor)
+                                    {
+                                        <MudButton Variant="Variant.Filled"
+                                                   Color="Color.Success"
+                                                   Size="Size.Small"
+                                                   OnClick="@(() => CompletarReunion(reunion.IdReunion))">
+                                            <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Size="Size.Small" Class="mr-1" />
+                                            Completar
+                                        </MudButton>
+                                        <MudButton Variant="Variant.Filled"
+                                                   Color="Color.Warning"
+                                                   Size="Size.Small"
+                                                   OnClick="@(() => SuspenderReunion(reunion.IdReunion))">
+                                            <MudIcon Icon="@Icons.Material.Filled.Cancel" Size="Size.Small" Class="mr-1" />
+                                            Suspender
+                                        </MudButton>
+                                    }
+                                </MudStack>
+                            </MudTd>
+                        </RowTemplate>
+                        <PagerContent>
+                            <MudTablePager HideRowsPerPage="true"
+                                           HidePageNumber="true" />
+                        </PagerContent>
+                    </MudTable>
+                }
+            </MudPaper>
+        </MudContainer>
+    </Authorized>
+    <NotAuthorized>
+        <ReDirectToLogin />
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private List<ReunionDTO> reuniones = new();
+    private bool cargando = true;
+    private string? mensajeError;
+    private int consultorId;
+    private bool IsConsultor { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CheckUserRole();
+        await ObtenerConsultorId();
+        await CargarReuniones();
+    }
+
+    private async Task CheckUserRole()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        IsConsultor = user.IsInRole("consultor");
+    }
+
+    private async Task ObtenerConsultorId()
+    {
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var userName = authState.User.Identity?.Name?.Trim();
+
+            if (string.IsNullOrEmpty(userName))
+            {
+                mensajeError = "No se pudo obtener el nombre de usuario";
+                return;
+            }
+
+            var response = await Http.GetAsync($"api/usuario/GetIdMiembroDelUsuario/{userName}");
+            if (!response.IsSuccessStatusCode)
+            {
+                mensajeError = "Error al obtener información del usuario";
+                return;
+            }
+
+            var result = await response.Content.ReadAsStringAsync();
+            if (!int.TryParse(result, out consultorId))
+            {
+                mensajeError = "Error al parsear el ID del consultor";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al obtener consultor: {ex.Message}";
+            Console.WriteLine(mensajeError);
+        }
+    }
+
+    private async Task CargarReuniones()
+    {
+        cargando = true;
+        mensajeError = null;
+
+        try
+        {
+            var response = await Http.GetAsync($"api/reunion/GetReuniones");
+
+            if (response.IsSuccessStatusCode)
+            {
+                reuniones = await response.Content.ReadFromJsonAsync<List<ReunionDTO>>() ?? new();
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                mensajeError = $"Error al cargar reuniones: {response.StatusCode} - {errorContent}";
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al cargar las reuniones: {ex.Message}";
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void AgendarReunion()
+    {
+        Nav.NavigateTo("/consultoria/agendarReunion");
+    }
+
+    private void VerNotas(int reunionId)
+    {
+        Nav.NavigateTo($"/consultoria/notasReunion/{reunionId}");
+    }
+
+    private async Task CompletarReunion(int reunionId)
+    {
+        try
+        {
+            var result = await DialogService.ShowMessageBox(
+                "Confirmar",
+                "¿Estás seguro de que deseas completar esta reunión?",
+                yesText: "Sí", noText: "No");
+
+            if (result == true)
+            {
+                var response = await Http.PutAsync($"api/reunion/CompletarReunion/{reunionId}", null);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    Snackbar.Add("Reunión completada exitosamente", Severity.Success);
+                    await CargarReuniones();
+                }
+                else
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    Snackbar.Add($"Error al completar la reunión: {errorContent}", Severity.Error);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al completar la reunión: {ex.Message}", Severity.Error);
+            Console.WriteLine($"Error al completar la reunión: {ex.Message}");
+        }
+    }
+
+    private async Task SuspenderReunion(int reunionId)
+    {
+        try
+        {
+            var result = await DialogService.ShowMessageBox(
+                "Confirmar",
+                "¿Estás seguro de que deseas suspender esta reunión?",
+                yesText: "Sí", noText: "No");
+
+            if (result == true)
+            {
+                var response = await Http.PutAsync($"api/reunion/SuspenderReunion/{reunionId}", null);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    Snackbar.Add("Reunión suspendida exitosamente", Severity.Success);
+                    await CargarReuniones();
+                }
+                else
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    Snackbar.Add($"Error al suspender la reunión: {errorContent}", Severity.Error);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al suspender la reunión: {ex.Message}", Severity.Error);
+            Console.WriteLine($"Error al suspender la reunión: {ex.Message}");
+        }
+    }
+
+    private Color ObtenerColorEstado(string estado)
+    {
+        return estado switch
+        {
+            "Programada" => Color.Info,
+            "Completada" => Color.Success,
+            "Suspendida" => Color.Error,
+            "En Proceso" => Color.Warning,
+            _ => Color.Default
+        };
+    }
+}

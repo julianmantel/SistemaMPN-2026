@@ -1,0 +1,297 @@
+﻿@page "/miembros/localizaciones/"
+
+@using Microsoft.AspNetCore.Components.Authorization
+@using NpgsqlTypes
+@using SistemaMPN.Client.Modules.Miembros.Pages.Dialogs
+@using SistemaMPN.Client.Pages
+@using SistemaMPN.Shared.DTO
+@using System.Security.Claims
+
+@inject IDialogService DialogService
+@inject AuthenticationStateProvider auth
+@inject IJSRuntime JSRuntime
+@inject ISnackbar Snackbar
+@inject HttpClient Http
+
+@layout SistemaMPN.Client.Layout.MiembrosLayout
+
+<PageTitle>Células y C.O</PageTitle>
+
+<AuthorizeView Roles="admin,gestor de miembros,lider,auditor" Context="Localizaciones">
+	<Authorized>
+		<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+			<MudStack Spacing="4">
+				<!-- Header -->
+				<MudPaper Elevation="0" Class="pa-6 rounded-lg" Style="background: linear-gradient(135deg, var(--color-primario) 0%, rgba(30, 58, 138, 0.8) 100%);">
+					<MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+						<MudIcon Icon="@Icons.Material.Filled.Church"
+								Size="Size.Large"
+								Style="color: var(--color-texto-claro);" />
+						<MudStack Spacing="0">
+							<MudText Typo="Typo.h4" Style="color: var(--color-texto-claro);">
+								Células y Casas de Oración
+							</MudText>
+							<MudText Typo="Typo.body2" Style="color: var(--color-texto-claro);">
+								Visualización y gestión de localizaciones
+							</MudText>
+						</MudStack>
+					</MudStack>
+				</MudPaper>
+
+				<!-- Mapa -->
+				<MudCard Elevation="2" Class="rounded-lg">
+					<MudCardContent>
+						<MudPaper Height="380px" Width="100%" Square="true" id="map" Class="rounded-lg" Style="overflow: hidden;" />
+					</MudCardContent>
+				</MudCard>
+
+				<!-- Controles -->
+				<MudCard Elevation="2" Class="rounded-lg">
+					<MudCardContent>
+						<MudGrid>
+							<MudItem xs="12" sm="8">
+								<MudAutocomplete Style="width:100%;"
+												 Class="mt-2 input-group"
+												 T="string"
+												 Label="Seleccionar Célula o C.O"
+												 SearchFunc="Search1"
+												 Value="@ubicacionElegida"
+												 ValueChanged="CargarLocalizacionSeleccionada"
+												 ValueExpression="() => ubicacionNombre"
+												 Variant="Variant.Outlined"
+												 Clearable="true" />
+							</MudItem>
+
+							@if (isAdminOrGestor && isSelected)
+							{
+								<MudItem xs="12" sm="4" Class="d-flex align-end justify-end">
+									<MudStack Row="true" Spacing="2">
+										<MudIconButton Icon="@Icons.Material.Filled.Edit"
+													   Color="Color.Warning"
+													   Size="Size.Medium"
+													   Variant="Variant.Filled"
+													   OnClick="ModificarLocalizacion" />
+										<MudIconButton Icon="@Icons.Material.Filled.Delete"
+													   Color="Color.Error"
+													   Size="Size.Medium"
+													   Variant="Variant.Filled"
+													   OnClick="RemoverLocalizacion" />
+									</MudStack>
+								</MudItem>
+							}
+
+							<MudItem xs="12" sm="8">
+								<MudButton Color="Color.Primary"
+										   Variant="Variant.Filled"
+										   OnClick="MostrarUbicacion"
+										   StartIcon="@Icons.Material.Filled.MyLocation"
+										   Class="mt-4">
+									Mostrar mi ubicación
+								</MudButton>
+							</MudItem>
+						</MudGrid>
+					</MudCardContent>
+				</MudCard>
+			</MudStack>
+		</MudContainer>
+	</Authorized>
+	<NotAuthorized>
+		<ReDirectToLogin />
+	</NotAuthorized>
+</AuthorizeView>
+
+@code {
+	private List<LocalizacionDTO>? ubicaciones = null;
+	private LocalizacionDTO localizacionDTO = new();
+	private string ubicacionElegida = String.Empty;
+	private string direccion = String.Empty;
+	private bool isAdminOrGestor = false;
+	private bool isSelected = false;
+
+	private DotNetObjectReference<Localizaciones> _objRef;
+	private DialogOptions opcionesDialog = new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true };
+	private DialogParameters parametrosDialog;
+
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (firstRender)
+		{
+			if (ubicaciones == null)
+			{
+				ubicaciones = new();
+
+				await CargarLocalizaciones();
+			}
+
+			var authState = await auth.GetAuthenticationStateAsync();
+			var userRole = string.Join(',', authState.User.FindAll(ClaimTypes.Role)?.Select(r => r.Value).ToArray()) ?? "No definido";
+
+			isAdminOrGestor = (userRole.Contains("admin") || userRole.Contains("gestor de miembros"));
+
+			_objRef = DotNetObjectReference.Create(this);
+			await JSRuntime.InvokeVoidAsync("setDotNetRef", _objRef);
+			await JSRuntime.InvokeVoidAsync("iniciarMapa", isAdminOrGestor);
+
+			ubicaciones?.ForEach(l => JSRuntime.InvokeVoidAsync("cargarLocalizacion", l.Tipo, l.Ubicacion.X, l.Ubicacion.Y));
+
+			StateHasChanged();
+		}
+	}
+
+	public async Task CargarLocalizaciones()
+	{
+		var resultUbicaciones = await Http.GetFromJsonAsync<List<LocalizacionDTO>>("api/localizacion/GetLocalizaciones");
+
+		if (resultUbicaciones.Any())
+		{
+			ubicaciones = resultUbicaciones;
+		}
+	}
+
+	[JSInvokable("CrearLocalizacion")]
+	public async Task CrearLocalizacion(double lat, double lng)
+	{
+		localizacionDTO = new();
+		localizacionDTO.Ubicacion = new NpgsqlPoint(lat, lng);
+		localizacionDTO.Grupo.nombre = string.Empty;
+
+		var parametrosDialog = new DialogParameters<DialogLocalizacion> { { x => x.Localizacion, localizacionDTO } };
+		var dialog = await DialogService.ShowAsync<DialogLocalizacion>("Agregar localizacion",
+												parametrosDialog,
+												opcionesDialog);
+		var result = await dialog.Result;
+
+		if (!result.Canceled && result.Data is LocalizacionDTO localizacion)
+		{
+
+			var resultLocalizacion = await Http.PostAsJsonAsync("api/localizacion/CrearLocalizacion", localizacion);
+			if (resultLocalizacion.IsSuccessStatusCode)
+			{
+				Snackbar.Add("Localización añadida correctamente", Severity.Success);
+
+				await JSRuntime.InvokeVoidAsync("cargarLocalizacion",
+												localizacion.Tipo,
+												localizacion.Ubicacion.X,
+												localizacion.Ubicacion.Y);
+
+				await CargarLocalizaciones();
+
+
+				StateHasChanged();
+			}
+			else
+			{
+				Snackbar.Add("Error al añadir la localización", Severity.Error);
+			}
+		}
+	}
+
+	private async Task ModificarLocalizacion()
+	{
+		var parametrosDialog = new DialogParameters<DialogLocalizacion> { { x => x.Localizacion, localizacionDTO } };
+		var dialog = await DialogService.ShowAsync<DialogLocalizacion>("Agregar localizacion",
+												parametrosDialog,
+												opcionesDialog);
+		var result = await dialog.Result;
+
+		if (!result.Canceled && result.Data is LocalizacionDTO localizacion)
+		{
+
+			var resultLocalizacion = await Http.PatchAsJsonAsync("api/localizacion/ModificarLocalizacion", localizacion);
+			if (resultLocalizacion.IsSuccessStatusCode)
+			{
+				Snackbar.Add("Localización modificada correctamente", Severity.Success);
+
+				ubicaciones.Remove(localizacionDTO);
+				ubicaciones.Add(localizacionDTO);
+
+				await JSRuntime.InvokeVoidAsync("removeMark", false);
+				await JSRuntime.InvokeVoidAsync("cargarLocalizacion",
+												localizacion.Tipo,
+												localizacion.Ubicacion.X,
+												localizacion.Ubicacion.Y);
+
+				StateHasChanged();
+			}
+			else
+			{
+				Snackbar.Add("Error al modificar la localización", Severity.Error);
+			}
+		}
+	}
+
+	private async Task RemoverLocalizacion()
+	{
+		bool? confirmarEliminacion = await DialogService.ShowMessageBox("Eliminar evento",
+														$"Esta seguro que desea eliminar la localizacion?",
+														yesText: "Eliminar",
+														cancelText: "Cancelar");
+
+		if (confirmarEliminacion.HasValue && confirmarEliminacion.Value)
+		{
+			int idLocalizacion = localizacionDTO.IdLocalizacion;
+
+			var resultEvento = await Http.DeleteAsync($"api/localizacion/EliminarLocalizacion/{idLocalizacion}");
+			if (resultEvento.IsSuccessStatusCode)
+			{
+				Snackbar.Add("Localización eliminada correctamente", Severity.Success);
+
+				isSelected = false;
+				ubicacionElegida = string.Empty;
+				ubicaciones.Remove(localizacionDTO);
+
+				await JSRuntime.InvokeVoidAsync("removeMark", true);
+
+				StateHasChanged();
+			}
+			else
+			{
+				Snackbar.Add("Error al eliminar la localización", Severity.Error);
+			}
+		}
+	}
+
+	private async Task<IEnumerable<string>> Search1(string value, CancellationToken Token)
+	{
+		await Task.Delay(5, Token);
+
+		if (ubicaciones == null)
+			return new List<string>();
+
+		if (string.IsNullOrWhiteSpace(value))
+			return ubicaciones.Select(u => String.Join('-', u.Grupo.nombre + ' ', ' ' + u.Tipo)).AsEnumerable();
+
+		return ubicaciones
+			.Where(u => String.Join('-', u.Grupo.nombre + ' ', ' ' + u.Tipo).Contains(value, StringComparison.OrdinalIgnoreCase))
+			.Select(u => String.Join('-', u.Grupo.nombre + ' ', ' ' + u.Tipo))
+			.AsEnumerable() ?? new List<string>();
+	}
+
+	private async Task CargarLocalizacionSeleccionada(string ubicacionNombre)
+	{
+		ubicacionElegida = ubicacionNombre;
+
+		if (ubicaciones == null || string.IsNullOrEmpty(ubicacionNombre))
+		{
+			isSelected = false;
+			return;
+		}
+
+		var seleccionado = ubicaciones.FirstOrDefault(u => ubicacionElegida.Contains(u.Grupo.nombre, StringComparison.OrdinalIgnoreCase));
+
+		if (seleccionado != null)
+		{
+			isSelected = true;
+			localizacionDTO = seleccionado;
+
+			await JSRuntime.InvokeVoidAsync("mostrarUbicacion", false, seleccionado.Ubicacion.X, seleccionado.Ubicacion.Y);
+		}
+
+		StateHasChanged();
+	}
+
+	private async Task MostrarUbicacion()
+	{
+		await JSRuntime.InvokeVoidAsync("mostrarUbicacion", true);
+	}
+}

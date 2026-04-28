@@ -1,0 +1,28 @@
+﻿@using Blazored.LocalStorage
+@inject IJSRuntime JS
+@inherits MainLayout
+
+<MainLayout>
+    <NavigationContent>
+        <MudNavMenu>
+            <MudNavLink OnClick="VolverAtras" Icon="@Icons.Material.Filled.ArrowBack">Volver</MudNavLink>
+        </MudNavMenu>
+    </NavigationContent>
+    <Body>
+        @Body
+    </Body>
+</MainLayout>
+
+@code {
+    private bool _open = false;
+
+    private void ToggleDrawer()
+    {
+        _open = !_open;
+    }
+
+    private async Task VolverAtras()
+    {
+        await JS.InvokeVoidAsync("history.back");
+    }
+}

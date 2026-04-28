@@ -1,0 +1,89 @@
+﻿@page "/miembros/parametros/editarSeminario/{id:int}"
+
+@layout SistemaMPN.Client.Layout.MiembrosLayout
+
+@using SistemaMPN.Shared.DTO
+@using SistemaMPN.Shared.Models
+@using Microsoft.AspNetCore.Components.Authorization
+@using SistemaMPN.Client.Pages
+
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+
+
+<PageTitle>Modificar Seminario</PageTitle>
+
+<AuthorizeView Roles ="admin" Context="editarSeminario">
+    <Authorized>
+        @if (seminario == null)
+        {
+            <h1>Ministerio Profético <br> a las Naciones</h1>
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" AnimationDuration="0.5" Class="my-7" />
+        }
+        else
+        {
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h5">Editar Seminario</MudText>
+
+                <MudTextField @bind-Value="seminario.nombre" Label="Nombre" Required="true" />
+                <MudNumericField @bind-Value="seminario.anio_comienzo" Label="Año de Comienzo" Required="true" />
+                <MudSwitch T="bool" @bind-Value="seminario.activo" Label="Estado: " LabelPlacement="Placement.Start" Color="Color.Primary" />
+
+                <MudButton Color="Color.Primary" OnClick="GuardarCambios" Class="mt-3">Guardar</MudButton>
+                <MudButton Color="Color.Secondary" OnClick="@(() => Navigation.NavigateTo("/miembros/parametros/listaSeminarios"))" Class="mt-3 ml-2">Cancelar</MudButton>
+            </MudPaper>
+        }
+    </Authorized>
+
+    <NotAuthorized>
+        <ReDirectToLogin/>
+    </NotAuthorized>
+</AuthorizeView>
+
+
+@code {
+    [Parameter]
+    public int id { get; set; }
+
+    private SeminarioDTO? seminario;
+
+    public bool valor;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            seminario = await Http.GetFromJsonAsync<SeminarioDTO>($"api/Seminarios/{id}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error cargando seminario: {ex.Message}");
+        }
+    }
+
+    private async Task GuardarCambios()
+    {
+        try
+        {
+            var response = await Http.PutAsJsonAsync($"api/Seminarios/{id}", seminario);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Seminario actualizado correctamente", Severity.Success);
+                Navigation.NavigateTo("/miembros/parametros/listaSeminarios");
+            }
+            else
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Snackbar.Add($"Error al guardar cambios: {errorContent}", Severity.Error);
+                Console.WriteLine($"Error al guardar cambios: {errorContent}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+            Console.WriteLine($"Error al guardar cambios: {ex.Message}");
+        }
+    }
+}

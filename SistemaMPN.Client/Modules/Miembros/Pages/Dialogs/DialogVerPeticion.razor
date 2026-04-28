@@ -1,0 +1,270 @@
+@using MudBlazor
+@using SistemaMPN.Shared.DTO
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="flex-wrap" Spacing="2">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudIcon Icon="@Icons.Material.Filled.Assignment" Color="Color.Primary" />
+                <MudText Typo="Typo.h6">Petición #@IdPeticiones</MudText>
+            </MudStack>
+            <MudChip T="string" Color="@GetTipoColor(Tipo)" Size="Size.Small">
+                @Tipo
+            </MudChip>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        @if (loading)
+        {
+            <MudStack AlignItems="AlignItems.Center" Justify="Justify.Center" Class="py-8">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+                <MudText Typo="Typo.body2" Class="mt-2" Color="Color.Secondary">Cargando detalles...</MudText>
+            </MudStack>
+        }
+        else
+        {
+            <MudStack Spacing="4">
+                <!-- Información General -->
+                <MudPaper Elevation="0" Class="pa-4 rounded-lg" Style="border: 1px solid var(--mud-palette-divider);">
+                    <MudText Typo="Typo.subtitle1" Class="mb-3" Color="Color.Primary">
+                        <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Class="mr-1" />
+                        Información General
+                    </MudText>
+                    <MudStack Spacing="2">
+                        <MudText><b>Solicitante:</b> @NombreSolicitante</MudText>
+                        <MudGrid Spacing="2">
+                            <MudItem xs="12" sm="6">
+                                <MudText Typo="Typo.body2">
+                                    <MudIcon Icon="@Icons.Material.Filled.Schedule" Size="Size.Small" Class="mr-1" Color="Color.Info" />
+                                    <b>Fecha Solicitud:</b> @FechaSolicitud.ToString("dd/MM/yyyy HH:mm")
+                                </MudText>
+                            </MudItem>
+                            @if (FechaRespuesta.HasValue)
+                            {
+                                <MudItem xs="12" sm="6">
+                                    <MudText Typo="Typo.body2">
+                                        <MudIcon Icon="@Icons.Material.Filled.EventAvailable" Size="Size.Small" Class="mr-1" Color="Color.Success" />
+                                        <b>Fecha Respuesta:</b> @FechaRespuesta.Value.ToString("dd/MM/yyyy HH:mm")
+                                    </MudText>
+                                </MudItem>
+                            }
+                        </MudGrid>
+                        
+                        @if (!string.IsNullOrEmpty(NombreQuienResponde))
+                        {
+                            <MudText Typo="Typo.body2">
+                                <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Class="mr-1" Color="Color.Secondary" />
+                                <b>Respondido por:</b> @NombreQuienResponde
+                            </MudText>
+                        }
+
+                        <MudText Typo="Typo.body2">
+                            <b>Estado:</b>
+                            <MudChip T="string" Color="@GetEstadoColor(Estado)" Size="Size.Small" Class="ml-2">
+                                @Estado
+                            </MudChip>
+                        </MudText>
+                    </MudStack>
+                </MudPaper>
+
+                <!-- Mensaje -->
+                @if (!string.IsNullOrEmpty(Mensaje))
+                {
+                    <MudPaper Elevation="0" Class="pa-4 rounded-lg" Style="border: 1px solid var(--mud-palette-divider);">
+                        <MudText Typo="Typo.subtitle1" Class="mb-2" Color="Color.Primary">
+                            <MudIcon Icon="@Icons.Material.Filled.Message" Size="Size.Small" Class="mr-1" />
+                            Mensaje
+                        </MudText>
+                        <MudText Typo="Typo.body1">@Mensaje</MudText>
+                    </MudPaper>
+                }
+
+                <!-- Detalles Específicos -->
+                @switch (Tipo)
+                {
+                    case "Reunion":
+                        <MudPaper Elevation="0" Class="pa-4 rounded-lg" Style="border: 1px solid var(--mud-palette-divider);">
+                            <MudText Typo="Typo.subtitle1" Class="mb-3" Color="Color.Info">
+                                <MudIcon Icon="@Icons.Material.Filled.MeetingRoom" Size="Size.Small" Class="mr-1" />
+                                Detalles de Reunión
+                            </MudText>
+                            <MudStack Spacing="2">
+                                @if (!string.IsNullOrEmpty(NombreMiembro))
+                                {
+                                    <MudText><b>Miembro:</b> @NombreMiembro</MudText>
+                                }
+                                @if (!string.IsNullOrEmpty(Motivo))
+                                {
+                                    <MudText><b>Motivo:</b> @Motivo</MudText>
+                                }
+                                @if (FechaPreferida.HasValue)
+                                {
+                                    <MudText><b>Fecha Preferida:</b> @FechaPreferida.Value.ToString("dd/MM/yyyy")</MudText>
+                                }
+                                @if (!string.IsNullOrEmpty(Correo))
+                                {
+                                    <MudText><b>Correo:</b> @Correo</MudText>
+                                }
+                            </MudStack>
+                        </MudPaper>
+                        break;
+
+                    case "Cambio":
+                        <MudPaper Elevation="0" Class="pa-4 rounded-lg" Style="border: 1px solid var(--mud-palette-divider);">
+                            <MudText Typo="Typo.subtitle1" Class="mb-3" Color="Color.Warning">
+                                <MudIcon Icon="@Icons.Material.Filled.SwapHoriz" Size="Size.Small" Class="mr-1" />
+                                Detalles de Cambio
+                            </MudText>
+                            <MudStack Spacing="2">
+                                @if (!string.IsNullOrEmpty(NombreMiembro))
+                                {
+                                    <MudText><b>Miembro:</b> @NombreMiembro</MudText>
+                                }
+                                @if (!string.IsNullOrEmpty(NombreGrupo))
+                                {
+                                    <MudText><b>Grupo:</b> @NombreGrupo</MudText>
+                                }
+                            </MudStack>
+                        </MudPaper>
+                        break;
+
+                    case "Actualizacion":
+                        <MudPaper Elevation="0" Class="pa-4 rounded-lg" Style="border: 1px solid var(--mud-palette-divider);">
+                            <MudText Typo="Typo.subtitle1" Class="mb-3" Color="Color.Success">
+                                <MudIcon Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Class="mr-1" />
+                                Detalles de Actualización
+                            </MudText>
+                            <MudStack Spacing="2">
+                                @if (!string.IsNullOrEmpty(NombreMiembro))
+                                {
+                                    <MudText><b>Miembro:</b> @NombreMiembro</MudText>
+                                }
+                            </MudStack>
+                        </MudPaper>
+                        break;
+
+                    case "Agregar":
+                        <MudPaper Elevation="0" Class="pa-4 rounded-lg" Style="border: 1px solid var(--mud-palette-divider);">
+                            <MudText Typo="Typo.subtitle1" Class="mb-3" Color="Color.Secondary">
+                                <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Size="Size.Small" Class="mr-1" />
+                                Datos del Nuevo Miembro
+                            </MudText>
+                            <MudGrid Spacing="2">
+                                <MudItem xs="12" sm="6">
+                                    <MudText><b>Nombre:</b> @Nombre @Apellido</MudText>
+                                </MudItem>
+                                @if (!string.IsNullOrEmpty(Dni))
+                                {
+                                    <MudItem xs="12" sm="6">
+                                        <MudText><b>DNI:</b> @Dni</MudText>
+                                    </MudItem>
+                                }
+                                @if (!string.IsNullOrEmpty(Nacionalidad))
+                                {
+                                    <MudItem xs="12" sm="6">
+                                        <MudText><b>Nacionalidad:</b> @Nacionalidad</MudText>
+                                    </MudItem>
+                                }
+                                @if (FechaNacimiento.HasValue)
+                                {
+                                    <MudItem xs="12" sm="6">
+                                        <MudText><b>Fecha Nacimiento:</b> @FechaNacimiento.Value.ToString("dd/MM/yyyy")</MudText>
+                                    </MudItem>
+                                }
+                                @if (!string.IsNullOrEmpty(LugarNacimiento))
+                                {
+                                    <MudItem xs="12" sm="6">
+                                        <MudText><b>Lugar Nacimiento:</b> @LugarNacimiento</MudText>
+                                    </MudItem>
+                                }
+                                @if (!string.IsNullOrEmpty(Telefono))
+                                {
+                                    <MudItem xs="12" sm="6">
+                                        <MudText><b>Teléfono:</b> @Telefono</MudText>
+                                    </MudItem>
+                                }
+                                @if (Sexo.HasValue)
+                                {
+                                    <MudItem xs="12" sm="6">
+                                        <MudText><b>Sexo:</b> @(Sexo == 'M' ? "Masculino" : "Femenino")</MudText>
+                                    </MudItem>
+                                }
+                            </MudGrid>
+                        </MudPaper>
+                        break;
+                }
+            </MudStack>
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Filled" 
+                   OnClick="Cerrar"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Close">
+            Cerrar
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public int IdPeticiones { get; set; }
+    [Parameter] public string Tipo { get; set; } = string.Empty;
+    [Parameter] public DateTime FechaSolicitud { get; set; }
+    [Parameter] public DateTime? FechaRespuesta { get; set; }
+    [Parameter] public string Estado { get; set; } = string.Empty;
+    [Parameter] public string? Mensaje { get; set; }
+    [Parameter] public string? NombreSolicitante { get; set; }
+    [Parameter] public string? NombreQuienResponde { get; set; }
+    
+    [Parameter] public string? Motivo { get; set; }
+    [Parameter] public DateOnly? FechaPreferida { get; set; }
+    [Parameter] public string? Correo { get; set; }
+    [Parameter] public string? NombreMiembro { get; set; }
+    [Parameter] public string? NombreGrupo { get; set; }
+    [Parameter] public string? Nombre { get; set; }
+    [Parameter] public string? Apellido { get; set; }
+    [Parameter] public string? Dni { get; set; }
+    [Parameter] public string? Nacionalidad { get; set; }
+    [Parameter] public DateOnly? FechaNacimiento { get; set; }
+    [Parameter] public string? LugarNacimiento { get; set; }
+    [Parameter] public string? Telefono { get; set; }
+    [Parameter] public char? Sexo { get; set; }
+
+    private bool loading = true;
+
+    protected override void OnInitialized()
+    {
+        loading = false;
+    }
+
+    private void Cerrar()
+    {
+        MudDialog.Close();
+    }
+
+    private Color GetTipoColor(string? tipo)
+    {
+        return tipo switch
+        {
+            "Reunion" => Color.Info,
+            "Cambio" => Color.Warning,
+            "Actualizacion" => Color.Success,
+            "Agregar" => Color.Secondary,
+            _ => Color.Default
+        };
+    }
+
+    private Color GetEstadoColor(string estado)
+    {
+        return estado switch
+        {
+            "Aceptada" => Color.Success,
+            "Rechazada" => Color.Error,
+            "Pendiente" => Color.Warning,
+            "En proceso" => Color.Info,
+            _ => Color.Default
+        };
+    }
+}

@@ -1,0 +1,207 @@
+@page "/miembros/asistencia/historial/{miembroId:int}"
+@using SistemaMPN.Shared.DTO
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<PageTitle>Historial de Asistencia</PageTitle>
+
+<MudContainer>
+    <MudText Typo="Typo.h4" Class="mb-2">
+        <MudIcon Icon="@Icons.Material.Filled.History" Class="mr-2" Color="Color.Primary" />
+        Historial de Asistencia
+    </MudText>
+
+    @if (!string.IsNullOrEmpty(_nombreMiembro))
+    {
+        <MudText Typo="Typo.h6" Color="Color.Primary" Class="mb-4">
+            @_nombreMiembro
+        </MudText>
+    }
+
+    <!-- Estadísticas -->
+    <MudGrid Class="mb-6">
+        <MudItem xs="12" sm="4">
+            <MudPaper Elevation="2" Class="pa-4 text-center">
+                <MudText Typo="Typo.h4" Color="Color.Primary">
+                    @_historial.Count
+                </MudText>
+                <MudText Typo="Typo.body2" Color="Color.Default">
+                    Eventos Asistidos
+                </MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudPaper Elevation="2" Class="pa-4 text-center">
+                <MudText Typo="Typo.h4" Color="Color.Success">
+                    @_eventosUltimoMes
+                </MudText>
+                <MudText Typo="Typo.body2" Color="Color.Default">
+                    Último Mes
+                </MudText>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudPaper Elevation="2" Class="pa-4 text-center">
+                @if (_historial.Any())
+                {
+                    <MudText Typo="Typo.h4" Color="Color.Info">
+                        @_historial.Max(a => a.FechaRegistro).ToString("dd/MM/yyyy")
+                    </MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Default">
+                        Última Asistencia
+                    </MudText>
+                }
+                else
+                {
+                    <MudText Typo="Typo.h4" Color="Color.Default">
+                        -
+                    </MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Default">
+                        Sin registros
+                    </MudText>
+                }
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    <!-- Filtro de fechas -->
+    <MudGrid Class="mb-4">
+        <MudItem xs="12" sm="6" md="3">
+            <MudDatePicker @bind-Date="_fechaDesde"
+                           Label="Desde"
+                           Variant="Variant.Outlined"
+                           FullWidth="true" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudDatePicker @bind-Date="_fechaHasta"
+                           Label="Hasta"
+                           Variant="Variant.Outlined"
+                           FullWidth="true" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3" Class="d-flex align-end">
+            <MudButton Variant="Variant.Outlined" Color="Color.Primary" OnClick="AplicarFiltros">
+                <MudIcon Icon="@Icons.Material.Filled.FilterList" Class="mr-2" />
+                Filtrar
+            </MudButton>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3" Class="d-flex align-end justify-end">
+            <MudButton Variant="Variant.Text" Color="Color.Default" OnClick="LimpiarFiltros">
+                Limpiar Filtros
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+
+    <!-- Timeline de asistencia -->
+    @if (_historial.Any())
+    {
+        <MudTimeline>
+            @foreach (var asistencia in _historial)
+            {
+                <MudTimelineItem>
+                    <MudIcon Color="Color.Primary">
+                        @Icons.Material.Filled.Event
+                    </MudIcon>
+                    <MudCard Elevation="2" Class="mb-2">
+                        <MudCardHeader>
+                            <CardHeaderContent>
+                                <MudText Typo="Typo.subtitle1">
+                                    @asistencia.TituloEvento
+                                </MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Default">
+                                    @asistencia.FechaRegistro.ToString("dd/MM/yyyy HH:mm")
+                                </MudText>
+                            </CardHeaderContent>
+                        </MudCardHeader>
+                    </MudCard>
+                </MudTimelineItem>
+            }
+        </MudTimeline>
+    }
+    else
+    {
+        <MudAlert Severity="Severity.Info" Class="mb-4">
+            No se encontraron registros de asistencia para este miembro.
+        </MudAlert>
+    }
+
+    <!-- Botón volver -->
+    <MudButton Variant="Variant.Text" Color="Color.Primary" OnClick="Volver" Class="mt-4">
+        <MudIcon Icon="@Icons.Material.Filled.ArrowBack" Class="mr-2" />
+        Volver
+    </MudButton>
+</MudContainer>
+
+@code {
+    [Parameter] public int miembroId { get; set; }
+
+    private List<AsistenciaDTO> _historial = new();
+    private string _nombreMiembro = string.Empty;
+    private DateTime? _fechaDesde;
+    private DateTime? _fechaHasta;
+    private int _eventosUltimoMes = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarHistorial();
+    }
+
+    private async Task CargarHistorial()
+    {
+        try
+        {
+            var url = $"api/Asistencia/GetHistorialMiembro/{miembroId}";
+            var queryParams = new List<string>();
+            if (_fechaDesde.HasValue)
+                queryParams.Add($"desde={_fechaDesde.Value:yyyy-MM-dd}");
+            if (_fechaHasta.HasValue)
+                queryParams.Add($"hasta={_fechaHasta.Value:yyyy-MM-dd}");
+
+            if (queryParams.Any())
+                url += "?" + string.Join("&", queryParams);
+
+            var response = await Http.GetAsync(url);
+            if (response.IsSuccessStatusCode)
+            {
+                _historial = await response.Content.ReadFromJsonAsync<List<AsistenciaDTO>>() ?? new();
+                CalcularEstadisticas();
+            }
+            else
+            {
+                Snackbar.Add("Error al cargar el historial.", Severity.Error);
+            }
+        }
+        catch
+        {
+            Snackbar.Add("Error de conexión.", Severity.Error);
+        }
+    }
+
+    private void CalcularEstadisticas()
+    {
+        if (_historial.Any())
+        {
+            _nombreMiembro = "Miembro #" + miembroId;
+        }
+
+        var haceUnMes = DateTime.Now.AddMonths(-1);
+        _eventosUltimoMes = _historial.Count(a => a.FechaRegistro >= haceUnMes);
+    }
+
+    private void AplicarFiltros()
+    {
+        _ = CargarHistorial();
+    }
+
+    private void LimpiarFiltros()
+    {
+        _fechaDesde = null;
+        _fechaHasta = null;
+        _ = CargarHistorial();
+    }
+
+    private void Volver()
+    {
+        Nav.NavigateTo($"/miembros/detalles/{miembroId}");
+    }
+}

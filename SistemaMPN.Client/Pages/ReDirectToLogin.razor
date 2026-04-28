@@ -1,0 +1,72 @@
+﻿@using Blazored.LocalStorage
+@using Microsoft.AspNetCore.Components.Authorization
+@layout SistemaMPN.Client.Layout.LoginLayout
+
+@inject NavigationManager Navigation
+@inject ILocalStorageService LocalStorage
+@inject AuthenticationStateProvider AuthProvider
+
+<PageTitle>SistemaMPN</PageTitle>
+
+<div id="loading-screen">
+    <div class="position-absolute top-50 start-50 translate-middle">
+        <div class="col align-self-center">
+            <h1>Ministerio Profético <br> a las Naciones</h1>
+        </div>
+    </div>
+</div>
+
+@code {
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                var informacion = await AuthProvider.GetAuthenticationStateAsync();
+                var user = informacion.User; 
+
+                string[] publicOrLoginUris = { "", "/", "/nuevacontrasenia", "/cambiarcontrasenia", "/checkin" }; 
+
+                var uri = new Uri(Navigation.Uri);
+                var path = uri.AbsolutePath.ToLower().TrimEnd('/');
+
+                // --- Lógica de Redirección ---
+
+                //Si está autenticado e intenta acceder a las páginas de login/contraseña, redirigir a home.
+                if (publicOrLoginUris.Contains(path) && user.Identity.IsAuthenticated)
+                {
+                    Navigation.NavigateTo("/home");
+                    return; 
+                }
+
+                string[] ControlUris = { "/paneldecontrol", "/registro", "/modificar", "/eliminar" };
+                //Si intenta acceder a /paneldecontrol:
+                if (ControlUris.Contains(path))
+                {
+                    if (user.Identity.IsAuthenticated)
+                    {
+                        bool hasRequiredRole = user.IsInRole("admin") || user.IsInRole("gestor de miembros");
+                        if (!hasRequiredRole)
+                        {
+                            Navigation.NavigateTo("/home");
+                            return; 
+                        }
+                    }
+                }
+
+                // Si NO está en las páginas públicas/login Y NO está autenticado, redirigir a login ("/")
+                if (!publicOrLoginUris.Contains(path) && !user.Identity.IsAuthenticated)
+                {
+                    Navigation.NavigateTo("/");
+                    return; 
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"Error en OnAfterRenderAsync: {ex.Message}");
+            }
+        }
+    }
+}

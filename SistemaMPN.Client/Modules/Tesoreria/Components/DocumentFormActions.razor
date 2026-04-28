@@ -1,0 +1,608 @@
+@using SistemaMPN.Client.Modules.Tesoreria.Dialogs
+@using SistemaMPN.Shared.DTO
+
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+@inject IJSRuntime JS
+@inject NavigationManager NavigationManager
+
+@if (!MostrarOpcionesFirma)
+{
+    <!-- BOTONES ANTES DE GENERAR PDF -->
+    <MudGrid Spacing="2" Class="mt-3">
+        <MudItem xs="12" sm="4">
+            <MudButton Variant="Variant.Filled"
+                       Size="Size.Small"
+                       Color="Color.Info"
+                       StartIcon="@Icons.Material.Filled.PictureAsPdf"
+                       OnClick="ValidarYGenerarPdf"
+                       Disabled="@IsGenerating"
+                       FullWidth="true">
+                @if (IsGenerating)
+                {
+                    <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                    <span class="ms-2">Generando...</span>
+                }
+                else
+                {
+                    <span>Vista Previa PDF</span>
+                }
+            </MudButton>
+        </MudItem>
+
+        <MudItem xs="12" sm="3">
+            <MudButton Variant="Variant.Outlined"
+                       Size="Size.Small"
+                       Color="Color.Default"
+                       StartIcon="@Icons.Material.Filled.Edit"
+                       OnClick="EditarDocumento"
+                       Disabled="@(!PdfGenerado)"
+                       FullWidth="true">
+                Editar
+            </MudButton>
+        </MudItem>
+
+        <MudItem xs="12" sm="2">
+            <MudButton Variant="Variant.Outlined"
+                       Size="Size.Small"
+                       Color="Color.Secondary"
+                       StartIcon="@Icons.Material.Filled.Refresh"
+                       OnClick="LimpiarFormulario"
+                       FullWidth="true">
+                Limpiar
+            </MudButton>
+        </MudItem>
+
+        @if (PdfGenerado)
+        {
+            <MudItem xs="12" sm="3">
+                <MudButton Variant="Variant.Filled"
+                           Size="Size.Small"
+                           Color="Color.Success"
+                           StartIcon="@Icons.Material.Filled.ArrowForward"
+                           OnClick="MostrarOpcionesDeFirma"
+                           FullWidth="true">
+                    Siguiente
+                </MudButton>
+            </MudItem>
+        }
+    </MudGrid>
+}
+else
+{
+    <!-- BOTÓN VOLVER -->
+    <MudItem xs="12">
+        <MudButton Variant="Variant.Text"
+                   Color="Color.Default"
+                   StartIcon="@Icons.Material.Filled.ArrowBack"
+                   OnClick="VolverAlFormulario"
+                   FullWidth="true">
+            Volver
+        </MudButton>
+    </MudItem>
+    <MudItem xs="12">
+        <MudDivider Class="my-2" />
+    </MudItem>
+
+    <!-- PANEL DE OPCIONES DE FIRMA -->
+    <MudText Typo="Typo.h6" Class="mb-2">
+        <MudIcon Icon="@Icons.Material.Filled.Security" Class="me-2" />
+        Configuración de Firma
+    </MudText>
+
+    <!-- SELECTOR DE SUPERVISOR (Obligatorio) -->
+    <MudCard Outlined="true" Class="mb-3" Elevation="0">
+        <MudCardContent>
+            <MudText Typo="Typo.subtitle2" Class="mb-2">
+                <MudIcon Icon="@Icons.Material.Filled.SupervisorAccount" Class="me-2" />
+                <strong>Seleccionar Supervisor</strong>
+            </MudText>
+            <MudAutocomplete T="SupervisorDTO"
+                             @bind-Value="supervisorObj"
+                             Label="Supervisor (Tesorero/Protesorero)"
+                             SearchFunc="BuscarSupervisores"
+                             ToStringFunc="@(s => s?.Nombre ?? "")"
+                             Variant="Variant.Outlined"
+                             Dense="true"
+                             Clearable="true"
+                             Required="true"
+                             RequiredError="Debe seleccionar un supervisor">
+                <ItemTemplate Context="supervisor">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Filled.Person" Color="Color.Info" />
+                        <MudStack Spacing="0">
+                            <MudText>@supervisor.Nombre</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@supervisor.Cargo</MudText>
+                        </MudStack>
+                    </MudStack>
+                </ItemTemplate>
+            </MudAutocomplete>
+            @if (supervisorObj != null)
+            {
+                <MudChip T="string" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.CheckCircle" Class="mt-2">
+                    @supervisorObj.Nombre - @supervisorObj.Cargo
+                </MudChip>
+            }
+        </MudCardContent>
+    </MudCard>
+
+    <MudDivider Class="mb-3" />
+
+    <!-- TABS DE OPCIONES DE FIRMA -->
+    <MudText Typo="Typo.subtitle2" Class="mb-2">Seleccione el tipo de firma:</MudText>
+
+    <MudTabs Color="Color.Primary" Class="mb-3" Disabled="@(IsGenerating || IsGuardando)">
+
+        <!-- TAB 1: FIRMA FÍSICA -->
+        <MudTabPanel Text="Física" Icon="@Icons.Material.Filled.Upload">
+            <MudPaper Elevation="0" Class="pa-4" Style="background-color: var(--mud-palette-grey-light);">
+                <MudStack Spacing="3">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudIcon Icon="@Icons.Material.Filled.Upload" Size="Size.Large" Color="Color.Info" />
+                        <MudStack Spacing="0">
+                            <MudText Typo="Typo.subtitle1">Firma en Papel</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                Descargue, firme a mano y suba el documento escaneado
+                            </MudText>
+                        </MudStack>
+                    </MudStack>
+
+                    @if (!mostrarUpload)
+                    {
+                        <MudAlert Severity="Severity.Warning" Dense="true">
+                            <MudStack Row="true" Spacing="2">
+                                <MudText Typo="Typo.body2">
+                                    Necesitará imprimir, firmar y escanear el documento
+                                </MudText>
+                                <MudIcon Icon="@Icons.Material.Filled.Print" />
+                            </MudStack>
+                        </MudAlert>
+
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Info"
+                                   StartIcon="@Icons.Material.Filled.Download"
+                                   OnClick="PrepararFirmaFisica"
+                                   Disabled="@IsGuardando"
+                                   FullWidth="true"
+                                   Size="Size.Large">
+                            Descargar para Firmar
+                        </MudButton>
+                    }
+                    else
+                    {
+                        <MudAlert Severity="Severity.Success" Dense="true">
+                            <MudStack Row="true" Spacing="2">
+                                <MudText Typo="Typo.body2">
+                                    Suba el documento PDF firmado
+                                </MudText>
+                                <MudIcon Icon="@Icons.Material.Filled.CloudUpload" />
+                            </MudStack>
+                        </MudAlert>
+
+                        <MudFileUpload T="IBrowserFile"
+                                       Accept=".pdf"
+                                       FilesChanged="SubirDocumentoFirmado"
+                                       MaximumFileCount="1">
+                            <ActivatorContent>
+                                <MudButton Variant="Variant.Filled"
+                                           Color="Color.Secondary"
+                                           StartIcon="@Icons.Material.Filled.UploadFile"
+                                           Disabled="@IsGuardando"
+                                           FullWidth="true"
+                                           Size="Size.Large">
+                                    @if (IsGuardando)
+                                    {
+                                        <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                                        <span class="ms-2">Subiendo...</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Subir Documento Firmado</span>
+                                    }
+                                </MudButton>
+                            </ActivatorContent>
+                        </MudFileUpload>
+
+                        @if (!string.IsNullOrEmpty(archivoSubido))
+                        {
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudIcon Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" />
+                                <MudChip T="string" Color="Color.Success" Size="Size.Small">
+                                    @archivoSubido
+                                </MudChip>
+                            </MudStack>
+                        }
+                    }
+                </MudStack>
+            </MudPaper>
+        </MudTabPanel>
+
+        <!-- TAB 3: SOLO DESCARGAR -->
+        <MudTabPanel Text="Descargar" Icon="@Icons.Material.Filled.Download" Disabled="mostrarUpload">
+            <MudPaper Elevation="0" Class="pa-4" Style="background-color: var(--mud-palette-grey-light);">
+                @if (guardandoConMega)
+                {
+                    <MudStack Spacing="3" AlignItems="AlignItems.Center" Justify="Justify.Center" Style="min-height: 300px;">
+                        <MudProgressCircular Color="Color.Primary" Indeterminate="true" Size="Size.Large" />
+                        <MudText Typo="Typo.h6" Color="Color.Primary">
+                            Guardando documento en MEGA...
+                        </MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Esto puede tomar unos segundos
+                        </MudText>
+                    </MudStack>
+                }
+                else
+                {
+                    <MudStack Spacing="3">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.Download" Size="Size.Large" Color="Color.Info" />
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.subtitle1">Solo Descargar</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    Descargue el documento sin firmar (pendiente)
+                                </MudText>
+                            </MudStack>
+                        </MudStack>
+
+                        <MudAlert Severity="Severity.Warning" Dense="true">
+                            <MudStack Row="true" Spacing="2">
+                                <MudText Typo="Typo.body2">
+                                    El documento se guardará como pendiente de firma
+                                </MudText>
+                            </MudStack>
+                        </MudAlert>
+
+                        <MudButton Variant="Variant.Outlined"
+                                   Color="Color.Info"
+                                   StartIcon="@Icons.Material.Filled.Download"
+                                   OnClick="SoloDescargar"
+                                   Disabled="@(IsGuardando || guardandoConMega)"
+                                   FullWidth="true"
+                                   Size="Size.Large">
+                            @if (guardandoConMega)
+                            {
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="me-2" />
+                                <span>Guardando...</span>
+                            }
+                            else
+                            {
+                                <span>Descargar Documento</span>
+                            }
+                        </MudButton>
+                    </MudStack>
+                }
+            </MudPaper>
+        </MudTabPanel>
+    </MudTabs>
+}
+
+@code {
+    [Parameter]
+    public bool IsGenerating { get; set; }
+
+    [Parameter]
+    public bool IsGuardando { get; set; }
+
+    [Parameter]
+    public bool PdfGenerado { get; set; }
+
+    [Parameter]
+    public string? PdfUrl { get; set; }
+
+    [Parameter]
+    public int UsuarioId { get; set; }
+
+    [Parameter]
+    public int SupervisorSeleccionado { get; set; }
+
+    [Parameter]
+    public bool IsFirmado { get; set; }
+
+    [Parameter]
+    public EventCallback<int> SupervisorSeleccionadoChanged { get; set; }
+
+    [Parameter]
+    public string? SupervisorNombrePreSeleccionado { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnSupervisorNombreChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> OnGenerarPdf { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> OnGuardar { get; set; }
+
+    [Parameter]
+    public int DocumentoGuardadoId { get; set; }
+
+    [Parameter]
+    public string TipoDocumento { get; set; } = "";
+
+    [Parameter]
+    public EventCallback<int> DocumentoGuardadoIdChanged { get; set; }
+
+    private int _documentoGuardadoId = 0;
+
+    [Parameter]
+    public EventCallback<bool> OnDescargar { get; set; }
+
+    [Parameter]
+    public EventCallback OnLimpiar { get; set; }
+
+    [Parameter]
+    public EventCallback OnEditar { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> PdfGeneradoChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> IsFirmadoChanged { get; set; }
+
+    [Parameter]
+    public bool MostrarOpcionesFirma { get; set; }
+
+    [Parameter]
+    public EventCallback<bool> MostrarOpcionesFirmaChanged { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnPdfFirmado { get; set; }
+
+    [Parameter]
+    public EventCallback<IBrowserFile> OnArchivoFisicoSubido { get; set; }
+
+    [Parameter]
+    public EditContext? FormEditContext { get; set; }
+
+    private List<SupervisorDTO> supervisores = new();
+    private SupervisorDTO supervisorObj = null;
+    private bool mostrarErrorSupervisor = false;
+    private bool mostrarUpload = false;
+    private string archivoSubido = "";
+    private bool pdfYaSinMarcaDeAgua = false;
+    private bool guardandoConMega = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CargarSupervisores();
+    }
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (UsuarioId > 0 && !supervisores.Any())
+        {
+            await CargarSupervisores();
+        }
+
+        if (supervisorObj == null && !string.IsNullOrEmpty(SupervisorNombrePreSeleccionado) && supervisores.Any())
+        {
+            var supervisorEncontrado = supervisores.FirstOrDefault(s =>
+                s.Nombre.Equals(SupervisorNombrePreSeleccionado, StringComparison.OrdinalIgnoreCase));
+
+            if (supervisorEncontrado != null)
+            {
+                supervisorObj = supervisorEncontrado;
+                await SupervisorSeleccionadoChanged.InvokeAsync(supervisorObj.Id);
+            }
+        }
+    }
+
+    private async Task CargarSupervisores()
+    {
+        try
+        {
+            var response = await Http.GetAsync("api/usuario/GetSupervisores");
+            if (response.IsSuccessStatusCode)
+            {
+                supervisores = await response.Content.ReadFromJsonAsync<List<SupervisorDTO>>() ?? new();
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error al cargar supervisores", Severity.Error);
+            Console.WriteLine($"Error cargando supervisores: {ex}");
+        }
+    }
+
+    private async Task<IEnumerable<SupervisorDTO>> BuscarSupervisores(string value, CancellationToken token)
+    {
+        await Task.Delay(5, token);
+        if (string.IsNullOrEmpty(value))
+            return supervisores;
+
+        return supervisores.Where(s =>
+            s.Nombre.Contains(value, StringComparison.InvariantCultureIgnoreCase) ||
+            (s.Cargo?.Contains(value, StringComparison.InvariantCultureIgnoreCase) ?? false));
+    }
+
+    private async Task ValidarYGenerarPdf()
+    {
+        mostrarErrorSupervisor = false;
+
+        // Validar el EditContext del formulario padre antes de generar el PDF
+        if (FormEditContext != null)
+        {
+            bool esValido = FormEditContext.Validate();
+            if (!esValido)
+            {
+                var errores = FormEditContext.GetValidationMessages().Take(5).ToList();
+                var sb = new System.Text.StringBuilder();
+                errores.ForEach(e => sb.Append(e + "<br />"));
+                if (FormEditContext.GetValidationMessages().Count() > 5)
+                    sb.Append($"...y {FormEditContext.GetValidationMessages().Count() - 5} error(es) más");
+
+                Snackbar.Add((MarkupString)sb.ToString(), Severity.Error, config =>
+                {
+                    config.RequireInteraction = true;
+                    config.DuplicatesBehavior = SnackbarDuplicatesBehavior.Prevent;
+                });
+                return;
+            }
+        }
+
+        await OnGenerarPdf.InvokeAsync(true);
+    }
+
+    private async Task EditarDocumento()
+    {
+        if (!PdfGenerado)
+        {
+            Snackbar.Add("No hay documento generado para editar", Severity.Warning);
+            return;
+        }
+
+        PdfGenerado = false;
+        await PdfGeneradoChanged.InvokeAsync(false);
+        await OnEditar.InvokeAsync();
+        await IsFirmadoChanged.InvokeAsync(false);
+        Snackbar.Add("Puede modificar los datos y regenerar el PDF", Severity.Info);
+        StateHasChanged();
+    }
+
+    private async Task VolverAlFormulario()
+    {
+        MostrarOpcionesFirma = false;
+        await MostrarOpcionesFirmaChanged.InvokeAsync(MostrarOpcionesFirma);
+        mostrarUpload = false;
+        archivoSubido = "";
+        pdfYaSinMarcaDeAgua = false;
+        IsFirmado = false;
+        await IsFirmadoChanged.InvokeAsync(false);
+
+        StateHasChanged();
+    }
+
+    private async Task GuardarDocumento()
+    {
+        await ActualizarSupervisorSeleccionado();
+        Snackbar.Add("Guardando documento...", Severity.Info, config => config.VisibleStateDuration = 0);
+        await OnGuardar.InvokeAsync(false);
+        _documentoGuardadoId = DocumentoGuardadoId;
+
+        // Navegar a la página de opciones post-guardado
+        var tipo = Uri.EscapeDataString(TipoDocumento);
+        NavigationManager.NavigateTo($"/tesoreria/que-hacer-despues?docId={_documentoGuardadoId}&tipo={tipo}");
+    }
+
+    private async Task PrepararFirmaFisica()
+    {
+        if (supervisorObj == null)
+        {
+            Snackbar.Add("Debe seleccionar un supervisor", Severity.Warning);
+            return;
+        }
+        if (string.IsNullOrEmpty(PdfUrl))
+        {
+            Snackbar.Add("No hay PDF disponible para descargar", Severity.Warning);
+            return;
+        }
+        await ActualizarSupervisorSeleccionado();
+        await OnGenerarPdf.InvokeAsync(false); 
+        await OnDescargar.InvokeAsync(false);
+        mostrarUpload = true;
+        Snackbar.Add("Descargue el PDF, fírmelo y súbalo usando el botón de abajo", Severity.Info);
+        StateHasChanged();
+    }
+
+    private async Task SubirDocumentoFirmado(IBrowserFile file)
+    {
+        if (file == null) return;
+
+        try
+        {
+            if (!file.ContentType.Equals("application/pdf", StringComparison.OrdinalIgnoreCase))
+            {
+                Snackbar.Add("Solo se permiten archivos PDF", Severity.Error);
+                return;
+            }
+
+            var maxSize = 10 * 1024 * 1024;
+            if (file.Size > maxSize)
+            {
+                Snackbar.Add("El archivo es demasiado grande (máximo 10MB)", Severity.Error);
+                return;
+            }
+
+            archivoSubido = file.Name;
+            Snackbar.Add("Guardando documento firmado...", Severity.Info, config => config.VisibleStateDuration = 0);
+
+            await ActualizarSupervisorSeleccionado();
+            await OnArchivoFisicoSubido.InvokeAsync(file);
+
+            _documentoGuardadoId = DocumentoGuardadoId;
+            var tipo = Uri.EscapeDataString(TipoDocumento);
+            NavigationManager.NavigateTo($"/tesoreria/que-hacer-despues?docId={_documentoGuardadoId}&tipo={tipo}");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al subir archivo: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task SoloDescargar()
+    {
+        if (supervisorObj == null)
+        {
+            Snackbar.Add("Debe seleccionar un supervisor", Severity.Warning);
+            return;
+        }
+        if (string.IsNullOrEmpty(PdfUrl))
+        {
+            Snackbar.Add("No hay PDF disponible para descargar", Severity.Warning);
+            return;
+        }
+        await ActualizarSupervisorSeleccionado();
+        await OnGenerarPdf.InvokeAsync(false);
+        
+        guardandoConMega = true;
+        StateHasChanged();
+        
+        try
+        {
+            Snackbar.Add("Guardando documento en MEGA...", Severity.Info, config => config.VisibleStateDuration = 0);
+            await OnDescargar.InvokeAsync(false);
+            Snackbar.Add("Guardando documento en base de datos...", Severity.Info, config => config.VisibleStateDuration = 0);
+            await OnGuardar.InvokeAsync(false);
+            _documentoGuardadoId = DocumentoGuardadoId;
+            
+            var tipo = Uri.EscapeDataString(TipoDocumento);
+            NavigationManager.NavigateTo($"/tesoreria/que-hacer-despues?docId={_documentoGuardadoId}&tipo={tipo}");
+        }
+        finally
+        {
+            guardandoConMega = false;
+            StateHasChanged();
+        }
+    }
+
+private async Task ActualizarSupervisorSeleccionado()
+    {
+if (supervisorObj != null)
+        {
+            await SupervisorSeleccionadoChanged.InvokeAsync(supervisorObj.Id);
+            await OnSupervisorNombreChanged.InvokeAsync(supervisorObj.Nombre);
+        }
+    }
+
+    private async Task MostrarOpcionesDeFirma()
+    {
+        MostrarOpcionesFirma = true;
+        await MostrarOpcionesFirmaChanged.InvokeAsync(MostrarOpcionesFirma);
+        StateHasChanged();
+    }
+
+    private async Task LimpiarFormulario()
+    {
+        SupervisorSeleccionado = 0;
+        supervisorObj = null;
+        mostrarErrorSupervisor = false;
+        mostrarUpload = false;
+        archivoSubido = "";
+        await IsFirmadoChanged.InvokeAsync(false);
+        pdfYaSinMarcaDeAgua = false; 
+        await SupervisorSeleccionadoChanged.InvokeAsync(0);
+        await OnLimpiar.InvokeAsync();
+    }
+}

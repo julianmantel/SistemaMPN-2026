@@ -1,0 +1,344 @@
+﻿@page "/paneldecontrol/registro"
+
+@using Blazored.LocalStorage
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using SistemaMPN.Shared.DTO
+@using SistemaMPN.Shared.Models
+@using System.Net.Http.Headers
+@using MudBlazor
+
+@layout SistemaMPN.Client.Layout.PanelDeControlLayout
+
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider auth
+
+<PageTitle>Registro</PageTitle>
+
+<AuthorizeView Roles="admin" Context="authContext">
+    <Authorized>
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+            <!-- Header -->
+            <MudPaper Elevation="0" Class="pa-6 rounded-lg" Style="background: linear-gradient(135deg, var(--color-primario) 0%, rgba(30, 58, 138, 0.8) 100%);">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                    <MudIcon Icon="@Icons.Material.Filled.PersonAddAlt1"
+                            Size="Size.Large"
+                            Style="color: var(--color-texto-claro);" />
+                    <MudStack Spacing="0">
+                        <MudText Typo="Typo.h4" Style="color: var(--color-texto-claro);">
+                            Registrar Usuario
+                        </MudText>
+                        <MudText Typo="Typo.body2" Style="color: var(--color-texto-claro);">
+                            Crear nueva cuenta de usuario
+                        </MudText>
+                    </MudStack>
+                </MudStack>
+            </MudPaper>
+
+            <!-- Formulario de Registro -->
+            <MudPaper Elevation="2" Class="pa-6 mt-6">
+                <EditForm Model="usuario" OnValidSubmit="Registrar">
+                    <DataAnnotationsValidator />
+                    <MudGrid Spacing="3">
+                        <MudItem xs="12">
+                            <MudAutocomplete T="string"
+                                             Label="Seleccione al miembro que pertenece este usuario"
+                                             Variant="Variant.Outlined"
+                                             @bind-Value="usuario.miembro_dni"
+                                             SearchFunc="Search1" />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudTextField @bind-Value="usuario.correo"
+                                          Label="Correo"
+                                          Variant="Variant.Outlined"
+                                          Required="true"
+                                          Immediate="true" />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudTextField @bind-Value="usuario.user_name"
+                                          Label="Usuario"
+                                          Variant="Variant.Outlined"
+                                          Required="true"
+                                          Immediate="true">
+                                <ValidationMessage style="margin-left: 5px;" For="@(() => usuario.user_name)" />
+                            </MudTextField>
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudTextField @bind-Value="usuario.password"
+                                          Label="Contraseña"
+                                          Variant="Variant.Outlined"
+                                          InputType="InputType.Password"
+                                          Required="true"
+                                          Immediate="true" />
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudText Typo="Typo.h6" Class="mb-2">Seleccione los roles del usuario</MudText>
+                            @if (roles != null)
+                            {
+                                <MudCard Elevation="2" Class="pa-3">
+                                    <MudGrid Spacing="1">
+                                        @foreach (var rol in roles.Keys.ToList())
+                                        {
+                                            <MudItem xs="6" sm="4" md="3">
+                                                <MudCheckBox T="bool"
+                                                             @bind-Value="@roles[rol]"
+                                                             Label="@rol.nombre"
+                                                             Color="Color.Primary"
+                                                             Size="Size.Medium" />
+                                            </MudItem>
+                                        }
+                                    </MudGrid>
+                                </MudCard>
+
+                                @if (RolesSeleccionadosCount() > 0)
+                                {
+                                    <MudAlert Severity="Severity.Info" Class="mt-3">
+                                        <strong>Roles seleccionados (@RolesSeleccionadosCount()):</strong>
+                                        @GetRolesSeleccionadosTexto()
+                                    </MudAlert>
+                                }
+                                else
+                                {
+                                    <MudAlert Severity="Severity.Warning" Class="mt-3">
+                                        <strong>Advertencia:</strong> Debe seleccionar al menos un rol para continuar.
+                                    </MudAlert>
+                                }
+                            }
+                            else
+                            {
+                                <MudCard Elevation="2" Class="pa-4 text-center">
+                                    <MudStack Spacing="2" Justify="Justify.Center" AlignItems="AlignItems.Center">
+                                        <MudProgressCircular Size="Size.Small" Color="Color.Info" />
+                                        <MudText Typo="Typo.body2">Cargando roles...</MudText>
+                                    </MudStack>
+                                </MudCard>
+                            }
+                        </MudItem>
+                        <MudItem xs="12">
+                            <MudStack Row="true" Spacing="2" Class="mt-4">
+                                <MudButton ButtonType="ButtonType.Submit"
+                                           Variant="Variant.Filled"
+                                           Color="Color.Success"
+                                           Disabled="@(isLoading || !IsFormularioValido())">
+                                    @if (isLoading)
+                                    {
+                                        <MudProgressCircular Size="Size.Small" Color="Color.Inherit" />
+                                        <span class="ml-2">Procesando...</span>
+                                    }
+                                    else
+                                    {
+                                        <MudIcon Icon="@Icons.Material.Filled.Check" Size="Size.Small" Class="mr-1" />
+                                        <span>Registrar</span>
+                                    }
+                                </MudButton>
+                                <MudButton Variant="Variant.Outlined"
+                                           Color="Color.Secondary"
+                                           OnClick="LimpiarFormulario"
+                                           Disabled="@isLoading">
+                                    <MudIcon Icon="@Icons.Material.Filled.Clear" Size="Size.Small" Class="mr-1" />
+                                    Limpiar
+                                </MudButton>
+                            </MudStack>
+                        </MudItem>
+                    </MudGrid>
+                </EditForm>
+            </MudPaper>
+        </MudContainer>
+    </Authorized>
+    <NotAuthorized>
+        <ReDirectToLogin />
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private UsuarioDTO usuario = new UsuarioDTO();
+    private Dictionary<RolDTO, bool>? roles = null;
+    private List<string>? miembros = null;
+    private bool isLoading = false;
+    private bool rolesCargados = false;
+    private string Respuesta = "Procesando...";
+
+    async Task Registrar()
+    {
+        try
+        {
+            isLoading = true;
+            StateHasChanged();
+            
+            usuario.roles.Clear();
+            
+            if (roles != null && roles.Count > 0)
+            {
+                var listaRoles = roles
+                                .Where(r => r.Value)
+                                .Select(r => r.Key)
+                                .ToList();
+
+                if (!listaRoles.Any())
+                {
+                    Snackbar.Add("Debe seleccionar al menos un rol para el usuario", Severity.Warning);
+                    return;
+                }
+
+                foreach (var rol in listaRoles)
+                {
+                    usuario.roles.Add(rol);
+                }
+
+                usuario.correo = usuario.correo.Trim();
+                usuario.user_name = usuario.user_name.Trim();
+                usuario.miembro_dni = usuario.miembro_dni.Trim();
+
+                var result = await Http.PostAsJsonAsync("api/usuario/registrar", usuario);
+                if (result.IsSuccessStatusCode)
+                {
+                    Snackbar.Add($"Usuario {usuario.user_name} registrado correctamente", Severity.Success);
+                    LimpiarFormulario();
+                }
+                else
+                {
+                    Respuesta = await result.Content.ReadAsStringAsync();
+                    Snackbar.Add("Error al registrar el usuario: " + Respuesta, Severity.Error);
+                }
+            }
+            else
+            {
+                Snackbar.Add("No se han cargado los roles disponibles", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Respuesta = $"Error: {ex.Message}";
+            Snackbar.Add(Respuesta, Severity.Error);
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void LimpiarFormulario()
+    {
+        usuario = new UsuarioDTO();
+        
+        if (roles != null)
+        {
+            var keys = roles.Keys.ToList();
+            roles.Clear();
+            foreach (var key in keys)
+            {
+                roles[key] = false;
+            }
+        }
+        
+        StateHasChanged();
+    }
+
+    private int RolesSeleccionadosCount()
+    {
+        return roles?.Count(r => r.Value) ?? 0;
+    }
+
+    private string GetRolesSeleccionadosTexto()
+    {
+        if (roles == null) return string.Empty;
+        
+        var rolesSeleccionados = roles
+            .Where(r => r.Value)
+            .Select(r => r.Key.nombre)
+            .ToList();
+            
+        return string.Join(", ", rolesSeleccionados);
+    }
+
+    private bool IsFormularioValido()
+    {
+        return !string.IsNullOrWhiteSpace(usuario.correo) &&
+               !string.IsNullOrWhiteSpace(usuario.user_name) &&
+               !string.IsNullOrWhiteSpace(usuario.password) &&
+               !string.IsNullOrWhiteSpace(usuario.miembro_dni) &&
+               RolesSeleccionadosCount() > 0;
+    }
+
+    private async Task<IEnumerable<string>> Search1(string value, CancellationToken token)
+    {
+        await Task.Delay(5, token);
+
+        if (string.IsNullOrEmpty(value))
+            return miembros ?? new List<string>();
+        
+        return miembros?.Where(x => x.Contains(value, StringComparison.InvariantCultureIgnoreCase)) 
+               ?? new List<string>();
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await auth.GetAuthenticationStateAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Cargar roles
+            if (!rolesCargados)
+            {
+                try
+                {
+                    var resultRoles = await Http.GetFromJsonAsync<List<RolDTO>>("api/usuario/GetRoles");
+                    if (resultRoles?.Any() == true)
+                    {
+                        roles = resultRoles.ToDictionary(rol => rol, _ => false);
+                        rolesCargados = true;
+                        StateHasChanged();
+                    }
+                    else
+                    {
+                        Snackbar.Add("No se encontraron roles disponibles", Severity.Warning);
+                    }
+                }
+                catch (HttpRequestException httpEx)
+                {
+                    Snackbar.Add($"Error de conexión al cargar roles: {httpEx.Message}", Severity.Error);
+                }
+                catch (Exception ex)
+                {
+                    Snackbar.Add($"Error al cargar los roles: {ex.Message}", Severity.Error);
+                }
+            }
+
+            // Cargar miembros
+            if (miembros == null)
+            {
+                try
+                {
+                    var resultMiembros = await Http.GetFromJsonAsync<List<InfoBasicaMiembroDTO>>("api/usuario/GetInfoMiembros");
+                    if (resultMiembros?.Any() == true)
+                    {
+                        miembros = new List<string>();
+                        foreach (var miembro in resultMiembros)
+                        {
+                            miembros.Add(string.Join("-", miembro.dni, string.Concat(miembro.nombre, " ", miembro.apellido)));
+                        }
+                        StateHasChanged();
+                    }
+                    else
+                    {
+                        Snackbar.Add("No se encontraron miembros disponibles", Severity.Warning);
+                    }
+                }
+                catch (HttpRequestException httpEx)
+                {
+                    Snackbar.Add($"Error de conexión al cargar miembros: {httpEx.Message}", Severity.Error);
+                }
+                catch (Exception ex)
+                {
+                    Snackbar.Add($"Error al cargar los miembros: {ex.Message}", Severity.Error);
+                }
+            }
+        }
+    }
+}

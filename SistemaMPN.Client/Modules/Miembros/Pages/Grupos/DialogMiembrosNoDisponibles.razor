@@ -1,0 +1,62 @@
+@using MudBlazor
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.PersonOff" Color="Color.Warning" />
+            <MudText Typo="Typo.h6">No Hay Miembros Disponibles</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="4">
+            <MudText Typo="Typo.body1">
+                No hay miembros en el grupo que puedan asumir el liderazgo.
+            </MudText>
+            
+            <MudPaper Elevation="0" Class="pa-4 rounded-lg" Style="border: 1px solid var(--mud-palette-divider);">
+                <MudText Typo="Typo.subtitle2" Class="mb-3" Color="Color.Primary">
+                    <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Class="mr-1" />
+                    Requisitos para ser líder:
+                </MudText>
+                <MudList T="string" Dense="false">
+                    <MudListItem>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.Person" Size="Size.Small" Color="Color.Info" />
+                            <MudText>Tener un usuario en el sistema</MudText>
+                        </MudStack>
+                    </MudListItem>
+                    <MudListItem>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.AdminPanelSettings" Size="Size.Small" Color="Color.Success" />
+                            <MudText>Tener el rol de 'Líder' asignado</MudText>
+                        </MudStack>
+                    </MudListItem>
+                    <MudListItem>
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                            <MudIcon Icon="@Icons.Material.Filled.Group" Size="Size.Small" Color="Color.Warning" />
+                            <MudText>No ser líder de otro grupo actualmente</MudText>
+                        </MudStack>
+                    </MudListItem>
+                </MudList>
+            </MudPaper>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Close" 
+                   Variant="Variant.Filled" 
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.Check">
+            Entendido
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; }
+
+    private void Close()
+    {
+        MudDialog.Close();
+    }
+}

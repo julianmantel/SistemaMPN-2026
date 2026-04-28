@@ -1,0 +1,923 @@
+﻿@page "/miembros/nuevoMiembro"
+
+@layout SistemaMPN.Client.Layout.MiembrosLayout
+
+@using Microsoft.AspNetCore.WebUtilities
+@using MudBlazor
+@using SistemaMPN.Client.Modules.Miembros.Pages.Dialogs
+@using SistemaMPN.Client.Modules.Miembros.Services
+@using SistemaMPN.Client.Pages
+@using Microsoft.AspNetCore.Components.Authorization
+@using SistemaMPN.Shared.DTO
+@using System.Text
+@using System.Text.Json
+@using System.Text.RegularExpressions
+@using Microsoft.AspNetCore.Components.Web
+
+
+@inject HttpClient Http
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject NavigationManager NavigationManager
+@inject INacionalidadesService NacionalidadesService
+
+<PageTitle>Crear Miembro</PageTitle>
+
+<AuthorizeView Roles="admin, gestor de miembros" Context="NuevoMiembro">
+	<Authorized>
+		<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+			<MudStack Spacing="4">
+				<!-- Header -->
+				<MudPaper Elevation="0" Class="pa-6 rounded-lg" Style="background: linear-gradient(135deg, var(--color-primario) 0%, rgba(30, 58, 138, 0.8) 100%);">
+					<MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+						<MudIcon Icon="@Icons.Material.Filled.PersonAdd"
+								Size="Size.Large"
+								Style="color: var(--color-texto-claro);" />
+						<MudStack Spacing="0">
+							<MudText Typo="Typo.h4" Style="color: var(--color-texto-claro);">
+								Crear Nuevo Miembro
+							</MudText>
+							<MudText Typo="Typo.body2" Style="color: var(--color-texto-claro);">
+								Complete la información del nuevo miembro
+							</MudText>
+						</MudStack>
+					</MudStack>
+				</MudPaper>
+
+				<!-- Formulario -->
+				<MudCard Elevation="2" Class="rounded-lg">
+					<MudCardContent>
+						<!-- KeepPanelsAlive="true" pestañas inactivas se representan pero se ocultan usando (display:none)-->
+						<EditForm EditContext="editContext" OnValidSubmit="OnValidSubmit" OnInvalidSubmit="OnInvalidSubmit">
+							<ObjectGraphDataAnnotationsValidator />
+
+							<MudTabs Color="Color.Primary" @ref="mudTabs" Position="@Position.Top" KeepPanelsAlive="true" PanelClass="pa-1 pa-sm-2 pa-md-3 pa-lg-4" >
+								<MudTabPanel Icon="@Icons.Material.TwoTone.Info" Text="Información Básica">
+									<MudPaper Class="pa-4 pa-sm-3 pa-md-4 rounded-lg" Elevation="0" Style="border: 1px solid var(--mud-palette-divider);" MinWidth="100%">
+										<MudGrid Spacing="3">
+											<MudItem xs="12" sm="6">
+												<MudTextField T="string" Label="Nombre *"
+															  Immediate="true"
+															  Variant="Variant.Outlined"
+															  For="@(() => miembro.info_basica_miembro.nombre)" @bind-Value="miembro.info_basica_miembro.nombre" />
+											</MudItem>
+											<MudItem xs="12" sm="6">
+												<MudTextField T="string" Label="Apellido *"
+															  Immediate="true"
+															  Variant="Variant.Outlined"
+															  For="@(() => miembro.info_basica_miembro.apellido)" @bind-Value="miembro.info_basica_miembro.apellido" />
+											</MudItem>
+											<MudItem xs="12" sm="6">
+												<MudTextField T="string" Label="DNI *"
+													Immediate="true"
+													Variant="Variant.Outlined"
+													For="@(() => miembro.info_basica_miembro.dni)"  @bind-Value="miembro.info_basica_miembro.dni" />
+											</MudItem>
+
+											<MudItem xs="12" sm="6">
+												<MudText Typo="Typo.subtitle2" Class="mb-2" Color="Color.Primary">Sexo: *</MudText>
+												<MudRadioGroup T="char"
+													@bind-Value="miembro.info_basica_miembro.sexo">
+													<MudRadio T="char" Value="@('M')" Color="Color.Primary" Label="Masculino" />
+													<MudRadio T="char" Value="@('F')" Color="Color.Primary" Label="Femenino" />
+												</MudRadioGroup>
+											</MudItem>
+
+											<MudItem xs="12" sm="6">
+												<MudDatePicker Editable="true"
+												      @bind-Date="miembro.info_basica_miembro.fecha_nacimiento"
+												      Mask="@(new DateMask("dd/MM/yyyy"))"
+												      DateFormat="dd/MM/yyyy"
+												      Label="Fecha de Nacimiento"
+												   ShowToolbar="false"
+												   Variant="Variant.Outlined"
+												      For="@(() => miembro.info_basica_miembro.fecha_nacimiento)" />
+											</MudItem>
+											<MudItem xs="12" sm="6">
+												<MudTextField T="string" Label="Lugar de Nacimiento"
+													Variant="Variant.Outlined"
+													@bind-Value="miembro.info_basica_miembro.lugarNacimiento"
+													For="@(() => miembro.info_basica_miembro.lugarNacimiento)" />	
+											</MudItem>
+											<MudItem xs="12" sm="6">
+												<MudSelect T="string"
+														   Label="Nacionalidad"
+														   @bind-Value="miembro.info_basica_miembro.nacionalidad"
+														   For="@(() => miembro.info_basica_miembro.nacionalidad)"
+														   Variant="Variant.Outlined"
+														   Clearable="true">
+													@foreach (var n in nacionalidades)
+													{
+														<MudSelectItem Value="@n">@n</MudSelectItem>
+													}
+												</MudSelect>
+
+											</MudItem>
+											<MudItem xs="12" sm="6">
+												<MudTextField T="string"
+															  Label="Teléfono *"
+															  Immediate="true"
+															  Variant="Variant.Outlined"
+															  For="@(() => miembro.info_basica_miembro.telefono)"
+															  @bind-Value="miembro.info_basica_miembro.telefono" />
+
+											</MudItem>
+								<MudItem xs="12" >
+									<MudTextField T="string" 
+												  Label="Telefono Fijo" 
+												  For="@(() => miembro.info_basica_miembro.telefono_fijo)"
+												  @bind-Value="miembro.info_basica_miembro.telefono_fijo"/>
+									<ValidationMessage For="@(() => miembro.info_basica_miembro.telefono_fijo)" />
+								</MudItem>
+								<MudItem xs="12">
+									<MudText Typo="Typo.subtitle1" Class="mt-2">
+										Foto de perfil (JPG)
+									</MudText>
+
+									<MudFileUpload T="IBrowserFile"
+												   Accept="image/jpeg"
+												   FilesChanged="OnFotoSelected"
+												   MaximumFileCount="1">
+										<ActivatorContent>
+											<MudButton Variant="Variant.Filled"
+													   Color="Color.Primary"
+													   StartIcon="@Icons.Material.Filled.CloudUpload"
+													   Class="rounded-lg">
+												Seleccionar Foto
+											</MudButton>
+										</ActivatorContent>
+									</MudFileUpload>
+
+									@if (fotoSeleccionada != null)
+									{
+										<MudChip T="string"
+												 Color="Color.Info"
+												 OnClose="() => LimpiarFoto()"
+												 Class="mt-2 rounded-lg">
+											@fotoSeleccionada.Name
+										</MudChip>
+									}
+
+									@if (!string.IsNullOrWhiteSpace(FotoPreviewUrl))
+									{
+										<MudImage src="@FotoPreviewUrl"
+											 style="max-width:220px;border-radius:10px;margin-top:10px;" />
+									}
+								</MudItem>
+							</MudGrid>
+						</MudPaper>
+					</MudTabPanel>
+					<MudTabPanel Icon="@Icons.Material.TwoTone.LocalHospital" Text="Información Salud" class="tab-creacion">
+						<MudPaper Class="pa-2 pa-sm-3 pa-md-4 pa-lg-6 rounded-lg" MinWidth="100%">
+							<MudStack Spacing="2">
+								<MudTextField T="string" 
+									Label="Grupo Sanguineo" 
+									@bind-Value="miembro.info_salud.grupo_sanguineo"
+									For="@(() => miembro.info_salud.grupo_sanguineo)" />
+
+								<MudTextField T="string" 
+									Label="Observaciones" 
+									@bind-Value="miembro.info_salud.observaciones"
+									For="@(() => miembro.info_salud.observaciones)" />
+
+								<MudButton @onclick="AbrirDialogAlergia" 
+									Variant="Variant.Filled" Color="Color.Primary"
+									Class="rounded-lg">
+									Añadir Alergia
+								</MudButton>
+
+								@if (miembro.info_salud.alergias.Count > 0)
+								{
+									<MudStack Spacing="1" Class="mt-2">
+										@foreach (var alergia in miembro.info_salud.alergias)
+										{
+											<MudChip T="string" Color="Color.Secondary" OnClose="() => EliminarAlergia(alergia)" Class="rounded-lg">
+												@alergia
+											</MudChip>
+										}
+									</MudStack>
+								}
+								<MudButton @onclick="AbrirDialogCondicionMedica" Variant="Variant.Filled" Color="Color.Primary" Class="rounded-lg">
+									Añadir Condicion Medica
+								</MudButton>
+								@if (miembro.info_salud.condiciones_medicas.Count > 0)
+								{
+									<MudStack Spacing="1" Class="mt-2">
+										@foreach (var condicionMedica in miembro.info_salud.condiciones_medicas)
+										{
+											<MudChip T="string" Color="Color.Secondary" OnClose="() => EliminarCondicionMedica(condicionMedica)" Class="rounded-lg">
+												@condicionMedica
+											</MudChip>
+										}
+									</MudStack>
+								}
+								<MudButton @onclick="AbrirDialogMedicamento" Variant="Variant.Filled" Color="Color.Primary" Class="rounded-lg">
+									Añadir Medicamento
+								</MudButton>
+								@if (miembro.info_salud.medicamentos.Count > 0)
+								{
+									<MudStack Spacing="1" Class="mt-2">
+										@foreach (var medicamento in miembro.info_salud.medicamentos)
+										{
+											<MudChip T="string" Color="Color.Secondary" OnClose="() => EliminarMedicamento(medicamento)" Class="rounded-lg">
+												@medicamento
+											</MudChip>
+										}
+									</MudStack>
+								}
+								<MudButton @onclick="AbrirDialogTelefonoEmergencia" Variant="Variant.Filled" Color="Color.Primary" Class="rounded-lg">
+									Añadir Telefono de Emergencia
+								</MudButton>
+								@if (miembro.info_salud.telefonosEmergencias.Count > 0)
+								{
+									<MudStack Spacing="1" Class="mt-2">
+										@foreach (var telefonoEmergencia in miembro.info_salud.telefonosEmergencias)
+										{
+											<MudChip T="string" Color="Color.Secondary" OnClose="() => EliminarTelefono(telefonoEmergencia)" Class="rounded-lg">
+												@($"{telefonoEmergencia.nro_telefono} - {telefonoEmergencia.propietario_telefono}")
+											</MudChip>
+										}
+									</MudStack>
+								}
+							</MudStack>
+						</MudPaper>
+					</MudTabPanel>
+
+					<MudTabPanel Icon="@Icons.Material.TwoTone.School" Text="Información Académica" class="tab-creacion">
+						<MudPaper Class="pa-2 pa-sm-3 pa-md-4 pa-lg-6 rounded-lg" MinWidth="100%">
+							<MudStack Spacing="2">
+								<MudTextField T="string" 
+									Label="Estudios Primarios" 
+									@bind-Value="miembro.info_academica.estudios_primario" 
+									For=@(() => miembro.info_academica.estudios_primario) />
+
+								<MudTextField T="string" 
+									Label="Estudios Secundarios" 
+									@bind-Value="miembro.info_academica.estudios_secundario"
+								    For=@(() => miembro.info_academica.estudios_secundario) />
+
+								<MudTextField T="string" 
+									Label="Estudios Terciarios" 
+									@bind-Value="miembro.info_academica.estudios_terciario"
+									For=@(() => miembro.info_academica.estudios_terciario) />
+
+								<MudTextField T="string" 
+									Label="Estudios Universitarios" 
+									@bind-Value="miembro.info_academica.estudios_universitario"
+									For=@(() => miembro.info_academica.estudios_universitario) />
+
+								<MudTextField T="string" 
+									Label="Carrera" 
+									@bind-Value="miembro.info_academica.carrera"
+									For=@(() => miembro.info_academica.carrera) />
+
+								<MudTextField T="string" 
+									Label="Cursos Realizados" 
+									@bind-Value="miembro.info_academica.cursos_realizados"
+									For=@(() => miembro.info_academica.cursos_realizados) />
+							</MudStack>
+						</MudPaper>
+					</MudTabPanel>
+
+					<MudTabPanel Icon="@Icons.Material.TwoTone.Work" Text="Información Laboral" class="tab-creacion">
+						<MudPaper Class="pa-2 pa-sm-3 pa-md-4 pa-lg-6 rounded-lg" MinWidth="100%">
+							<MudStack Spacing="2">
+								<MudTextField T="string" 
+									Label="Situación Laboral" 
+									@bind-Value="miembro.info_laboral.situacion_laboral"
+									For=@(() => miembro.info_laboral.situacion_laboral) />
+
+								<MudTextField T="string" 
+									Label="Rubro" 
+									@bind-Value="miembro.info_laboral.rubro"
+									For=@(() => miembro.info_laboral.rubro) />
+							</MudStack>
+						</MudPaper>
+					</MudTabPanel>
+
+					<MudTabPanel Icon="@Icons.Material.TwoTone.Church" Text="Información Eclesiastica" class="tab-creacion">
+						<MudPaper Class="pa-2 pa-sm-3 pa-md-4 pa-lg-6 rounded-lg" MinWidth="100%">
+							<MudStack Spacing="2">
+								<MudTextField T="string" 
+									@bind-Value="miembro.info_eclesiastica.convocante"
+									For="@(() => miembro.info_eclesiastica.convocante)"
+									Label="Convocante" />
+
+								<MudTextField T="int?" 
+									@bind-Value="miembro.info_eclesiastica.fecha_desde_la_que_asiste"
+									For="@(() => miembro.info_eclesiastica.fecha_desde_la_que_asiste)"
+									Label="Año desde que Asiste" />
+
+								<MudSwitch @bind-Value="miembro.info_eclesiastica.realizo_bautismo"
+										   Label="Bautismo"
+										   Color="Color.Success"
+										   UncheckedColor="Color.Default"
+										   T="bool?"
+										   />
+
+								@if (miembro.info_eclesiastica.realizo_bautismo == true)
+								{
+									<MudText Typo="Typo.subtitle1" Class="mt-3 mb-2">Informacion del Bautismo</MudText>
+
+									<MudTextField T="int?" 
+										@bind-Value="miembro.info_eclesiastica.fecha_de_bautismo"
+										For="@(() => miembro.info_eclesiastica.fecha_de_bautismo)"
+										Label="Año del bautismo" />
+
+									<MudTextField 
+										@bind-Value="miembro.info_eclesiastica.lugar_bautismo"
+										For="@(() => miembro.info_eclesiastica.lugar_bautismo)"
+										T="string" 
+										Label="Lugar" />
+
+									<MudTextField 
+										@bind-Value="miembro.info_eclesiastica.pastor"
+										For="@(() => miembro.info_eclesiastica.pastor)"
+										T="string" 
+										Label="Pastor" />
+								}
+								<MudStack Spacing="2" Class="mt-4">
+									<MudText Typo="Typo.subtitle1" Class="mb-3">Seminarios Realizados</MudText>
+
+									@if (miembro.info_eclesiastica.seminarios != null && miembro.info_eclesiastica.seminarios.Any())
+									{
+										@for (int i = 0; i < miembro.info_eclesiastica.seminarios.Count; i++)
+										{
+											var index = i;
+											<MudCard Class="pa-2 pa-sm-3 pa-md-4 rounded-lg" Elevation="1">
+												<MudCardContent>
+													<MudStack Spacing="2">
+														<div class="d-flex justify-space-between align-center mb-2">
+															<MudText Typo="Typo.subtitle2">Seminario #@(index + 1)</MudText>
+															<MudButton Size="Size.Small"
+																	      Variant="Variant.Text"
+																	      Color="Color.Error"
+																	      StartIcon="@Icons.Material.Filled.Delete"
+																	      OnClick="() => RemoveSeminario(index)">
+																Eliminar
+															</MudButton>
+														</div>
+														<MudGrid Spacing="2">
+															<MudItem xs="12" sm="6">
+																<MudTextField @bind-Value="miembro.info_eclesiastica.seminarios[index].nombre"
+																			    Label="Nombre del Seminario"
+																			    Variant="Variant.Outlined"
+																			    For="@(() => miembro.info_eclesiastica.seminarios[index].nombre)"
+																			    Immediate="true" />
+															</MudItem>
+															<MudItem xs="12" sm="6">
+																<MudNumericField @bind-Value="miembro.info_eclesiastica.seminarios[index].anio_comienzo"
+																				 Label="Año de Inicio"
+																				 Variant="Variant.Outlined"
+																				 For="@(() => miembro.info_eclesiastica.seminarios[index].anio_comienzo)"
+																				 Min="1900"
+																				 Max="@DateTime.Now.Year" />
+															</MudItem>
+															<MudItem xs="12" sm="6">
+																<MudNumericField @bind-Value="miembro.info_eclesiastica.seminarios[index].anio_cursado"
+																				 Label="Año que se curso"
+																				 Variant="Variant.Outlined"
+																				 For="@(() => miembro.info_eclesiastica.seminarios[index].anio_cursado)"
+																				 Min="1900"
+																				 Max="@DateTime.Now.Year" />
+															</MudItem>
+															<MudItem xs="12" sm="6">
+																<MudSelect @bind-Value="miembro.info_eclesiastica.seminarios[index].estado"
+																		      Label="Estado"
+																		      Variant="Variant.Outlined"
+																		   For="@(() => miembro.info_eclesiastica.seminarios[index].estado)">
+																	
+																	<MudSelectItem Value="@("Completado")" />
+																	<MudSelectItem Value="@("En curso")" />
+																	<MudSelectItem Value="@("Abandonado")" />
+																	<MudSelectItem Value="@("Pausado")" />
+																</MudSelect>
+															</MudItem>
+														</MudGrid>
+													</MudStack>
+												</MudCardContent>
+											</MudCard>
+										}
+									}
+									else
+									{
+										<MudAlert Severity="Severity.Info" Class="mb-3 rounded-lg">
+											No hay seminarios registrados
+										</MudAlert>
+									}
+
+									<MudButton Variant="Variant.Outlined"
+											      Color="Color.Primary"
+											      StartIcon="@Icons.Material.Filled.Add"
+											      OnClick="AddSeminario"
+											      FullMinWidth="true"
+											      Class="rounded-lg">
+										Agregar Seminario
+									</MudButton>
+								</MudStack>
+							</MudStack>
+						</MudPaper>
+					</MudTabPanel>
+
+					<MudTabPanel Icon="@Icons.Material.TwoTone.AddLocation" Text="Direccion" class="tab-creacion">
+						<MudPaper Class="pa-2 pa-sm-3 pa-md-4 pa-lg-6 rounded-lg" MinWidth="100%">
+							<MudStack Spacing="2">
+								<MudTextField 
+									@bind-Value="miembro.direccion.calle"
+									For="(() => miembro.direccion.calle)"
+									T="string" 
+									Label="Calle" />
+
+								<MudTextField 
+									@bind-Value="miembro.direccion.altura" 
+									For="(() => miembro.direccion.altura)"
+									T="int?"
+									Label="Altura" />
+								<MudTextField 
+									@bind-Value="miembro.direccion.barrio" 
+									For="(() => miembro.direccion.barrio)"
+									T="string"
+									Label="Barrio" />
+							</MudStack>
+						</MudPaper>
+					</MudTabPanel>
+
+					<MudTabPanel Icon="@Icons.Material.TwoTone.LockPerson" Text="Información Personal" class="tab-creacion">
+						<MudPaper Class="pa-2 pa-sm-3 pa-md-4 pa-lg-6 rounded-lg" MinWidth="100%">
+							<MudStack Spacing="2">
+								<MudTextField 
+									@bind-Value="miembro.info_personal.estado_civil" 
+									For="(() => miembro.info_personal.estado_civil)"
+									T="string" 
+									Label="Estado Civil" />
+
+								<MudTextField 
+									@bind-Value="miembro.info_personal.pareja" 
+									For="(() => miembro.info_personal.pareja)"
+									T="string" 
+									Label="Pareja" />
+
+								<MudButton @onclick="AbrirDialogHijo" Variant="Variant.Filled" Color="Color.Primary" Class="rounded-lg">
+									Añadir Hijo
+								</MudButton>
+								@if (miembro.info_personal.hijos.Count > 0)
+								{
+									<MudStack Spacing="1" Class="mt-2">
+										@foreach (var hijo in miembro.info_personal.hijos)
+										{
+											<MudChip T="string" Color="Color.Secondary" OnClose="() => EliminarHijo(hijo)" Class="rounded-lg">
+												@($"{hijo.nombre} {hijo.apellido}")
+											</MudChip>
+										}
+									</MudStack>
+								}
+								<MudTextField T="string"
+											  Label="Telefono Alternativo"
+											  For="@(() => miembro.info_personal.telefono_alternativo)"
+											  @bind-Value="miembro.info_personal.telefono_alternativo" />
+							</MudStack>
+						</MudPaper>
+					</MudTabPanel>
+					<MudTabPanel Icon="@Icons.Material.TwoTone.Send" Text="Crear Miembro" class="tab-creacion">
+						<MudPaper Class="pa-2 pa-sm-3 pa-md-4 pa-lg-6 rounded-lg" MinWidth="100%">
+							<MudButton ButtonType="ButtonType.Submit"
+									      Variant="Variant.Filled"
+									      Color="Color.Primary"
+									      Class="mt-4 rounded-lg"
+									      FullWidth="true"
+									      Disabled="@isLoading">
+								@if (isLoading)
+								{
+									<MudProgressCircular Size="Size.Small" Color="Color.Inherit" />
+									<span class="ml-2">Procesando...</span>
+								}
+								else
+								{
+									<span>Registrar</span>
+								}
+							</MudButton>
+						</MudPaper>
+					</MudTabPanel>
+				</MudTabs>
+			</EditForm>
+					</MudCardContent>
+				</MudCard>
+			</MudStack>
+		</MudContainer>
+	</Authorized>
+	<NotAuthorized>
+		<ReDirectToLogin />
+	</NotAuthorized>
+</AuthorizeView>
+
+@code {
+	private List<string> nacionalidades = new();
+	private List<string> validationErrors = new();
+
+	private EditContext editContext = default!;
+	private MudTabs mudTabs = default!;
+
+	protected override async Task OnInitializedAsync()
+	{
+		miembro = new MiembroDTO();
+		editContext = new EditContext(miembro);
+		nacionalidades = (await NacionalidadesService.GetAsync()).ToList();
+
+		await CargarDatosPreCargados();
+	}
+
+	private async Task CargarDatosPreCargados()
+	{
+		var detalle = new PeticionAgregarDetalleDTO();
+		var uri = new Uri(NavigationManager.Uri);
+		var query = QueryHelpers.ParseQuery(uri.Query);
+
+		if (query.TryGetValue("idPeticion", out var idStr) && int.TryParse(idStr, out var id)) {
+			detalle = await Http.GetFromJsonAsync<PeticionAgregarDetalleDTO>($"api/peticion/GetPeticionDetalle/{id}") ?? new();
+		}
+
+		if(detalle != null && detalle.Tipo == "Agregar")
+		{
+			miembro.info_basica_miembro.nombre = detalle.Nombre ?? string.Empty;
+			miembro.info_basica_miembro.apellido = detalle.Apellido ?? string.Empty;
+			miembro.info_basica_miembro.dni = detalle.Dni;
+			miembro.info_basica_miembro.nacionalidad = detalle.Nacionalidad;
+			
+			if (detalle.FechaNacimiento.HasValue)
+			{
+				miembro.info_basica_miembro.fecha_nacimiento = detalle.FechaNacimiento.Value.ToDateTime(TimeOnly.MinValue);
+			}
+
+			miembro.info_basica_miembro.lugarNacimiento = detalle.LugarNacimiento;
+			miembro.info_basica_miembro.telefono = detalle.Telefono;
+			miembro.info_basica_miembro.sexo = detalle.Sexo ?? 'X';
+
+			Snackbar.Add("Datos precargados desde solicitud de líder", Severity.Info);
+        }
+	}
+
+	MiembroDTO miembro = new MiembroDTO();
+	private Dictionary<SeminarioDTO, bool>? seminarios = null;
+	bool seminariosCargados = false;
+	bool isLoading = false;
+	string Respuesta = "Procesando...";
+
+	private static readonly Dictionary<int, Func<MiembroDTO, bool>> TabValidaciones = new()
+	{
+		[0] = m =>
+			string.IsNullOrWhiteSpace(m.info_basica_miembro.nombre)  ||
+			string.IsNullOrWhiteSpace(m.info_basica_miembro.apellido) ||
+			string.IsNullOrWhiteSpace(m.info_basica_miembro.dni)      ||
+			m.info_basica_miembro.fecha_nacimiento == null            ||
+			string.IsNullOrWhiteSpace(m.info_basica_miembro.telefono),
+	};
+
+	
+	async Task OnValidSubmit()
+	{
+		await Registrar();
+	}
+
+	void OnInvalidSubmit()
+	{
+		NavegerATabConError();
+
+		var mensajes = editContext.GetValidationMessages().Take(5).ToList();
+		if (mensajes.Any())
+		{
+			StringBuilder sb = new StringBuilder();
+			mensajes.ForEach(m => sb.Append(m + "<br />"));
+			if (editContext.GetValidationMessages().Count() > 5)
+				sb.Append($"...y {editContext.GetValidationMessages().Count() - 5} error(es) más");
+
+			Snackbar.Add((MarkupString)sb.ToString(), Severity.Error, config =>
+			{
+				config.RequireInteraction = true;
+				config.DuplicatesBehavior = SnackbarDuplicatesBehavior.Prevent;
+			});
+		}
+	}
+
+	void NavegerATabConError()
+	{
+		foreach (var (tabIndex, tieneError) in TabValidaciones)
+		{
+			if (tieneError(miembro))
+			{
+				mudTabs.ActivatePanel(tabIndex);
+				return;
+			}
+		}
+		mudTabs.ActivatePanel(0);
+	}
+
+	async Task Registrar()
+	{
+		try
+		{
+			isLoading = true;
+			StateHasChanged();
+			Trim();
+
+			if (miembro.info_eclesiastica.realizo_bautismo == false)
+			{
+				miembro.info_eclesiastica.fecha_de_bautismo = null;;
+			}
+
+			if (seminarios != null && seminarios.Count > 0)
+			{
+				var listaSeminarios = seminarios
+					.Where(s => s.Value)
+					.Select(s => s.Key)
+					.ToList();
+				foreach (var seminario in listaSeminarios)
+				{
+					miembro.info_eclesiastica.seminarios.Add(seminario);
+				}
+			}
+			var form = new MultipartFormDataContent();
+
+			// JSON del miembro
+			var json = JsonSerializer.Serialize(miembro);
+			form.Add(new StringContent(json, Encoding.UTF8, "application/json"), "miembroJson");
+
+			// Foto (si seleccionó)
+			if (fotoSeleccionada != null)
+			{
+				var stream = fotoSeleccionada.OpenReadStream(5 * 1024 * 1024);
+				var fileContent = new StreamContent(stream);
+				fileContent.Headers.ContentType =
+					new System.Net.Http.Headers.MediaTypeHeaderValue("image/jpeg");
+
+				form.Add(fileContent, "foto", fotoSeleccionada.Name);
+			}
+
+			var resp = await Http.PostAsync("api/miembros/RegistrarMiembro", form);
+
+			if (!resp.IsSuccessStatusCode)
+			{
+				Snackbar.Add($"{resp.Content.ReadAsStringAsync().Result}", Severity.Error);
+				return;
+			} else
+			{
+				Snackbar.Add($"Se ha registrado al miembro: { miembro.info_basica_miembro.nombre }", Severity.Success);
+			}
+
+		}
+		finally
+		{
+			isLoading = false;
+			StateHasChanged();
+		}
+	}
+
+	async Task AbrirDialogCondicionMedica()
+	{
+		var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+		var dialog = DialogService.Show<DialogCondicionMedica>("Agregar condicion medica", options);
+		var result = await dialog.Result;
+		if (!result.Canceled && result.Data is string datos)
+		{
+			var nombreNuevo = datos?.Trim().ToLower();
+			bool existeCondicion = miembro.info_salud.condiciones_medicas.Any(condicion =>
+				condicion?.Trim().ToLower() == nombreNuevo
+			);
+			if (!existeCondicion)
+			{
+				datos = datos?.Trim();
+				miembro.info_salud.condiciones_medicas.Add(datos);
+			}
+		}
+	}
+
+	// Métodos para manejo de seminarios
+	private void AddSeminario()
+	{
+		miembro.info_eclesiastica.seminarios ??= new List<SeminarioDTO>();
+		miembro.info_eclesiastica.seminarios.Add(new SeminarioDTO
+		{
+			nombre = "",
+			anio_comienzo = null,
+			anio_cursado = null,
+			estado = "En curso"
+		});
+		StateHasChanged();
+	}
+
+	private void RemoveSeminario(int index)
+	{
+		if (miembro.info_eclesiastica.seminarios != null &&
+			index >= 0 && index < miembro.info_eclesiastica.seminarios.Count)
+		{
+			miembro.info_eclesiastica.seminarios.RemoveAt(index);
+			StateHasChanged();
+		}
+	}
+
+	async Task AbrirDialogMedicamento()
+	{
+		var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+		var dialog = DialogService.Show<DialogMedicamento>("Agregar medicamento", options);
+		var result = await dialog.Result;
+		if (!result.Canceled && result.Data is string datos)
+		{
+			var nombreNuevo = datos?.Trim().ToLower();
+			bool existeMedicamento = miembro.info_salud.medicamentos.Any(medicamento =>
+				medicamento?.Trim().ToLower() == nombreNuevo
+			);
+			if (!existeMedicamento)
+			{
+				datos = datos?.Trim();
+				miembro.info_salud.medicamentos.Add(datos);
+			}
+		}
+	}
+
+	async Task AbrirDialogAlergia()
+	{
+		var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+		var dialog = DialogService.Show<DialogAlergia>("Agregar alergia", options);
+		var result = await dialog.Result;
+		if (!result.Canceled && result.Data is string datos)
+		{
+			var nombreNuevo = datos?.Trim().ToLower();
+			bool existeAlergia = miembro.info_salud.alergias.Any(alergia =>
+				alergia?.Trim().ToLower() == nombreNuevo
+			);
+			if (!existeAlergia)
+			{
+				datos = datos?.Trim();
+				miembro.info_salud.alergias.Add(datos);
+			}
+		}
+	}
+
+	async Task AbrirDialogHijo()
+	{
+		var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+		var dialog = DialogService.Show<DialogHijo>("Agregar hijo", options);
+		var result = await dialog.Result;
+
+		if (!result.Canceled && result.Data is HijoDTO datos)
+		{
+			var nombreNuevo = datos.nombre?.Trim().ToLower();
+			var apellidoNuevo = datos.apellido?.Trim().ToLower();
+
+			bool existeHijo = miembro.info_personal.hijos.Any(hijo =>
+				hijo.nombre?.Trim().ToLower() == nombreNuevo &&
+				hijo.apellido?.Trim().ToLower() == apellidoNuevo
+			);
+
+			if (!existeHijo)
+			{
+				datos.nombre = datos.nombre?.Trim();
+				datos.apellido = datos.apellido?.Trim();
+				miembro.info_personal.hijos.Add(datos);
+			}
+		}
+	}
+
+	async Task AbrirDialogTelefonoEmergencia()
+	{
+		var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+		var dialog = DialogService.Show<DialogTelefonoEmergencia>("Agregar telefono Emergencia", options);
+		var result = await dialog.Result;
+
+		if (!result.Canceled && result.Data is TelefonoEmergenciaDTO datos)
+		{
+			var nroTelefono = datos.nro_telefono?.Trim().ToLower();
+			var propietarioTelefono = datos.propietario_telefono?.Trim().ToLower();
+
+			bool existeHijo = miembro.info_salud.telefonosEmergencias.Any(telefono =>
+				telefono.nro_telefono?.Trim().ToLower() == nroTelefono &&
+				telefono.propietario_telefono?.Trim().ToLower() == propietarioTelefono
+			);
+
+			if (!existeHijo)
+			{
+				datos.nro_telefono = datos.nro_telefono?.Trim();
+				datos.propietario_telefono = datos.propietario_telefono?.Trim();
+				miembro.info_salud.telefonosEmergencias.Add(datos);
+			}
+		}
+	}
+
+	void EliminarMedicamento(string medicamento)
+	{
+		miembro.info_salud.medicamentos.Remove(medicamento);
+	}
+
+	void EliminarCondicionMedica(string condicionMedica)
+	{
+		miembro.info_salud.condiciones_medicas.Remove(condicionMedica);
+	}
+
+	void EliminarAlergia(string alergia)
+	{
+		miembro.info_salud.alergias.Remove(alergia);
+	}
+
+	void EliminarHijo(HijoDTO hijo)
+	{
+		miembro.info_personal.hijos.Remove(hijo);
+	}
+
+	void EliminarTelefono(TelefonoEmergenciaDTO telefonoEmergencia)
+	{
+		miembro.info_salud.telefonosEmergencias.Remove(telefonoEmergencia);
+	}
+
+	// evitar que se envien espacios en blanco
+	void Trim()
+	{
+		miembro.info_basica_miembro.nombre = miembro.info_basica_miembro.nombre?.Trim();
+		miembro.info_basica_miembro.apellido = miembro.info_basica_miembro.apellido?.Trim();
+		miembro.info_basica_miembro.dni = miembro.info_basica_miembro.dni?.Trim();
+		miembro.info_basica_miembro.lugarNacimiento = miembro.info_basica_miembro.lugarNacimiento?.Trim();
+		miembro.info_basica_miembro.nacionalidad = miembro.info_basica_miembro.nacionalidad?.Trim();
+		miembro.info_basica_miembro.telefono = miembro.info_basica_miembro.telefono?.Trim();
+		miembro.info_basica_miembro.telefono_fijo = miembro.info_basica_miembro.telefono_fijo?.Trim();
+		miembro.info_academica.estudios_primario = miembro.info_academica.estudios_primario?.Trim();
+		miembro.info_academica.estudios_secundario = miembro.info_academica.estudios_secundario?.Trim();
+		miembro.info_academica.estudios_terciario = miembro.info_academica.estudios_terciario?.Trim();
+		miembro.info_academica.estudios_universitario = miembro.info_academica.estudios_universitario?.Trim();
+		miembro.info_academica.carrera = miembro.info_academica.carrera?.Trim();
+		miembro.info_academica.cursos_realizados = miembro.info_academica.cursos_realizados?.Trim();
+		miembro.info_laboral.situacion_laboral = miembro.info_laboral.situacion_laboral?.Trim();
+		miembro.info_laboral.rubro = miembro.info_laboral.rubro?.Trim();
+		miembro.info_eclesiastica.convocante = miembro.info_eclesiastica.convocante?.Trim();
+		miembro.info_eclesiastica.lugar_bautismo = miembro.info_eclesiastica.lugar_bautismo?.Trim();
+		miembro.info_eclesiastica.pastor = miembro.info_eclesiastica.pastor?.Trim();
+		miembro.info_personal.estado_civil = miembro.info_personal.estado_civil?.Trim();
+		miembro.info_personal.pareja = miembro.info_personal.pareja?.Trim();
+		miembro.info_personal.telefono_alternativo = miembro.info_personal.telefono_alternativo?.Trim();
+		miembro.direccion.calle = miembro.direccion.calle?.Trim();
+		miembro.direccion.barrio = miembro.direccion.barrio?.Trim();
+		miembro.info_salud.grupo_sanguineo = miembro.info_salud.grupo_sanguineo?.Trim();
+		miembro.info_salud.observaciones = miembro.info_salud.observaciones?.Trim();
+	}
+
+	protected override async Task OnAfterRenderAsync(bool firstRender)
+	{
+		if (firstRender)
+		{
+			if (!seminariosCargados)
+			{
+				try
+				{
+					var resultSeminarios = await Http.GetFromJsonAsync<List<SeminarioDTO>>("api/seminarios/GetSeminarios");
+					if (resultSeminarios?.Any() == true)
+					{
+						seminarios = resultSeminarios
+						.Where(seminario => seminario.activo == true)
+						.ToDictionary(seminario => seminario, _ => false);
+
+						seminariosCargados = true;
+						StateHasChanged();
+					}
+				}
+				catch (Exception ex)
+				{
+					Console.WriteLine($"Error cargando seminarios: {ex.Message}");
+				}
+			}
+		}
+	}
+
+	// ====== Foto del miembro ======
+	IBrowserFile? fotoSeleccionada;
+	string? FotoPreviewUrl;
+
+	async Task OnFotoSelected(IBrowserFile? file)
+	{
+		if (file == null)
+		{
+			LimpiarFoto();
+			return;
+		}
+
+		if (file.ContentType != "image/jpeg")
+		{
+			Snackbar.Add("La foto debe ser JPG.", Severity.Error);
+			LimpiarFoto();
+			return;
+		}
+
+		fotoSeleccionada = file;
+
+		// preview
+		var buffer = new byte[file.Size];
+		await file.OpenReadStream(5 * 1024 * 1024).ReadAsync(buffer);
+		FotoPreviewUrl = $"data:image/jpeg;base64,{Convert.ToBase64String(buffer)}";
+
+		Snackbar.Add("Foto seleccionada. Se guardará al registrar.", Severity.Info);
+	}
+
+	void LimpiarFoto()
+	{
+		fotoSeleccionada = null;
+		FotoPreviewUrl = null;
+		StateHasChanged();
+	}
+
+}

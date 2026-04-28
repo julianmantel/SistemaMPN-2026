@@ -1,0 +1,251 @@
+﻿@page "/consultoria/"
+@using Microsoft.AspNetCore.Components.Authorization
+@using SistemaMPN.Client.Modules.Consultoria.Dialogs
+@using SistemaMPN.Client.Pages
+@using SistemaMPN.Shared.DTO
+
+@layout SistemaMPN.Client.Layout.ConsultoriaLayout
+
+@inject HttpClient Http
+@inject NavigationManager Nav
+@inject IDialogService DialogService
+@inject AuthenticationStateProvider AuthStateProvider
+@inject ISnackbar Snackbar
+
+<PageTitle>Consultoría</PageTitle>
+
+<AuthorizeView Roles="admin, consultor, auditor, lider">
+    <Authorized>
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+            <!-- Header de Bienvenida -->
+            <MudPaper Elevation="0" Class="pa-6 rounded-lg" Style="background: linear-gradient(135deg, var(--color-primario) 0%, rgba(30, 58, 138, 0.8) 100%);">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                    <MudIcon Icon="@Icons.Material.Filled.BusinessCenter"
+                            Size="Size.Large"
+                            Style="color: var(--color-texto-claro);" />
+                    <MudStack Spacing="0">
+                        <MudText Typo="Typo.h4" Style="color: var(--color-texto-claro);">
+                            Consultoría
+                        </MudText>
+                        <MudText Typo="Typo.body2" Style="color: var(--color-texto-claro);">
+                            Gestión de reuniones
+                        </MudText>
+                    </MudStack>
+                </MudStack>
+            </MudPaper>
+
+            <!-- Opciones de Consultoría -->
+            <MudStack Spacing="3" Class="mt-6">
+                <MudText Typo="Typo.h5">
+                    <MudIcon Icon="@Icons.Material.Filled.MenuBook" Class="mr-2" />
+                    Opciones disponibles
+                </MudText>
+
+                <MudGrid Justify="Justify.Center" Spacing="3">
+                    @if (mostrarSolicitarReunion)
+                    {
+                        <MudItem xs="12" sm="6" md="4" lg="3">
+                            <MudCard onclick="@(() => SolicitarReunion())"
+                                    Style="cursor: pointer; height: 100%; transition: all 0.3s ease;">
+                                <MudCardContent Class="pa-4">
+                                    <MudStack Spacing="2" Justify="Justify.Center" AlignItems="AlignItems.Center">
+                                        <MudIcon Icon="@Icons.Material.Filled.CalendarToday"
+                                                Size="Size.Large"
+                                                Style="color: var(--color-primario);" />
+                                        <MudText Typo="Typo.h6">Solicitar Reunión</MudText>
+                                        <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Info">
+                                            Pedir reunion para un miembro de tu grupo
+                                        </MudText>
+                                    </MudStack>
+                                </MudCardContent>
+                            </MudCard>
+                        </MudItem>
+                    }
+                    else
+                    {
+                        <MudItem xs="12" sm="6" md="4" lg="3">
+                            <MudCard onclick="@(() => GestionarReuniones())"
+                                    Style="cursor: pointer; height: 100%; transition: all 0.3s ease;">
+                                <MudCardContent Class="pa-4">
+                                    <MudStack Spacing="2" Justify="Justify.Center" AlignItems="AlignItems.Center">
+                                        <MudIcon Icon="@Icons.Material.Filled.Event"
+                                                Size="Size.Large"
+                                                Style="color: var(--color-primario);" />
+                                        <MudText Typo="Typo.h6">Gestionar Reuniones</MudText>
+                                        <MudText Typo="Typo.body2" Align="Align.Center" Color="Color.Info">
+                                            Gestion de notas y reuniones
+                                        </MudText>
+                                    </MudStack>
+                                </MudCardContent>
+                            </MudCard>
+                        </MudItem>
+                    }
+                </MudGrid>
+            </MudStack>
+        </MudContainer>
+    </Authorized>
+    <NotAuthorized>
+        <MudContainer Class="py-8">
+            <ReDirectToLogin />
+        </MudContainer>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private bool mostrarSolicitarReunion = false;
+    private int usuarioId;
+    private GrupoDTO? grupoDelLider;
+    private string mensajeError = string.Empty;
+    private List<InfoMiembroGrupoDTO> miembros = new();
+    private bool cargando = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await DeterminarRolUsuario();
+        cargando = false;
+    }
+
+    private async Task GestionarReuniones()
+    {
+        Nav.NavigateTo("/consultoria/listadoReuniones");
+    }
+
+    private async Task DeterminarRolUsuario()
+    {
+        try
+        {
+            var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+            var user = authState.User;
+
+            bool esConsultor = user.IsInRole("consultor");
+            bool esLider = user.IsInRole("lider");
+
+            mostrarSolicitarReunion = esLider && !esConsultor;
+
+            if (mostrarSolicitarReunion)
+            {
+                await ConfigurarDatosLider(authState);
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al determinar rol de usuario: {ex.Message}";
+            Console.WriteLine(mensajeError);
+        }
+    }
+
+    private async Task ConfigurarDatosLider(AuthenticationState authState)
+    {
+        var userName = authState.User.Identity?.Name?.Trim();
+        if (string.IsNullOrEmpty(userName))
+        {
+            mensajeError = "No se pudo obtener el nombre de usuario";
+            return;
+        }
+
+        var response = await Http.GetAsync($"api/usuario/GetIdMiembroDelUsuario/{userName}");
+        if (!response.IsSuccessStatusCode)
+        {
+            var errorContent = await response.Content.ReadAsStringAsync();
+            mensajeError = $"Error al obtener información del usuario: {errorContent}";
+            return;
+        }
+
+        var result = await response.Content.ReadAsStringAsync();
+        if (!int.TryParse(result, out usuarioId))
+        {
+            mensajeError = "Error al parsear el ID del miembro";
+            return;
+        }
+    }
+
+    private async Task ObtenerGrupoDelLider()
+    {
+        var grupoResponse = await Http.GetAsync($"api/grupo/GetGrupoDelLider/{usuarioId}");
+        if (grupoResponse.IsSuccessStatusCode)
+        {
+            grupoDelLider = await grupoResponse.Content.ReadFromJsonAsync<GrupoDTO>();
+            if (grupoDelLider == null)
+            {
+                mensajeError = "No se encontró un grupo asociado al líder.";
+            }
+        }
+        else
+        {
+            var errorContent = await grupoResponse.Content.ReadAsStringAsync();
+            mensajeError = $"Error al obtener el grupo del líder: {grupoResponse.StatusCode} - {errorContent}";
+        }
+    }
+
+    private async Task ObtenerMiembrosDelGrupo()
+    {
+        var response = await Http.GetAsync($"api/grupo/GetMiembrosDelGrupo/{grupoDelLider?.id_grupo}");
+        if (response.IsSuccessStatusCode)
+        {
+            miembros = await response.Content.ReadFromJsonAsync<List<InfoMiembroGrupoDTO>>() ?? new();
+        }
+        else
+        {
+            var errorContent = await response.Content.ReadAsStringAsync();
+            mensajeError = $"Error al cargar miembros: {response.StatusCode} - {errorContent}";
+        }
+    }
+
+    private async Task SolicitarReunion()
+    {
+        try
+        {
+            await ObtenerGrupoDelLider();
+
+            if (grupoDelLider == null)
+            {
+                Snackbar.Add("No se pudo obtener la información del grupo", Severity.Error);
+                return;
+            }
+
+            await ObtenerMiembrosDelGrupo();
+
+            if (!miembros.Any())
+            {
+                Snackbar.Add("No hay miembros disponibles en el grupo", Severity.Warning);
+                return;
+            }
+
+            var parameters = new DialogParameters
+            {
+                ["IdLider"] = usuarioId,
+                ["Miembros"] = miembros
+            };
+
+            var dialogOptions = new DialogOptions
+            {
+                CloseButton = true,
+                MaxWidth = MaxWidth.Small,
+                FullWidth = true
+            };
+
+            var dialog = DialogService.Show<DialogSolicitarReunion>("Solicitar Reunión", parameters, dialogOptions);
+            var result = await dialog.Result;
+
+            if (!result.Canceled && result.Data is PeticionReunionDTO peticion)
+            {
+                var response = await Http.PostAsJsonAsync("api/peticion/RegistrarPeticionReunion", peticion);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    Snackbar.Add("La reunión ha sido solicitada correctamente.", Severity.Success);
+                }
+                else
+                {
+                    var errorContent = await response.Content.ReadAsStringAsync();
+                    Snackbar.Add($"Error al solicitar la reunión: {errorContent}", Severity.Error);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            mensajeError = $"Error al solicitar reunión: {ex.Message}";
+            Snackbar.Add(mensajeError, Severity.Error);
+        }
+    }
+}

@@ -1,0 +1,123 @@
+﻿@using MudBlazor
+@using SistemaMPN.Shared.DTO
+
+<EditForm Model="PeticionReunion" OnValidSubmit="Aceptar">
+    <DataAnnotationsValidator />
+
+    <MudDialog MaxWidth="MaxWidth.Medium" FullWidth="true">
+        <TitleContent>
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                <MudIcon Icon="@Icons.Material.Filled.MeetingRoom" Color="Color.Primary" />
+                <MudText Typo="Typo.h6">Solicitar Reunión</MudText>
+            </MudStack>
+        </TitleContent>
+        <DialogContent>
+            <MudStack Spacing="4">
+                <MudPaper Elevation="0" Class="pa-4 rounded-lg" Style="border: 1px solid var(--mud-palette-divider);">
+                    <MudText Typo="Typo.subtitle2" Class="mb-3" Color="Color.Primary">
+                        <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Class="mr-1" />
+                        Información de la reunión
+                    </MudText>
+                    <MudStack Spacing="3">
+                        <MudSelect T="int?"
+                                   @bind-Value="PeticionReunion.IdMiembros"
+                                   Label="Miembro del equipo *"
+                                   For="@(() => PeticionReunion.IdMiembros)"
+                                   Variant="Variant.Outlined"
+                                   Required="true">
+                            @if (Miembros != null)
+                            {
+                                @foreach (var miembro in Miembros)
+                                {
+                                    <MudSelectItem T="int?" Value="@((int?)miembro.id_miembro)">
+                                        @miembro.nombre_completo - @miembro.ocupacion
+                                    </MudSelectItem>
+                                }
+                            }
+                        </MudSelect>
+
+                        <MudDatePicker @bind-Date="FechaPreferida"
+                                       Label="Fecha preferida *"
+                                       Variant="Variant.Outlined"
+                                       IsDateDisabledFunc="@((DateTime dt) => dt.Date < DateTime.Today)"
+                                       Required="true"
+                                       DateFormat="dd/MM/yyyy"
+                                       ShowToolbar="false"
+                                       MinDate="@DateTime.Today" />
+
+                        <MudTextField @bind-Value="PeticionReunion.Correo"
+                                      Label="Correo electrónico *"
+                                      For="@(() => PeticionReunion.Correo)"
+                                      Variant="Variant.Outlined"
+                                      InputType="InputType.Email"
+                                      Required="true" />
+
+                        <MudTextField @bind-Value="PeticionReunion.Motivo"
+                                      Label="Motivo de la reunión *"
+                                      For="@(() => PeticionReunion.Motivo)"
+                                      Variant="Variant.Outlined"
+                                      Lines="4"
+                                      Required="true"
+                                      Placeholder="Describa el motivo de la reunión..." />
+                    </MudStack>
+                </MudPaper>
+            </MudStack>
+        </DialogContent>
+        <DialogActions>
+            <MudButton OnClick="Cancelar"
+                       Color="Color.Default"
+                       Variant="Variant.Outlined">
+                Cancelar
+            </MudButton>
+            <MudButton OnClick="Aceptar"
+                       Color="Color.Primary"
+                       Variant="Variant.Filled"
+                       Disabled="@(!EsValido())"
+                       StartIcon="@Icons.Material.Filled.Send">
+                Solicitar
+            </MudButton>
+        </DialogActions>
+    </MudDialog>
+</EditForm>
+
+@code {
+    [CascadingParameter]
+    IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter]
+    public int IdLider { get; set; }
+
+    [Parameter]
+    public List<InfoMiembroGrupoDTO>? Miembros { get; set; }
+
+    PeticionReunionDTO PeticionReunion = new();
+
+    private DateTime? FechaPreferida { get; set; }
+
+    private bool EsValido()
+    {
+        return FechaPreferida.HasValue;
+    }
+
+    private void Aceptar()
+    {
+        if (EsValido())
+        {
+            PeticionReunion.FechaPreferida = DateOnly.FromDateTime(FechaPreferida!.Value);
+            PeticionReunion.Peticion = new PeticionDTO
+            {
+                FechaSolicitud = DateTime.UtcNow,
+                Estado = "Pendiente",
+                Tipo = "Reunion",
+                Mensaje = $"Solicitud de reunión para el {FechaPreferida.Value:dd/MM/yyyy}",
+                IdLider = IdLider
+            };
+            MudDialog.Close(DialogResult.Ok(PeticionReunion));
+        }
+    }
+
+    private void Cancelar()
+    {
+        MudDialog.Cancel();
+    }
+}

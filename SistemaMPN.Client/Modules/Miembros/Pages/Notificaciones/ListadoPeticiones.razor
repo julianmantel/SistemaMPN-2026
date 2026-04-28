@@ -1,0 +1,607 @@
+﻿@page "/peticiones"
+
+@using Microsoft.AspNetCore.Components.Authorization
+@using SistemaMPN.Client.Modules.Miembros.Pages.Dialogs
+@using SistemaMPN.Client.Pages
+@using SistemaMPN.Shared.DTO
+@using SistemaMPN.Shared.DTO
+@using MudBlazor
+@using System.Security.Claims
+@using System.Text.Json
+
+@inject HttpClient Http
+@inject NavigationManager Navigation
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthStateProvider
+
+@layout SistemaMPN.Client.Layout.PeticionesLayout
+
+<PageTitle>Peticiones</PageTitle>
+
+<AuthorizeView Roles="admin, gestor de miembros, consultor, auditor" Context="peticiones">
+    <Authorized>
+        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-6">
+            <MudStack Spacing="6">
+                <!-- Header -->
+                <MudPaper Elevation="0" Class="pa-6 rounded-lg" Style="background: linear-gradient(135deg, var(--color-primario) 0%, rgba(30, 58, 138, 0.8) 100%);">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="flex-wrap" Spacing="2">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3">
+                            <MudIcon Icon="@Icons.Material.Filled.Assignment"
+                                    Size="Size.Large"
+                                    Style="color: var(--color-texto-claro);" />
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.h4" Style="color: var(--color-texto-claro);">
+                                    Peticiones
+                                </MudText>
+                                <MudText Typo="Typo.body2" Style="color: var(--color-texto-claro);">
+                                    Gestión y seguimiento de solicitudes
+                                </MudText>
+                            </MudStack>
+                        </MudStack>
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Secondary"
+                                   StartIcon="@Icons.Material.Filled.Refresh"
+                                   OnClick="CargarPeticiones"
+                                   Disabled="@cargando"
+                                   Style="color: var(--color-texto-claro); background-color: rgba(255, 255, 255, 0.2);">
+                            Actualizar
+                        </MudButton>
+                    </MudStack>
+                </MudPaper>
+
+                <!-- Tabs de Estados -->
+                <MudCard Elevation="2" Class="rounded-lg">
+                    <MudCardContent>
+                        <MudTabs Elevation="0" Rounded="true" Color="Color.Primary" ApplyEffectsToContainer="true">
+
+                            <MudTabPanel Text="Pendientes" Icon="@Icons.Material.Filled.Schedule">
+                                @RenderPeticionesPendientes()
+                            </MudTabPanel>
+
+                            <!-- TAB: ACEPTADAS -->
+                            <MudTabPanel Text="Aceptadas" Icon="@Icons.Material.Filled.CheckCircle">
+                                @RenderPeticionesAceptadas()
+                            </MudTabPanel>
+
+                            <!-- TAB: RECHAZADAS -->
+                            <MudTabPanel Text="Rechazadas" Icon="@Icons.Material.Filled.Cancel">
+                                @RenderPeticionesRechazadas()
+                            </MudTabPanel>
+
+                            <!-- TAB: HISTORIAL -->
+                            <MudTabPanel Text="Historial Completo" Icon="@Icons.Material.Filled.History">
+                                @RenderHistorialCompleto()
+                            </MudTabPanel>
+
+                        </MudTabs>
+                    </MudCardContent>
+                </MudCard>
+            </MudStack>
+        </MudContainer>
+    </Authorized>
+    <NotAuthorized>
+        <ReDirectToLogin />
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private List<PeticionDTO> peticionesPendientes = new();
+    private List<PeticionDTO> peticionesAceptadas = new();
+    private List<PeticionDTO> peticionesRechazadas = new();
+    private List<PeticionDTO> todasLasPeticiones = new();
+    private bool esAdminOrGestor = false;
+    private bool cargando = true;
+
+    private int paginaActual = 1;
+    private int itemsPorPagina = 5;
+    private int totalPaginas = 1;
+    private List<PeticionDTO> peticionesPaginadas = new();
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await VerificarRoles();
+            await CargarPeticiones();
+            StateHasChanged();
+        }
+    }
+
+    private async Task VerificarRoles()
+    {
+        var authState = await AuthStateProvider.GetAuthenticationStateAsync();
+        var user = authState.User;
+        esAdminOrGestor = user.IsInRole("admin") || user.IsInRole("gestor de miembros") || user.IsInRole("consultor");
+    }
+
+    private async Task CargarPeticiones()
+    {
+        try
+        {
+            cargando = true;
+            var peticiones = await Http.GetFromJsonAsync<List<PeticionDTO>>("api/peticion/getpeticiones");
+
+            if (peticiones != null && peticiones.Any())
+            {
+                peticionesPendientes = peticiones.Where(p => p.Estado == "Pendiente").ToList();
+                peticionesAceptadas = peticiones.Where(p => p.Estado == "Aceptada").ToList();
+                peticionesRechazadas = peticiones.Where(p => p.Estado == "Rechazada").ToList();
+                todasLasPeticiones = peticiones;
+
+                ActualizarPaginacion();
+            }
+            else
+            {
+                Snackbar.Add("Error al cargar las peticiones", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            cargando = false;
+        }
+    }
+
+    private void ActualizarPaginacion()
+    {
+        totalPaginas = (int)Math.Ceiling((decimal)peticionesPendientes.Count / itemsPorPagina);
+        if (totalPaginas == 0) totalPaginas = 1;
+        paginaActual = 1;
+        ActualizarPeticionesPaginadas();
+    }
+
+    private void ActualizarPeticionesPaginadas()
+    {
+        var skip = (paginaActual - 1) * itemsPorPagina;
+        peticionesPaginadas = peticionesPendientes.Skip(skip).Take(itemsPorPagina).ToList();
+    }
+
+    private void CambiarPagina(int pagina)
+    {
+        if (pagina >= 1 && pagina <= totalPaginas)
+        {
+            paginaActual = pagina;
+            ActualizarPeticionesPaginadas();
+        }
+    }
+
+    private async Task ActualizarPeticion(PeticionDTO peticion, string nuevoEstado)
+    {
+        var parameters = new DialogParameters<DialogPeticion>();
+        if (nuevoEstado.Equals("Aceptada"))
+        {
+            parameters.Add(x => x.ButtonText, "Aceptar");
+            parameters.Add(x => x.ContentText, $"¿Aceptar esta petición?");
+        } else if (nuevoEstado.Equals("Rechazada"))
+        {
+            parameters.Add(x => x.ButtonText, "Rechazar");
+            parameters.Add(x => x.ContentText, $"¿Rechazar esta petición?");
+        }
+
+        var result = await DialogService.ShowAsync<DialogPeticion>("Aprobar petición", parameters);
+        var dialogResult = await result.Result;
+
+        if (!dialogResult.Canceled)
+        {
+            try
+            {
+                var response = await Http.PatchAsync($"api/peticion/CambiarEstado/{peticion.IdPeticiones}/{nuevoEstado}", null);
+
+                if (response.IsSuccessStatusCode)
+                {
+                    if (nuevoEstado == "Aceptada")
+                    {
+                        Snackbar.Add("Redirigiendo...", Severity.Info);
+                        await Redirigir(peticion.Tipo, peticion.IdPeticiones);
+                    }
+                    else
+                    {
+                        Snackbar.Add("Petición procesada correctamente", Severity.Success);
+                    }
+                    await CargarPeticiones();
+                }
+                else
+                {
+                    Snackbar.Add("Error al procesar la petición", Severity.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private async Task Redirigir(string tipo, int idPeticion)
+    {
+        if (tipo == "Reunion")
+        {
+            Navigation.NavigateTo($"/consultoria/agendarReunion?idPeticion={idPeticion}");
+            return;
+        }
+        if (tipo == "Agregar")
+        {
+            Navigation.NavigateTo($"/miembros/nuevoMiembro?idPeticion={idPeticion}");
+            return;
+        }
+
+        var detalle = await Http.GetFromJsonAsync<JsonElement>($"api/peticion/GetPeticionDetalle/{idPeticion}");
+
+        if (tipo == "Actualizacion" && detalle.TryGetProperty("idMiembro", out var idMiembro) && idMiembro.ValueKind != JsonValueKind.Null)
+        {
+            Navigation.NavigateTo($"/miembros/listadoMiembros/detalleMiembro/{idMiembro.GetInt32()}?idPeticion={idPeticion}");
+        }
+        else if (tipo == "Cambio" && detalle.TryGetProperty("idGrupo", out var idGrupo) && idGrupo.ValueKind != JsonValueKind.Null)
+        {
+            Navigation.NavigateTo($"/miembros/grupos/miembrosDelGrupo/{idGrupo.GetInt32()}");
+        }
+        else
+        {
+            Snackbar.Add("No se pudo obtener el destino de redirección", Severity.Warning);
+        }
+    }
+
+    private string ObtenerNombreSolicitante(PeticionDTO peticion)
+    {
+        if (peticion.IdLider.HasValue)
+            return $"Líder #{peticion.IdLider}";
+        else if (peticion.IdUsuario.HasValue)
+            return $"Usuario #{peticion.IdUsuario}";
+        return "Desconocido";
+    }
+
+    private async Task VerDetallePeticion(PeticionDTO peticion)
+    {
+        try
+        {
+            var base64 = await Http.GetFromJsonAsync<PeticionBaseDTO>(
+                $"api/peticion/GetPeticionDetalle/{peticion.IdPeticiones}");
+
+            if (base64 == null) { Snackbar.Add("Error al obtener la petición", Severity.Error); return; }
+
+            var options = new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true };
+            var parameters = new DialogParameters<DialogVerPeticion>();
+            parameters.Add(x => x.IdPeticiones, base64.IdPeticiones);
+            parameters.Add(x => x.Tipo, base64.Tipo);
+            parameters.Add(x => x.FechaSolicitud, base64.FechaSolicitud);
+            parameters.Add(x => x.FechaRespuesta, base64.FechaRespuesta);
+            parameters.Add(x => x.Estado, base64.Estado);
+            parameters.Add(x => x.Mensaje, base64.Mensaje);
+            parameters.Add(x => x.NombreSolicitante, base64.NombreSolicitante);
+            parameters.Add(x => x.NombreQuienResponde, base64.NombreQuienResponde);
+
+            
+            switch (base64.Tipo)
+            {
+                case "Reunion":
+                    var reunion = await Http.GetFromJsonAsync<PeticionReunionDetalleDTO>(
+                        $"api/peticion/GetPeticionDetalle/{peticion.IdPeticiones}");
+                    if (reunion != null)
+                    {
+                        parameters.Add(x => x.NombreMiembro, reunion.NombreMiembro);
+                        parameters.Add(x => x.Motivo, reunion.Motivo);
+                        parameters.Add(x => x.FechaPreferida, reunion.FechaPreferida);
+                        parameters.Add(x => x.Correo, reunion.Correo);
+                    }
+                    break;
+
+                case "Cambio":
+                    var cambio = await Http.GetFromJsonAsync<PeticionCambioDetalleDTO>(
+                        $"api/peticion/GetPeticionDetalle/{peticion.IdPeticiones}");
+                    if (cambio != null)
+                    {
+                        parameters.Add(x => x.NombreMiembro, cambio.NombreMiembro);
+                        parameters.Add(x => x.NombreGrupo, cambio.NombreGrupo);
+                    }
+                    break;
+
+                case "Actualizacion":
+                    var actualizacion = await Http.GetFromJsonAsync<PeticionActualizacionDetalleDTO>(
+                        $"api/peticion/GetPeticionDetalle/{peticion.IdPeticiones}");
+                    if (actualizacion != null)
+                        parameters.Add(x => x.NombreMiembro, actualizacion.NombreMiembro);
+                    break;
+
+                case "Agregar":
+                    var agregar = await Http.GetFromJsonAsync<PeticionAgregarDetalleDTO>(
+                        $"api/peticion/GetPeticionDetalle/{peticion.IdPeticiones}");
+                    if (agregar != null)
+                    {
+                        parameters.Add(x => x.Nombre, agregar.Nombre);
+                        parameters.Add(x => x.Apellido, agregar.Apellido);
+                        parameters.Add(x => x.Dni, agregar.Dni);
+                        parameters.Add(x => x.Nacionalidad, agregar.Nacionalidad);
+                        parameters.Add(x => x.FechaNacimiento, agregar.FechaNacimiento);
+                        parameters.Add(x => x.LugarNacimiento, agregar.LugarNacimiento);
+                        parameters.Add(x => x.Telefono, agregar.Telefono);
+                        parameters.Add(x => x.Sexo, agregar.Sexo);
+                    }
+                    break;
+            }
+
+            DialogService.Show<DialogVerPeticion>("Detalle de Petición", parameters, options);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error al cargar detalles: {ex.Message}", Severity.Error);
+        }
+    }
+
+    // RENDER FRAGMENTS
+
+    private RenderFragment RenderPeticionesPendientes() => __builder =>
+    {
+        if (peticionesPendientes.Count == 0 && !cargando)
+        {
+            <MudAlert Severity="Severity.Info" Class="my-4 rounded-lg">
+                No hay peticiones pendientes
+            </MudAlert>
+            return;
+        }
+
+        if (cargando)
+        {
+            <MudStack AlignItems="AlignItems.Center" Class="py-8">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+            </MudStack>
+            return;
+        }
+
+        <MudStack Spacing="3" Class="my-4">
+            @foreach (var peticion in peticionesPaginadas)
+            {
+                <MudCard Elevation="2" Class="rounded-lg">
+                    <MudCardContent>
+                        <MudStack Spacing="2">
+                            <MudStack Row="true" Class="justify-space-between flex-wrap">
+                                <MudStack Spacing="1" Class="flex-grow-1">
+                                    <MudText Typo="Typo.h6">
+                                        Petición #@peticion.IdPeticiones
+                                    </MudText>
+                                    <MudStack Spacing="1">
+                                        <MudText Typo="Typo.body2">
+                                            <b>De:</b> @ObtenerNombreSolicitante(peticion)
+                                        </MudText>
+                                        <MudText Typo="Typo.body2">
+                                            <b>Tipo:</b>
+                                            <MudChip T="string"
+                                                     Color="Color.Warning"
+                                                     Size="Size.Small">
+                                                @peticion.Tipo
+                                            </MudChip>
+                                        </MudText>
+                                        <MudText Typo="Typo.body2">
+                                            <b>Fecha:</b> @peticion.FechaSolicitud.ToString("dd/MM/yyyy HH:mm")
+                                        </MudText>
+                                    </MudStack>
+                                </MudStack>
+                                <MudStack Row="true" Spacing="2" Class="mt-3 mt-sm-0">
+                                    <MudButton StartIcon="@Icons.Material.Filled.Check"
+                                               Color="Color.Success"
+                                               Variant="Variant.Filled"
+                                               Size="Size.Small"
+                                               Title="Aceptar"
+                                               Style="min-height: 36px; height: 36px; padding: 0 12px;"
+                                               OnClick="@(() => ActualizarPeticion(peticion, "Aceptada"))">
+                                        Aceptar
+                                    </MudButton>
+                                    <MudButton StartIcon="@Icons.Material.Filled.Close"
+                                               Color="Color.Error"
+                                               Variant="Variant.Filled"
+                                               Size="Size.Small"
+                                               Title="Rechazar"
+                                               Style="min-height: 36px; height: 36px; padding: 0 12px;"
+                                               OnClick="@(() => ActualizarPeticion(peticion, "Rechazada"))">
+                                        Rechazar
+                                    </MudButton>
+                                </MudStack>
+                            </MudStack>
+                            @if (!string.IsNullOrEmpty(peticion.Mensaje))
+                            {
+                                <MudDivider Class="my-2" />
+                                <MudText Typo="Typo.body2">@peticion.Mensaje</MudText>
+                            }
+                        </MudStack>
+                    </MudCardContent>
+                </MudCard>
+            }
+        </MudStack>
+
+        <!-- Paginación -->
+        <MudStack Row="true" Class="justify-space-between align-center mt-4 flex-wrap" Spacing="2">
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                Mostrando @((paginaActual - 1) * itemsPorPagina + 1) a
+                @Math.Min(paginaActual * itemsPorPagina, peticionesPendientes.Count)
+                de @peticionesPendientes.Count
+            </MudText>
+            <MudPagination Count="@totalPaginas"
+                           Selected="@paginaActual"
+                           SelectedChanged="CambiarPagina" />
+        </MudStack>
+    };
+
+    private RenderFragment RenderPeticionesAceptadas() => __builder =>
+    {
+        if (peticionesAceptadas.Count == 0 && !cargando)
+        {
+            <MudAlert Severity="Severity.Info" Class="my-4 rounded-lg">
+                No hay peticiones aceptadas
+            </MudAlert>
+            return;
+        }
+
+        if (cargando)
+        {
+            <MudStack AlignItems="AlignItems.Center" Class="py-8">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+            </MudStack>
+            return;
+        }
+
+        <MudTable Items="peticionesAceptadas"
+                  Bordered="true"
+                  Dense="true"
+                  Class="my-4 rounded-lg"
+                  Elevation="2">
+            <HeaderContent>
+                <MudTh>ID</MudTh>
+                <MudTh>Solicitante</MudTh>
+                <MudTh>Tipo</MudTh>
+                <MudTh>Fecha Solicitud</MudTh>
+                <MudTh>Fecha Aceptación</MudTh>
+                <MudTh>Mensaje</MudTh>
+                <MudTh>Acciones</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="ID">@context.IdPeticiones</MudTd>
+                <MudTd DataLabel="Solicitante">@ObtenerNombreSolicitante(context)</MudTd>
+                <MudTd DataLabel="Tipo">
+                    <MudChip T="string"
+                             Color="Color.Success"
+                             Size="Size.Small">
+                        @context.Tipo
+                    </MudChip>
+                </MudTd>
+                <MudTd DataLabel="Fecha Solicitud">@context.FechaSolicitud.ToString("dd/MM/yyyy HH:mm")</MudTd>
+                <MudTd DataLabel="Fecha Aceptación">@(context.FechaRespuesta?.ToString("dd/MM/yyyy HH:mm") ?? "-")</MudTd>
+                <MudTd DataLabel="Mensaje">@context.Mensaje</MudTd>
+                <MudTd DataLabel="Acciones">
+                    <MudIconButton Icon="@Icons.Material.Filled.Visibility"
+                                   Color="Color.Primary"
+                                   Size="Size.Small"
+                                   Title="Ver detalles"
+                                   OnClick="@(() => VerDetallePeticion(context))" />
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    };
+
+    private RenderFragment RenderPeticionesRechazadas() => __builder =>
+    {
+        if (peticionesRechazadas.Count == 0 && !cargando)
+        {
+            <MudAlert Severity="Severity.Info" Class="my-4 rounded-lg">
+                No hay peticiones rechazadas
+            </MudAlert>
+            return;
+        }
+
+        if (cargando)
+        {
+            <MudStack AlignItems="AlignItems.Center" Class="py-8">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+            </MudStack>
+            return;
+        }
+
+        <MudTable Items="peticionesRechazadas"
+                  Bordered="true"
+                  Dense="true"
+                  Class="my-4 rounded-lg"
+                  Elevation="2">
+            <HeaderContent>
+                <MudTh>ID</MudTh>
+                <MudTh>Solicitante</MudTh>
+                <MudTh>Tipo</MudTh>
+                <MudTh>Fecha Solicitud</MudTh>
+                <MudTh>Fecha Rechazo</MudTh>
+                <MudTh>Mensaje</MudTh>
+                <MudTh>Acciones</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="ID">@context.IdPeticiones</MudTd>
+                <MudTd DataLabel="Solicitante">@ObtenerNombreSolicitante(context)</MudTd>
+                <MudTd DataLabel="Tipo">
+                    <MudChip T="string"
+                             Color="Color.Error"
+                             Size="Size.Small">
+                        @context.Tipo
+                    </MudChip>
+                </MudTd>
+                <MudTd DataLabel="Fecha Solicitud">@context.FechaSolicitud.ToString("dd/MM/yyyy HH:mm")</MudTd>
+                <MudTd DataLabel="Fecha Rechazo">@context.FechaRespuesta?.ToString("dd/MM/yyyy HH:mm")</MudTd>
+                <MudTd DataLabel="Mensaje">@context.Mensaje</MudTd>
+                <MudTd DataLabel="Acciones">
+                    <MudIconButton Icon="@Icons.Material.Filled.Visibility"
+                                   Color="Color.Primary"
+                                   Size="Size.Small"
+                                   Title="Ver detalles"
+                                   OnClick="@(() => VerDetallePeticion(context))" />
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    };
+
+    private RenderFragment RenderHistorialCompleto() => __builder =>
+    {
+        if (todasLasPeticiones.Count == 0 && !cargando)
+        {
+            <MudAlert Severity="Severity.Info" Class="my-4 rounded-lg">
+                No hay historial disponible
+            </MudAlert>
+            return;
+        }
+
+        if (cargando)
+        {
+            <MudStack AlignItems="AlignItems.Center" Class="py-8">
+                <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+            </MudStack>
+            return;
+        }
+
+        <MudTable Items="todasLasPeticiones"
+                  Bordered="true"
+                  Dense="true"
+                  Class="my-4 rounded-lg"
+                  Elevation="2">
+            <HeaderContent>
+                <MudTh>ID</MudTh>
+                <MudTh>Solicitante</MudTh>
+                <MudTh>Tipo</MudTh>
+                <MudTh>Estado</MudTh>
+                <MudTh>Fecha Solicitud</MudTh>
+                <MudTh>Fecha Respuesta</MudTh>
+                <MudTh>Mensaje</MudTh>
+                <MudTh>Acciones</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="ID">@context.IdPeticiones</MudTd>
+                <MudTd DataLabel="Solicitante">@ObtenerNombreSolicitante(context)</MudTd>
+                <MudTd DataLabel="Tipo">@context.Tipo</MudTd>
+                <MudTd DataLabel="Estado">
+                    @RenderEstadoChip(context.Estado)
+                </MudTd>
+                <MudTd DataLabel="Fecha Solicitud">@context.FechaSolicitud.ToString("dd/MM/yyyy HH:mm")</MudTd>
+                <MudTd DataLabel="Fecha Respuesta">@context.FechaRespuesta?.ToString("dd/MM/yyyy HH:mm")</MudTd>
+                <MudTd DataLabel="Mensaje">@context.Mensaje</MudTd>
+                <MudTd DataLabel="Acciones">
+                    <MudIconButton Icon="@Icons.Material.Filled.Visibility"
+                                   Color="Color.Primary"
+                                   Size="Size.Small"
+                                   Title="Ver detalles"
+                                   OnClick="@(() => VerDetallePeticion(context))" />
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    };
+
+    private RenderFragment RenderEstadoChip(string estado) => __builder =>
+    {
+        Color color = estado switch
+        {
+            "En proceso" => Color.Warning,
+            "Aceptada" => Color.Success,
+            "Rechazada" => Color.Error,
+            _ => Color.Default
+        };
+
+        <MudChip T="string" Color="@color" Size="Size.Small">
+            @estado
+        </MudChip>
+    };
+}

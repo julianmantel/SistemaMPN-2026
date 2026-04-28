@@ -1,0 +1,90 @@
+﻿@using SistemaMPN.Shared.DTO
+
+<MudDialog MaxWidth="MaxWidth.Medium" FullWidth="true">
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.Description" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">Seleccionar Tipo de Documento</MudText>
+        </MudStack>
+    </TitleContent>
+    <DialogContent>
+        <MudStack Spacing="3">
+            <MudPaper Elevation="0" Class="pa-4 rounded-lg" Style="border: 1px solid var(--mud-palette-divider);">
+                <MudText Typo="Typo.subtitle2" Class="mb-3" Color="Color.Primary">
+                    <MudIcon Icon="@Icons.Material.Filled.FolderOpen" Size="Size.Small" Class="mr-1" />
+                    Tipo de documento *
+                </MudText>
+                <MudSelect T="string"
+                           Label="Seleccione un documento"
+                           @bind-Value="tipoDocumento"
+                           Variant="Variant.Outlined"
+                           Clearable="true"
+                           Required="true">
+                    @foreach (var d in documentos)
+                    {
+                        <MudSelectItem Value="@d">@d</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudPaper>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancelar"
+                   Color="Color.Default"
+                   Variant="Variant.Outlined">
+            Cancelar
+        </MudButton>
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.ArrowForward"
+                   Disabled="@(string.IsNullOrEmpty(tipoDocumento))"
+                   OnClick="Guardar">
+            Continuar
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code{
+    [CascadingParameter]
+    private IMudDialogInstance MudDialog { get; set; }
+    private List<string> documentos = new List<string>
+    {
+        "DetalleCaja",
+        "Recibo General",
+        "Recibo_OV",
+        "Planilla de Diezmo"
+    };
+    string tipoDocumento = "";
+    private void Guardar()
+    {
+        switch (tipoDocumento)
+        {
+            case "DetalleCaja":
+                tipoDocumento = "detalle-caja";
+                break;
+            case "Recibo General":
+                tipoDocumento = "recibo-general";
+                break;
+            case "Recibo_OV":
+                tipoDocumento = "recibo-ov";
+                break;
+            case "Planilla de Diezmo":
+                tipoDocumento = "planilla-diezmo";
+                break;
+            default:
+                tipoDocumento = null;
+                break;
+        }
+        var data = tipoDocumento;
+        if (string.IsNullOrWhiteSpace(data))
+        {
+            MudDialog.Cancel();
+            return;
+        }
+        MudDialog.Close(DialogResult.Ok(data));
+    }
+    private void Cancelar()
+    {
+        MudDialog.Cancel();
+    }
+}
