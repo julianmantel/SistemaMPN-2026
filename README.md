@@ -1,11 +1,11 @@
 # SistemaMPN-2026
 
-Sistema de gestión eclesiástica desarrollado con tecnologías .NET modernos, que permite la administración integral de una organización religiosa.
+Sistema de gestión eclesiástica desarrollado con tecnologías .NET, que permite la administración integral de una organización religiosa.
 
 ## Áreas del Sistema
 
 ### Miembros
-Gestión integral de feligreses incluyendo registro y datos completos (personales, salud, información laboral y académica, datos eclesiásticos), organización en grupos, seguimiento de seminarios cursados, control de asistencia mediante códigos QR y sistema de peticiones para cambios y altas.
+Gestión integral de miembros incluyendo registro y datos completos (personales, salud, información laboral y académica, datos eclesiásticos), organización en grupos, seguimiento de seminarios cursados, control de asistencia a eventos mediante códigos QR y sistema de peticiones para cambios y altas.
 
 ### Tesorería
 Módulo financiero que incluye gestión de documentos contables, emisión de recibos (generales y ofrendas voluntarias), planilla de diezmos, registro de movimientos de caja y administración de turnos de tesorería.
@@ -14,7 +14,7 @@ Módulo financiero que incluye gestión de documentos contables, emisión de rec
 Administración del proceso de consultoría eclesiástica con gestión de reuniones entre consultores y miembros, registro de notas vinculadas a cada reunión y seguimiento del estados de las mismas.
 
 ### Administración
-Centro de control del sistema que abarca autenticación y gestión de usuarios con perfiles jerárquicos (admin, gestor de miembros, consultor, tesorero, líder), sistema de notificaciones en tiempo real, calendario de eventos, respaldo de base de datos, estadísticas generales y guía de usuario.
+Centro de control del sistema que abarca autenticación y gestión de usuarios con perfiles jerárquicos (admin, gestor de miembros, consultor, tesorero, líder), sistema de notificaciones en tiempo realrespaldo de base de datos.
 
 ## Tecnologías y Frameworks
 
