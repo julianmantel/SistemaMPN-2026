@@ -89,6 +89,5 @@ SistemaMPN-2026/
 
 - .NET 8.0 SDK
 - PostgreSQL 14+
-- Node.js (solo para desarrollo)
 
 
