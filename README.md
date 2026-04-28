@@ -44,12 +44,36 @@ Para el correcto funcionamiento del sistema se requieren los siguientes componen
 - **PostgreSQL** - Servidor de base de datos. Puede ejecutarse de forma local o en contenedor Docker.
 - **Servidor SMTP** - Servidor de correo saliente para el envío de notificaciones por email.
 - **Cuenta Mega.nz** - Credenciales de acceso para el almacenamiento de archivos en la nube.
-- **reCAPTCHA v2** - Configuración de claves (Site Key y Secret Key) proporcionadas por Google Cloud Console.
+- **reCAPTCHA v3** - Configuración de claves (Site Key y Secret Key) proporcionadas por Google Cloud Console.
+
+## Quick Start
+
+```bash
+# Clonar el repositorio
+git clone https://github.com/tu-usuario/SistemaMPN-2026.git
+
+# Restaurar paquetes
+dotnet restore
+
+# Configurar variables de entorno (copiar example.env y configurar)
+cp SistemaMPN/example.env SistemaMPN/.env
+
+# Ejecutar migraciones de base de datos
+dotnet ef database update
+
+# Iniciar API (Backend)
+dotnet run --project SistemaMPN
+
+# Iniciar cliente (Frontend) - en otra terminal
+dotnet run --project SistemaMPN.Client
+```
+
+> **Nota:** Asegúrate de tener PostgreSQL en ejecución antes de iniciar el proyecto.
 
 ## Configuración
 
-El sistema utiliza variables de configuración que deben configurarse en el archivo `appsettings.json` o mediante variables de entorno
-Para un ejemplo de esto revisar el example.env en la carpeta de SistemaMPN
+El sistema utiliza variables de configuración que deben configurarse en el archivo `appsettings.json` o mediante variables de entorno.
+Para un ejemplo detallado, revisar el archivo `example.env` en la carpeta `SistemaMPN/`.
 
 ## Estructura del Proyecto
 
@@ -66,3 +90,5 @@ SistemaMPN-2026/
 - .NET 8.0 SDK
 - PostgreSQL 14+
 - Node.js (solo para desarrollo)
+
+
