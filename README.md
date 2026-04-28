@@ -58,17 +58,14 @@ dotnet restore
 # Configurar variables de entorno (copiar example.env y configurar)
 cp SistemaMPN/example.env SistemaMPN/.env
 
-# Ejecutar migraciones de base de datos
-dotnet ef database update
+# Crear base de datos y ejecutar el script SQL
+psql -U tu_usuario -d postgres -f TablasSistemaMPN.sql
 
-# Iniciar API (Backend)
+# Iniciar el proyecto (Backend + Frontend)
 dotnet run --project SistemaMPN
-
-# Iniciar cliente (Frontend) - en otra terminal
-dotnet run --project SistemaMPN.Client
 ```
 
-> **Nota:** Asegúrate de tener PostgreSQL en ejecución antes de iniciar el proyecto.
+> **Nota:** El comando anterior inicia tanto el backend como el frontend automáticamente.
 
 ## Configuración
 
@@ -89,6 +86,5 @@ SistemaMPN-2026/
 
 - .NET 8.0 SDK
 - PostgreSQL 14+
-- Node.js (solo para desarrollo)
 
 
