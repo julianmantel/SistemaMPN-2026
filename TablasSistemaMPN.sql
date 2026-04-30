@@ -405,5 +405,72 @@ CREATE UNIQUE INDEX IF NOT EXISTS ix_asistencias_miembro_evento
 	ON asistencias (id_miembro, id_evento) WHERE id_miembro IS NOT NULL;
 CREATE INDEX IF NOT EXISTS ix_asistencias_email_evento 
 	ON asistencias (email_visitante, id_evento) WHERE email_visitante IS NOT NULL;
+
 --ROLLBACK
 --COMMIT
+
+-- 0.Crear roles
+INSERT INTO roles (nombre) VALUES
+('Admin'),
+('Auditor'),
+('Gestor de Miembros'),
+('Lider'),
+('Tesorero'),
+('ProTesorero'),
+('Consultor');
+
+-- 1. Crear un miembro con información básica
+INSERT INTO miembros (
+    dni,
+    nombre,
+    apellido,
+    fecha_nacimiento,
+    nacionalidad,
+    telefono,
+    sexo,
+    fecha_creacion
+)
+VALUES (
+    '12345678',
+    'Admin',
+    'Principal',
+    '1990-01-01',
+    'Argentina',
+    '3430000000',
+    'M',
+    NOW()
+);
+
+-- 2. Crear usuario Admin asociado al miembro creado
+INSERT INTO usuarios (
+    user_name,
+    correo,
+    id_miembros
+)
+VALUES (
+    'admin',
+    'tugmail@gmail.com',
+    (
+        SELECT id_miembros
+        FROM miembros
+        WHERE dni = '12345678'
+    )
+);
+
+-- 3. Asignar rol Admin al usuario
+INSERT INTO roles_usuarios (
+    id_rol,
+    id_usuarios
+)
+VALUES (
+    (
+        SELECT id_rol
+        FROM roles
+        WHERE nombre = 'Admin'
+    ),
+    (
+        SELECT id_usuarios
+        FROM usuarios
+        WHERE correo = 'tugmail@gmail.com'
+    )
+);
