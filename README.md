@@ -72,6 +72,27 @@ dotnet run --project SistemaMPN
 El sistema utiliza variables de configuración que deben configurarse en el archivo `appsettings.json` o mediante variables de entorno.
 Para un ejemplo detallado, revisar el archivo `example.env` en la carpeta `SistemaMPN/`.
 
+## Acceso inicial al sistema
+
+Al ejecutar el script de base de datos se crea automáticamente un usuario administrador:
+
+- **Usuario:** `admin`  
+- **Correo inicial:** `tugmail@gmail.com`  
+
+> El correo inicial debe cambiarse a uno que el usuario desee.
+
+## Primer Inicio de Sesion
+
+Para acceder por primera vez:
+
+1. Ir a la pantalla de login.
+2. Hacer clic en **“Restaurar contraseña”**.
+3. Ingresar el correo del usuario administrador.
+4. Revisar el email recibido.
+5. Seguir el enlace para crear una nueva contraseña.
+
+A partir de este punto es posible usar el sistema para crear miembros y usuarios.
+
 ## Estructura del Proyecto
 
 ```
